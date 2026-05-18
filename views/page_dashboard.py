@@ -174,14 +174,25 @@ Here's your business snapshot for
                 )
                 st.plotly_chart(fig2, use_container_width=True)
 
-        # Top products
+        # Top products — read from sale_items for accurate per-product breakdown
         section_header("Top Selling Products (by Revenue)")
-        top_df = (
-            sales_df.groupby("product_name")["total_amount"]
-            .sum().reset_index()
-            .sort_values("total_amount", ascending=True)
-            .tail(8)
-        )
+        try:
+            items_df = db_fetch(TBL_SALE_ITEMS, {"business_id": business_id})
+            if not items_df.empty:
+                items_df["line_total"] = pd.to_numeric(
+                    items_df["line_total"], errors="coerce").fillna(0)
+                top_df = (
+                    items_df.groupby("product_name")["line_total"]
+                    .sum().reset_index()
+                    .rename(columns={"line_total": "total_amount"})
+                    .sort_values("total_amount", ascending=True)
+                    .tail(8)
+                )
+            else:
+                top_df = pd.DataFrame()
+        except Exception:
+            top_df = pd.DataFrame()
+
         if not top_df.empty:
             fig3 = px.bar(
                 top_df, x="total_amount", y="product_name",
@@ -193,10 +204,16 @@ Here's your business snapshot for
                 margin=dict(l=0, r=0, t=10, b=0),
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)",
-                xaxis=dict(tickprefix="₦", gridcolor="#f1f5f9"),
+                xaxis=dict(
+                    tickprefix="₦", tickformat=",.0f",
+                    gridcolor="rgba(255,255,255,0.06)"
+                ),
+                yaxis=dict(tickfont=dict(size=11)),
                 height=300,
             )
             st.plotly_chart(fig3, use_container_width=True)
+        elif not sales_df.empty:
+            st.caption("Product breakdown available after recording sales with the new cart system.")
     else:
         st.info("📭 No sales data yet. Record your first sale to see analytics here.")
 
