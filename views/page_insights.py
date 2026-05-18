@@ -26,7 +26,7 @@ def page_insights():
         sales_df    = get_sales_df(business_id)
         products_df = get_products_df(business_id)
         expenses_df = get_expenses_df(business_id)
-        insights    = compute_insights(sales_df, products_df, expenses_df)
+        insights    = compute_insights(sales_df, products_df, expenses_df, business_id)
 
     if sales_df.empty:
         st.info("📭 No data yet. Record some sales to unlock insights.")
