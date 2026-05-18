@@ -18,7 +18,7 @@ import urllib.parse
 
 def page_change_password(forced=True):
     inject_styles()
-    user = st.session_state.get("user", {})
+    user = st.session_state.get("user") or {}
 
     _, col, _ = st.columns([1, 2, 1])
     with col:
@@ -80,4 +80,3 @@ def page_change_password(forced=True):
 # ─────────────────────────────────────────────
 #  PAGE: DASHBOARD
 # ─────────────────────────────────────────────
-
