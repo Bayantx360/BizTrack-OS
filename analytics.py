@@ -3,7 +3,9 @@
 # ============================================================
 
 import pandas as pd
+import streamlit as st
 from datetime import datetime, timedelta
+from config import TBL_SALE_ITEMS
 
 
 def compute_kpis(sales_df: pd.DataFrame, expenses_df: pd.DataFrame):
@@ -79,7 +81,7 @@ def compute_kpis(sales_df: pd.DataFrame, expenses_df: pd.DataFrame):
     return kpis
 
 
-def compute_insights(sales_df, products_df, expenses_df):
+def compute_insights(sales_df, products_df, expenses_df, business_id=""):
     """Return structured insights dict for the Insights page."""
     insights = {
         "top_products_revenue":  pd.DataFrame(),
@@ -101,23 +103,56 @@ def compute_insights(sales_df, products_df, expenses_df):
 
     df = sales_df.dropna(subset=["sale_date"]).copy()
 
-    # Top products by revenue
-    top_rev = (
-        df.groupby("product_name")["total_amount"]
-        .sum().reset_index()
-        .sort_values("total_amount", ascending=False)
-        .head(10)
-    )
+    # Top products — read from sale_items to get accurate per-product breakdown
+    # (sales table stores combined names for multi-item carts)
+    try:
+        from db import db_fetch
+        items_df = db_fetch(TBL_SALE_ITEMS, {"business_id": business_id})
+        if not items_df.empty:
+            items_df["line_total"] = pd.to_numeric(items_df["line_total"], errors="coerce").fillna(0)
+            items_df["quantity"]   = pd.to_numeric(items_df["quantity"],   errors="coerce").fillna(0)
+            top_rev = (
+                items_df.groupby("product_name")["line_total"]
+                .sum().reset_index()
+                .rename(columns={"line_total": "total_amount"})
+                .sort_values("total_amount", ascending=False)
+                .head(10)
+            )
+            top_qty = (
+                items_df.groupby("product_name")["quantity"]
+                .sum().reset_index()
+                .sort_values("quantity", ascending=False)
+                .head(10)
+            )
+        else:
+            # Fallback to sales table if sale_items is empty (legacy data)
+            top_rev = (
+                df.groupby("product_name")["total_amount"]
+                .sum().reset_index()
+                .sort_values("total_amount", ascending=False)
+                .head(10)
+            )
+            top_qty = (
+                df.groupby("product_name")["quantity"]
+                .sum().reset_index()
+                .sort_values("quantity", ascending=False)
+                .head(10)
+            )
+    except Exception:
+        top_rev = (
+            df.groupby("product_name")["total_amount"]
+            .sum().reset_index()
+            .sort_values("total_amount", ascending=False)
+            .head(10)
+        )
+        top_qty = (
+            df.groupby("product_name")["quantity"]
+            .sum().reset_index()
+            .sort_values("quantity", ascending=False)
+            .head(10)
+        )
     insights["top_products_revenue"] = top_rev
-
-    # Top products by quantity
-    top_qty = (
-        df.groupby("product_name")["quantity"]
-        .sum().reset_index()
-        .sort_values("quantity", ascending=False)
-        .head(10)
-    )
-    insights["top_products_qty"] = top_qty
+    insights["top_products_qty"]     = top_qty
 
     # Daily trend (last 30 days)
     df["date"] = df["sale_date"].dt.date
