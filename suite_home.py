@@ -160,7 +160,7 @@ def page_login():
   <span class="lp-trust-item"><span>🔒</span> Bank-level encryption</span>
   <span class="lp-trust-item"><span>☁️</span> Cloud-backed daily</span>
   <span class="lp-trust-item"><span>📱</span> Works on mobile</span>
-  <span class="lp-trust-item"><span>🇳🇬</span> Built for Nigeria</span>
+  <span class="lp-trust-item"><span>🏣</span> Built for SMEs</span>
 </div>
 
 <div style="
@@ -174,7 +174,7 @@ def page_login():
     NEED HELP? GET IN TOUCH
   </div>
   <div style="display:flex;justify-content:center;gap:1.25rem;flex-wrap:wrap;">
-    <a href="https://wa.me/08077580631"
+    <a href="https://wa.me/2348077580631"
        target="_blank"
        style="display:inline-flex;align-items:center;gap:0.4rem;
          background:#0a2a1e;border:1px solid #00C896;
