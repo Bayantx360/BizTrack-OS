@@ -160,7 +160,7 @@ def page_login():
   <span class="lp-trust-item"><span>🔒</span> Bank-level encryption</span>
   <span class="lp-trust-item"><span>☁️</span> Cloud-backed daily</span>
   <span class="lp-trust-item"><span>📱</span> Works on mobile</span>
-  <span class="lp-trust-item"><span>🇳🇬</span> Built for Nigeria</span>
+  <span class="lp-trust-item"><span>🏣</span> Built for all SMEs</span>
 </div>
 
 <div style="
