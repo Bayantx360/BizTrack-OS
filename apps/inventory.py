@@ -416,74 +416,83 @@ def page_products():
 
             st.markdown("---")
 
+            # ── Delivery fields (outside form for reactivity) ──
+            st.markdown("**📥 New Delivery**")
+            rd1, rd2 = st.columns(2)
+            add_qty      = rd1.number_input(
+                f"Packs Received ({base_unit}s) *",
+                min_value=1, step=1, value=10,
+                key="restock_add_qty",
+                help=f"Number of {base_unit}s received from supplier",
+            )
+            restock_note = rd2.text_input(
+                "Supplier / Note",
+                placeholder="e.g. Alhaji Musa delivery",
+                key="restock_note",
+            )
+
+            st.markdown("---")
+
+            # ── Price update (outside form so checkbox reacts immediately) ──
+            st.markdown("**💰 Update Prices**")
+            update_prices = st.checkbox(
+                "Supplier prices have changed — update now",
+                value=False,
+                key="restock_update_prices",
+                help="Tick this if cost or selling prices changed with this delivery",
+            )
+
+            if update_prices:
+                st.caption("Pre-filled with current prices. Edit only what changed.")
+
+                new_cost = st.number_input(
+                    f"New Cost Price per {base_unit} (₦)",
+                    min_value=0.0, step=50.0, value=float(cur_cost),
+                    key="restock_new_cost",
+                )
+                if new_cost != cur_cost and cur_cost > 0:
+                    diff = new_cost - cur_cost
+                    pct  = diff / cur_cost * 100
+                    icon = "📈 Cost UP" if diff > 0 else "📉 Cost DOWN"
+                    st.caption(f"{icon} by {fmt_naira(abs(diff))} ({abs(pct):.1f}%)")
+
+                st.markdown("**Pack Selling Price**")
+                new_sell_pack = st.number_input(
+                    f"New Selling Price per {base_unit} (₦)",
+                    min_value=0.0, step=50.0, value=float(cur_sell_pack),
+                    key="restock_new_sell_pack",
+                )
+                if new_cost > 0 and new_sell_pack > 0:
+                    pm = new_sell_pack - new_cost
+                    st.caption(
+                        f"New pack margin: {fmt_naira(pm)} ({pm/new_sell_pack*100:.1f}%)"
+                    )
+
+                st.markdown("**Unit Selling Price**")
+                suggested_unit = round(new_sell_pack / upp, 2) if upp > 1 else new_sell_pack
+                new_sell_unit  = st.number_input(
+                    f"New Selling Price per {sub_unit} (₦)",
+                    min_value=0.0, step=50.0,
+                    value=float(cur_sell_unit) if cur_sell_unit > 0 else float(suggested_unit),
+                    key="restock_new_sell_unit",
+                    help=f"Suggested: {fmt_naira(suggested_unit)}" if upp > 1 else "",
+                )
+                if upp > 1 and new_sell_unit > 0 and new_cost > 0:
+                    um = new_sell_unit - (new_cost / upp)
+                    st.caption(
+                        f"New unit margin: {fmt_naira(um)} | "
+                        f"All {upp} units = {fmt_naira(new_sell_unit * upp)} "
+                        f"vs pack {fmt_naira(new_sell_pack)}"
+                    )
+            else:
+                new_cost      = cur_cost
+                new_sell_pack = cur_sell_pack
+                new_sell_unit = cur_sell_unit
+
+            st.markdown("---")
+
+            # ── Submit button only inside the form ──
             with st.form("restock_form", clear_on_submit=True):
-
-                # Delivery details
-                st.markdown("**📥 New Delivery**")
-                rd1, rd2 = st.columns(2)
-                add_qty      = rd1.number_input(
-                    f"Packs Received ({base_unit}s) *",
-                    min_value=1, step=1, value=10,
-                    help=f"Number of {base_unit}s received from supplier",
-                )
-                restock_note = rd2.text_input(
-                    "Supplier / Note", placeholder="e.g. Alhaji Musa delivery"
-                )
-
-                st.markdown("---")
-
-                # Price update section
-                st.markdown("**💰 Update Prices**")
-                update_prices = st.checkbox(
-                    "Supplier prices have changed — update now",
-                    value=False,
-                    help="Tick this if cost or selling prices changed with this delivery",
-                )
-
-                if update_prices:
-                    st.caption("Pre-filled with current prices. Edit only what changed.")
-
-                    new_cost = st.number_input(
-                        f"New Cost Price per {base_unit} (₦)",
-                        min_value=0.0, step=50.0, value=float(cur_cost),
-                    )
-                    if new_cost != cur_cost and cur_cost > 0:
-                        diff = new_cost - cur_cost
-                        pct  = diff / cur_cost * 100
-                        icon = "📈 Cost UP" if diff > 0 else "📉 Cost DOWN"
-                        st.caption(f"{icon} by {fmt_naira(abs(diff))} ({abs(pct):.1f}%)")
-
-                    st.markdown("**Pack Selling Price**")
-                    new_sell_pack = st.number_input(
-                        f"New Selling Price per {base_unit} (₦)",
-                        min_value=0.0, step=50.0, value=float(cur_sell_pack),
-                    )
-                    if new_cost > 0 and new_sell_pack > 0:
-                        pm = new_sell_pack - new_cost
-                        st.caption(
-                            f"New pack margin: {fmt_naira(pm)} ({pm/new_sell_pack*100:.1f}%)"
-                        )
-
-                    st.markdown("**Unit Selling Price**")
-                    suggested_unit = round(new_sell_pack / upp, 2) if upp > 1 else new_sell_pack
-                    new_sell_unit  = st.number_input(
-                        f"New Selling Price per {sub_unit} (₦)",
-                        min_value=0.0, step=50.0,
-                        value=float(cur_sell_unit) if cur_sell_unit > 0 else float(suggested_unit),
-                        help=f"Suggested: {fmt_naira(suggested_unit)}" if upp > 1 else "",
-                    )
-                    if upp > 1 and new_sell_unit > 0 and new_cost > 0:
-                        um = new_sell_unit - (new_cost / upp)
-                        st.caption(
-                            f"New unit margin: {fmt_naira(um)} | "
-                            f"All {upp} units = {fmt_naira(new_sell_unit * upp)} "
-                            f"vs pack {fmt_naira(new_sell_pack)}"
-                        )
-                else:
-                    new_cost      = cur_cost
-                    new_sell_pack = cur_sell_pack
-                    new_sell_unit = cur_sell_unit
-
                 submitted = st.form_submit_button(
                     "🔄 Confirm Restock", use_container_width=True, type="primary"
                 )
@@ -569,4 +578,4 @@ def page_products():
                     "recorded_by":  "Recorded By",
                 }),
                 use_container_width=True,
-                      )
+      )
