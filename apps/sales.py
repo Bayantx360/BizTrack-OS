@@ -25,7 +25,7 @@ import streamlit as st
 
 from shared.db import (
     get_supabase,
-    get_sales_df, get_products_df, get_expenses_df,
+    get_sales_df, get_products_df, get_products_df_live, get_expenses_df,
     compute_kpis,
     db_fetch, db_insert, db_update, db_delete,
     TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS,
@@ -71,7 +71,7 @@ def page_dashboard():
 
     with st.spinner("Loading your data…"):
         sales_df    = get_sales_df(business_id)
-        products_df = get_products_df(business_id)
+        products_df = get_products_df_live(business_id)  # live — alerts must be accurate
         expenses_df = get_expenses_df(business_id)
         kpis        = compute_kpis(sales_df, expenses_df)
 
@@ -208,7 +208,8 @@ def page_record_sale():
 
     page_header("🛒 Record a Sale", "Build a cart, apply discounts, print receipt")
 
-    products_df = get_products_df(business_id)
+    # Always fetch live stock — never use cache here to prevent overselling
+    products_df = get_products_df_live(business_id)
     if products_df.empty:
         st.warning("No products found. Please add products in the Inventory app first.")
         if st.button("→ Go to Inventory"):
@@ -621,6 +622,8 @@ def page_record_sale():
     section_header("Today's Sales")
     today       = datetime.now().date()
     sales_df    = get_sales_df(business_id)
+    # Also refresh products so low-stock alerts are accurate
+    products_df = get_products_df_live(business_id)
     today_sales = (sales_df[sales_df["sale_date"].dt.date == today]
                    if not sales_df.empty else pd.DataFrame())
     kpi_card("Today's Revenue",
