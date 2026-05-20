@@ -48,8 +48,8 @@ PAYMENT_DETAILS = {
     "monthly_price":       1500,
     "yearly_price":        15000,
     "trial_days":          14,
-    "flutterwave_monthly": "https://flutterwave.com/pay/YOUR_MONTHLY_LINK",
-    "flutterwave_yearly":  "https://flutterwave.com/pay/YOUR_YEARLY_LINK",
+    "flutterwave_monthly": "https://flutterwave.com/pay/e2jsc3ckyfya",
+    "flutterwave_yearly":  "https://flutterwave.com/pay/ztzprecyyhg2",
 }
 
 
