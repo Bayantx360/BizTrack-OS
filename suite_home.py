@@ -150,9 +150,9 @@ def page_login():
 
         st.markdown("---")
         c1, c2 = st.columns(2)
-        if c1.button("Create account", use_container_width=True, type="primary"):
+        if c1.button("Create account", use_container_width=True):
             st.session_state.current_page = "signup"; st.rerun()
-        if c2.button("Forgot password?", use_container_width=True, type="primary"):
+        if c2.button("Forgot password?", use_container_width=True):
             st.session_state.current_page = "forgot_password"; st.rerun()
 
         st.markdown("""
@@ -161,6 +161,49 @@ def page_login():
   <span class="lp-trust-item"><span>☁️</span> Cloud-backed daily</span>
   <span class="lp-trust-item"><span>📱</span> Works on mobile</span>
   <span class="lp-trust-item"><span>🇳🇬</span> Built for Nigeria</span>
+</div>
+
+<div style="
+  margin-top:2rem;
+  padding-top:1.25rem;
+  border-top:1px solid #1F2D3D;
+  text-align:center;
+">
+  <div style="font-size:0.72rem;color:#4A6080;margin-bottom:0.75rem;
+    font-family:'DM Mono',monospace;letter-spacing:0.05em;">
+    NEED HELP? GET IN TOUCH
+  </div>
+  <div style="display:flex;justify-content:center;gap:1.25rem;flex-wrap:wrap;">
+    <a href="https://wa.me/08077580631"
+       target="_blank"
+       style="display:inline-flex;align-items:center;gap:0.4rem;
+         background:#0a2a1e;border:1px solid #00C896;
+         color:#00C896;border-radius:99px;
+         padding:0.4rem 1rem;font-size:0.78rem;font-weight:600;
+         text-decoration:none;transition:opacity 0.2s;">
+      <span>💬</span> WhatsApp
+    </a>
+    <a href="https://twitter.com/Bayantx360"
+       target="_blank"
+       style="display:inline-flex;align-items:center;gap:0.4rem;
+         background:#0a1525;border:1px solid #1d9bf0;
+         color:#1d9bf0;border-radius:99px;
+         padding:0.4rem 1rem;font-size:0.78rem;font-weight:600;
+         text-decoration:none;transition:opacity 0.2s;">
+      <span>𝕏</span> Twitter
+    </a>
+    <a href="mailto:Bayantx360@gmail.com"
+       style="display:inline-flex;align-items:center;gap:0.4rem;
+         background:#1a1025;border:1px solid #F5A623;
+         color:#F5A623;border-radius:99px;
+         padding:0.4rem 1rem;font-size:0.78rem;font-weight:600;
+         text-decoration:none;transition:opacity 0.2s;">
+      <span>📧</span> Email
+    </a>
+  </div>
+  <div style="margin-top:1.25rem;font-size:0.68rem;color:#2D3F55;">
+    © 2026 BizTrack · All rights reserved
+  </div>
 </div>
         """, unsafe_allow_html=True)
 
