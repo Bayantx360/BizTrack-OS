@@ -492,6 +492,8 @@ def page_record_sale():
                         else:
                             st.error(f"❌ DEBUG: live_products is EMPTY for business_id={business_id}")
 
+                    st.stop()  # DEBUG — remove after diagnosis
+
                     st.session_state.sale_done = {
                         "sale_id":       sale_id,
                         "sale_time":     sale_time,
