@@ -541,15 +541,41 @@ def page_record_sale():
                                                 Spacer, HRFlowable, Table, TableStyle)
                 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
                 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+                from reportlab.pdfbase import pdfmetrics
+                from reportlab.pdfbase.ttfonts import TTFont
+                import urllib.request, os, tempfile
+
+                # Download DejaVuSans which supports the ₦ Naira symbol
+                _font_dir  = tempfile.gettempdir()
+                _font_path = os.path.join(_font_dir, "DejaVuSans.ttf")
+                _fontb_path = os.path.join(_font_dir, "DejaVuSans-Bold.ttf")
+                if not os.path.exists(_font_path):
+                    urllib.request.urlretrieve(
+                        "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf",
+                        _font_path
+                    )
+                if not os.path.exists(_fontb_path):
+                    urllib.request.urlretrieve(
+                        "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Bold.ttf",
+                        _fontb_path
+                    )
+                try:
+                    pdfmetrics.registerFont(TTFont("DejaVuSans",     _font_path))
+                    pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", _fontb_path))
+                    _body_font  = "DejaVuSans"
+                    _bold_font  = "DejaVuSans-Bold"
+                except Exception:
+                    _body_font  = "Helvetica"
+                    _bold_font  = "Helvetica-Bold"
 
                 buf  = io.BytesIO()
                 doc  = SimpleDocTemplate(buf, pagesize=A6,
                                          leftMargin=10*mm, rightMargin=10*mm,
                                          topMargin=8*mm,  bottomMargin=8*mm)
                 styl = getSampleStyleSheet()
-                bc   = ParagraphStyle("bc", parent=styl["Normal"], fontName="Helvetica-Bold",
+                bc   = ParagraphStyle("bc", parent=styl["Normal"], fontName=_bold_font,
                                       fontSize=11, alignment=TA_CENTER, spaceAfter=2)
-                nc   = ParagraphStyle("nc", parent=styl["Normal"], fontSize=8,
+                nc   = ParagraphStyle("nc", parent=styl["Normal"], fontName=_body_font, fontSize=8,
                                       alignment=TA_CENTER, spaceAfter=1)
 
                 story = [
@@ -569,7 +595,8 @@ def page_record_sale():
                                   f"₦{neg:,.0f}", f"₦{item['line_total']:,.0f}"])
                 t = Table(tdata, colWidths=[45*mm, 10*mm, 22*mm, 22*mm])
                 t.setStyle(TableStyle([
-                    ("FONTNAME",  (0,0), (-1,0),  "Helvetica-Bold"),
+                    ("FONTNAME",  (0,0), (-1,0),   _bold_font),   # header row bold
+                    ("FONTNAME",  (0,1), (-1,-1),  _body_font),   # data rows — needs Unicode for ₦
                     ("FONTSIZE",  (0,0), (-1,-1),  8),
                     ("ALIGN",     (1,0), (-1,-1),  "RIGHT"),
                     ("LINEBELOW", (0,0), (-1,0),   0.5, colors.black),
