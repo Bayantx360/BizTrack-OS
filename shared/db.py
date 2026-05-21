@@ -105,11 +105,15 @@ def db_insert(table: str, row: dict) -> bool:
 
 
 def db_update(table: str, id_col: str, id_val: str, updates: dict) -> bool:
-    """UPDATE table SET updates WHERE id_col = id_val."""
+    """UPDATE table SET updates WHERE id_col = id_val. Returns True only if a row was actually changed."""
     try:
-        sb = get_supabase()
-        sb.table(table).update(updates).eq(id_col, id_val).execute()
+        sb  = get_supabase()
+        res = sb.table(table).update(updates).eq(id_col, id_val).execute()
         st.cache_data.clear()
+        # Supabase returns the updated rows in res.data — empty list means nothing matched / RLS blocked it
+        if not res.data:
+            st.error(f"❌ Update on {table} matched no rows (check RLS policies and id value: {id_val})")
+            return False
         return True
     except Exception as e:
         st.error(f"❌ Error updating {table}: {e}")
