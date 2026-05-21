@@ -150,9 +150,9 @@ def page_login():
 
         st.markdown("---")
         c1, c2 = st.columns(2)
-        if c1.button("Create account", use_container_width=True):
+        if c1.button("Create account", use_container_width=True, type="primary"):
             st.session_state.current_page = "signup"; st.rerun()
-        if c2.button("Forgot password?", use_container_width=True):
+        if c2.button("Forgot password?", use_container_width=True, type="primary"):
             st.session_state.current_page = "forgot_password"; st.rerun()
 
         st.markdown("""
