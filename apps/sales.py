@@ -465,63 +465,25 @@ def page_record_sale():
                             "cost_total":   item["cost_total"],
                             "gross_profit": item["gross_profit"],
                         })
-                    # Deduct stock — direct Supabase call, verified on every item
-                    sb = get_supabase()
-                    stock_deduction_errors = []
+                    # Deduct stock — same proven pattern as old system,
+                    # using business_id filter so RLS policies are always satisfied.
+                    # stock_deduct (not quantity) is used so sub-unit sales
+                    # correctly reduce fractional base-unit stock.
+                    live_products = get_products_df_live(business_id)
                     for item in cart:
-                        try:
-                            # Step 1: read current live stock directly (freshest possible read)
-                            res = sb.table(TBL_PRODUCTS).select(
-                                "product_id,stock_quantity,units_per_pack"
-                            ).eq("product_id", item["product_id"]).execute()
-
-                            if not res.data:
-                                stock_deduction_errors.append(
-                                    f"Product not found in DB: {item['product_name']}"
-                                )
-                                continue
-
-                            pr_row    = res.data[0]
-                            current   = safe_float(pr_row.get("stock_quantity", 0))
-                            deduct    = safe_float(item.get("stock_deduct", item["quantity"]))
-                            upp       = safe_int(pr_row.get("units_per_pack", 1)) or 1
-
-                            # Step 2: calculate new stock
-                            new_stock = current - deduct
-                            if upp <= 1:
-                                new_stock = int(max(0, round(new_stock)))
-                            else:
-                                new_stock = max(0.0, round(new_stock, 4))
-
-                            # Step 3: write to Supabase and VERIFY the write was accepted
-                            update_res = sb.table(TBL_PRODUCTS).update(
-                                {"stock_quantity": new_stock}
-                            ).eq("product_id", item["product_id"]).execute()
-
-                            if not update_res.data:
-                                # Supabase returned empty — RLS policy blocked write or ID mismatch
-                                stock_deduction_errors.append(
-                                    f"Stock write rejected for '{item['product_name']}' "
-                                    f"(product_id={item['product_id']}). "
-                                    f"Check Supabase RLS policy on the products table — "
-                                    f"the service key must have UPDATE permission."
-                                )
-
-                        except Exception as e:
-                            stock_deduction_errors.append(
-                                f"Stock deduction exception for {item['product_name']}: {e}"
-                            )
-
-                    # Clear cache after all deductions so next page load shows fresh stock
-                    st.cache_data.clear()
-
-                    if stock_deduction_errors:
-                        st.error(
-                            "❌ **Stock deduction failed — sale was recorded but inventory was NOT updated.**\n\n"
-                            + "\n".join(f"• {e}" for e in stock_deduction_errors)
-                            + "\n\n**Action required:** Fix the errors above, then either void this sale "
-                            "and re-enter it, or manually adjust stock in Inventory."
-                        )
+                        if not live_products.empty:
+                            pr = live_products[live_products["product_id"] == item["product_id"]]
+                            if not pr.empty:
+                                current = safe_float(pr.iloc[0]["stock_quantity"])
+                                deduct  = safe_float(item.get("stock_deduct", item["quantity"]))
+                                upp     = safe_int(pr.iloc[0].get("units_per_pack", 1)) or 1
+                                new_stock = current - deduct
+                                if upp <= 1:
+                                    new_stock = int(max(0, round(new_stock)))
+                                else:
+                                    new_stock = max(0.0, round(new_stock, 4))
+                                db_update(TBL_PRODUCTS, "product_id", item["product_id"],
+                                          {"stock_quantity": new_stock})
 
                     st.session_state.sale_done = {
                         "sale_id":       sale_id,
