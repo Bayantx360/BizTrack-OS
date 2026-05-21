@@ -465,17 +465,20 @@ def page_record_sale():
                             "cost_total":   item["cost_total"],
                             "gross_profit": item["gross_profit"],
                         })
-                    # Deduct stock — direct Supabase call, no cache, no abstraction
+                    # Deduct stock — direct Supabase call, verified on every item
                     sb = get_supabase()
+                    stock_deduction_errors = []
                     for item in cart:
                         try:
-                            # Step 1: read current live stock directly
+                            # Step 1: read current live stock directly (freshest possible read)
                             res = sb.table(TBL_PRODUCTS).select(
                                 "product_id,stock_quantity,units_per_pack"
                             ).eq("product_id", item["product_id"]).execute()
 
                             if not res.data:
-                                st.warning(f"⚠️ Product not found: {item['product_name']}")
+                                stock_deduction_errors.append(
+                                    f"Product not found in DB: {item['product_name']}"
+                                )
                                 continue
 
                             pr_row    = res.data[0]
@@ -490,16 +493,35 @@ def page_record_sale():
                             else:
                                 new_stock = max(0.0, round(new_stock, 4))
 
-                            # Step 3: write directly to Supabase — no wrapper
-                            sb.table(TBL_PRODUCTS).update(
+                            # Step 3: write to Supabase and VERIFY the write was accepted
+                            update_res = sb.table(TBL_PRODUCTS).update(
                                 {"stock_quantity": new_stock}
                             ).eq("product_id", item["product_id"]).execute()
 
+                            if not update_res.data:
+                                # Supabase returned empty — RLS policy blocked write or ID mismatch
+                                stock_deduction_errors.append(
+                                    f"Stock write rejected for '{item['product_name']}' "
+                                    f"(product_id={item['product_id']}). "
+                                    f"Check Supabase RLS policy on the products table — "
+                                    f"the service key must have UPDATE permission."
+                                )
+
                         except Exception as e:
-                            st.warning(f"⚠️ Stock deduction failed for {item['product_name']}: {e}")
+                            stock_deduction_errors.append(
+                                f"Stock deduction exception for {item['product_name']}: {e}"
+                            )
 
                     # Clear cache after all deductions so next page load shows fresh stock
                     st.cache_data.clear()
+
+                    if stock_deduction_errors:
+                        st.error(
+                            "❌ **Stock deduction failed — sale was recorded but inventory was NOT updated.**\n\n"
+                            + "\n".join(f"• {e}" for e in stock_deduction_errors)
+                            + "\n\n**Action required:** Fix the errors above, then either void this sale "
+                            "and re-enter it, or manually adjust stock in Inventory."
+                        )
 
                     st.session_state.sale_done = {
                         "sale_id":       sale_id,
