@@ -465,63 +465,26 @@ def page_record_sale():
                             "cost_total":   item["cost_total"],
                             "gross_profit": item["gross_profit"],
                         })
-                    # Deduct stock — direct Supabase call, verified on every item
-                    sb = get_supabase()
-                    stock_deduction_errors = []
+                    # Deduct stock — business_id filter satisfies RLS.
+                    # stock_quantity is float8 in Supabase to support sub-unit sales
+                    # (e.g. selling 3 out of a 12-unit bag deducts 0.25 bags).
+                    live_products = get_products_df_live(business_id)
                     for item in cart:
-                        try:
-                            # Step 1: read current live stock directly (freshest possible read)
-                            res = sb.table(TBL_PRODUCTS).select(
-                                "product_id,stock_quantity,units_per_pack"
-                            ).eq("product_id", item["product_id"]).execute()
-
-                            if not res.data:
-                                stock_deduction_errors.append(
-                                    f"Product not found in DB: {item['product_name']}"
-                                )
-                                continue
-
-                            pr_row    = res.data[0]
-                            current   = safe_float(pr_row.get("stock_quantity", 0))
-                            deduct    = safe_float(item.get("stock_deduct", item["quantity"]))
-                            upp       = safe_int(pr_row.get("units_per_pack", 1)) or 1
-
-                            # Step 2: calculate new stock
-                            new_stock = current - deduct
-                            if upp <= 1:
-                                new_stock = int(max(0, round(new_stock)))
-                            else:
-                                new_stock = max(0.0, round(new_stock, 4))
-
-                            # Step 3: write to Supabase and VERIFY the write was accepted
-                            update_res = sb.table(TBL_PRODUCTS).update(
-                                {"stock_quantity": new_stock}
-                            ).eq("product_id", item["product_id"]).execute()
-
-                            if not update_res.data:
-                                # Supabase returned empty — RLS policy blocked write or ID mismatch
-                                stock_deduction_errors.append(
-                                    f"Stock write rejected for '{item['product_name']}' "
-                                    f"(product_id={item['product_id']}). "
-                                    f"Check Supabase RLS policy on the products table — "
-                                    f"the service key must have UPDATE permission."
-                                )
-
-                        except Exception as e:
-                            stock_deduction_errors.append(
-                                f"Stock deduction exception for {item['product_name']}: {e}"
-                            )
-
-                    # Clear cache after all deductions so next page load shows fresh stock
-                    st.cache_data.clear()
-
-                    if stock_deduction_errors:
-                        st.error(
-                            "❌ **Stock deduction failed — sale was recorded but inventory was NOT updated.**\n\n"
-                            + "\n".join(f"• {e}" for e in stock_deduction_errors)
-                            + "\n\n**Action required:** Fix the errors above, then either void this sale "
-                            "and re-enter it, or manually adjust stock in Inventory."
-                        )
+                        if not live_products.empty:
+                            pr = live_products[live_products["product_id"] == item["product_id"]]
+                            if not pr.empty:
+                                current   = safe_float(pr.iloc[0]["stock_quantity"])
+                                deduct    = safe_float(item.get("stock_deduct", item["quantity"]))
+                                raw       = current - deduct
+                                # Keep fractional stock for sub-unit products (upp > 1),
+                                # whole numbers only for products sold in full packs only.
+                                upp       = safe_int(pr.iloc[0].get("units_per_pack", 1)) or 1
+                                if upp > 1:
+                                    new_stock = round(max(0.0, raw), 4)  # float, e.g. 9.75 bags
+                                else:
+                                    new_stock = int(max(0, round(raw)))  # integer, e.g. 7 units
+                                db_update(TBL_PRODUCTS, "product_id", item["product_id"],
+                                          {"stock_quantity": new_stock})
 
                     st.session_state.sale_done = {
                         "sale_id":       sale_id,
@@ -578,15 +541,31 @@ def page_record_sale():
                                                 Spacer, HRFlowable, Table, TableStyle)
                 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
                 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+                from reportlab.pdfbase import pdfmetrics
+                from reportlab.pdfbase.ttfonts import TTFont
+                import os
+
+                # Load DejaVuSans bundled in assets/ folder — supports ₦ Naira symbol
+                _assets     = os.path.join(os.path.dirname(__file__), "..", "assets")
+                _font_path  = os.path.join(_assets, "DejaVuSans.ttf")
+                _fontb_path = os.path.join(_assets, "DejaVuSans-Bold.ttf")
+                try:
+                    pdfmetrics.registerFont(TTFont("DejaVuSans",     _font_path))
+                    pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", _fontb_path))
+                    _body_font  = "DejaVuSans"
+                    _bold_font  = "DejaVuSans-Bold"
+                except Exception:
+                    _body_font  = "Helvetica"
+                    _bold_font  = "Helvetica-Bold"
 
                 buf  = io.BytesIO()
                 doc  = SimpleDocTemplate(buf, pagesize=A6,
                                          leftMargin=10*mm, rightMargin=10*mm,
                                          topMargin=8*mm,  bottomMargin=8*mm)
                 styl = getSampleStyleSheet()
-                bc   = ParagraphStyle("bc", parent=styl["Normal"], fontName="Helvetica-Bold",
+                bc   = ParagraphStyle("bc", parent=styl["Normal"], fontName=_bold_font,
                                       fontSize=11, alignment=TA_CENTER, spaceAfter=2)
-                nc   = ParagraphStyle("nc", parent=styl["Normal"], fontSize=8,
+                nc   = ParagraphStyle("nc", parent=styl["Normal"], fontName=_body_font, fontSize=8,
                                       alignment=TA_CENTER, spaceAfter=1)
 
                 story = [
@@ -606,7 +585,8 @@ def page_record_sale():
                                   f"₦{neg:,.0f}", f"₦{item['line_total']:,.0f}"])
                 t = Table(tdata, colWidths=[45*mm, 10*mm, 22*mm, 22*mm])
                 t.setStyle(TableStyle([
-                    ("FONTNAME",  (0,0), (-1,0),  "Helvetica-Bold"),
+                    ("FONTNAME",  (0,0), (-1,0),   _bold_font),   # header row bold
+                    ("FONTNAME",  (0,1), (-1,-1),  _body_font),   # data rows — needs Unicode for ₦
                     ("FONTSIZE",  (0,0), (-1,-1),  8),
                     ("ALIGN",     (1,0), (-1,-1),  "RIGHT"),
                     ("LINEBELOW", (0,0), (-1,0),   0.5, colors.black),
