@@ -376,7 +376,7 @@ def render_sidebar():
   ">📊</div>
   <div>
     <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;
-      color:#F0F4F8;letter-spacing:-0.03em;line-height:1;">BizTrack</div>
+      color:#F0F4F8;letter-spacing:-0.03em;line-height:1;">BizTrack-OS</div>
     <div style="font-size:0.65rem;color:#4A6080;font-family:'DM Mono',monospace;
       letter-spacing:0.05em;">SUITE</div>
   </div>
