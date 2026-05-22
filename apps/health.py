@@ -720,18 +720,27 @@ def page_admin():
                     st.markdown(f"**{u['business_name']}** — {u['full_name']}")
                     st.caption(f"📧 {u['email']} | 📱 {u.get('phone','—')} | {u['plan_type']} | Expires: {u.get('subscription_end','?')}")
                 with col2:
-                    ext_days  = 365 if u.get("plan_type") == "yearly" else 30
-                    ext_label = "1 year" if ext_days == 365 else "30 days"
+                    new_plan = st.selectbox(
+                        "Plan", ["monthly", "yearly"],
+                        index=0 if u.get("plan_type","monthly") == "monthly" else 1,
+                        key=f"plan_sel_{u['user_id']}",
+                        label_visibility="collapsed"
+                    )
+                    ext_days   = 365 if new_plan == "yearly" else 30
+                    ext_label  = "1 year" if ext_days == 365 else "30 days"
+                    pay_amount = (PAYMENT_DETAILS["yearly_price"] if new_plan == "yearly"
+                                  else PAYMENT_DETAILS["monthly_price"])
                     if st.button(f"🔁 Renew ({ext_label})", key=f"ext_{u['user_id']}"):
                         curr_end = parse_date(u.get("subscription_end",""))
                         base     = curr_end if (curr_end and curr_end > datetime.now()) else datetime.now()
                         new_end  = (base + timedelta(days=ext_days)).strftime("%Y-%m-%d")
-                        db_update(TBL_USERS, "user_id", u["user_id"], {"subscription_end": new_end})
-                        pay_amount = (PAYMENT_DETAILS["yearly_price"] if ext_days == 365
-                                      else PAYMENT_DETAILS["monthly_price"])
+                        db_update(TBL_USERS, "user_id", u["user_id"], {
+                            "subscription_end": new_end,
+                            "plan_type":        new_plan,
+                        })
                         log_payment(u["user_id"], u["business_name"], u["email"],
-                                    u.get("plan_type","monthly"), pay_amount, "Renewal")
-                        st.success(f"✅ Renewed to {new_end}"); st.rerun()
+                                    new_plan, pay_amount, "Renewal")
+                        st.success(f"✅ Renewed ({new_plan}) to {new_end}"); st.rerun()
                 with col3:
                     if st.button("⛔ Deactivate", key=f"deact_{u['user_id']}"):
                         db_update(TBL_USERS, "user_id", u["user_id"], {"plan_status": "expired"})
@@ -853,17 +862,26 @@ def page_admin():
                     st.markdown(f"**{u['business_name']}** — {u['email']}")
                     st.caption(f"📧 {u['email']} | 📱 {u.get('phone','—')} | Plan: {u['plan_type']} | Expired: {u.get('subscription_end','?')}")
                 with col2:
-                    plan   = u.get("plan_type","monthly")
-                    days   = 365 if plan == "yearly" else 30
-                    end_dt = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-                    if st.button("🔁 Reactivate", key=f"react_{u['user_id']}"):
+                    react_plan = st.selectbox(
+                        "Plan", ["monthly", "yearly"],
+                        index=0 if u.get("plan_type","monthly") == "monthly" else 1,
+                        key=f"react_plan_{u['user_id']}",
+                        label_visibility="collapsed"
+                    )
+                    days       = 365 if react_plan == "yearly" else 30
+                    end_dt     = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
+                    pay_amount = (PAYMENT_DETAILS["yearly_price"] if react_plan == "yearly"
+                                  else PAYMENT_DETAILS["monthly_price"])
+                    react_label = "1 Year" if react_plan == "yearly" else "30 Days"
+                    if st.button(f"🔁 Reactivate ({react_label})", key=f"react_{u['user_id']}"):
                         db_update(TBL_USERS, "user_id", u["user_id"], {
                             "plan_status":        "active",
+                            "plan_type":          react_plan,
                             "subscription_start": datetime.now().strftime("%Y-%m-%d"),
                             "subscription_end":   end_dt,
                         })
                         log_payment(u["user_id"], u["business_name"], u["email"],
-                                    plan, PAYMENT_DETAILS["monthly_price"], "Reactivation")
-                        st.success(f"✅ {u['business_name']} reactivated until {end_dt}")
+                                    react_plan, pay_amount, "Reactivation")
+                        st.success(f"✅ {u['business_name']} reactivated ({react_plan}) until {end_dt}")
                         st.rerun()
                 st.markdown("---")
