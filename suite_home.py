@@ -88,10 +88,10 @@ def page_login():
     st.markdown("""
 <div class="lp-hero">
   <div class="lp-logo-wrap">
-    <div class="lp-logo-icon">📊</div><br>
-    <div class="lp-logo-text">BizTrack-OS</div>
+    <div class="lp-logo-icon">📊</div>
   </div>
-  
+  <div class="lp-logo-text">BizTrack-OS</div><br>
+  <div class="lp-badge"><span>●</span> All-in-one business suite</div>
   <div class="lp-headline">Run your business<br><span>smarter, not harder</span></div>
   <div class="lp-sub">
     Sales · Inventory · Business Health — three powerful tool,
