@@ -20,7 +20,7 @@ from datetime import datetime
 import streamlit as st
 
 st.set_page_config(
-    page_title="BizTrack",
+    page_title="BizTrack-OS",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -89,13 +89,13 @@ def page_login():
 <div class="lp-hero">
   <div class="lp-logo-wrap">
     <div class="lp-logo-icon">📊</div>
-    <div class="lp-logo-text">BizTrack</div>
+    <div class="lp-logo-text">BizTrack-OS</div>
   </div>
   <div class="lp-badge"><span>●</span> All-in-one business suite</div>
   <div class="lp-headline">Run your business<br><span>smarter, not harder</span></div>
   <div class="lp-sub">
-    Sales · Inventory · Business Health — three powerful apps,
-    one unified platform built for Nigerian entrepreneurs.
+    Sales · Inventory · Business Health — three powerful tool,
+    one unified platform built for Enterpreneurs & Businesses
   </div>
   <div class="lp-value-grid">
     <div class="lp-value-card">
@@ -171,7 +171,7 @@ def page_login():
 ">
   <div style="font-size:0.72rem;color:#4A6080;margin-bottom:0.75rem;
     font-family:'DM Mono',monospace;letter-spacing:0.05em;">
-    NEED HELP? GET IN TOUCH
+    Connect With Us
   </div>
   <div style="display:flex;justify-content:center;gap:1.25rem;flex-wrap:wrap;">
     <a href="https://wa.me/+2348136362633"
@@ -202,7 +202,7 @@ def page_login():
     </a>
   </div>
   <div style="margin-top:1.25rem;font-size:0.68rem;color:#2D3F55;">
-    © 2026 BizTrack · All rights reserved
+    © 2026 BizTrack-OS: Powered by Bayantx360 · All rights reserved
   </div>
 </div>
         """, unsafe_allow_html=True)
@@ -222,8 +222,8 @@ def page_signup():
         """, unsafe_allow_html=True)
 
         with st.form("signup_form"):
-            biz_name  = st.text_input("Business Name *",  placeholder="e.g. Emeka's Supermarket")
-            full_name = st.text_input("Your Full Name *",  placeholder="e.g. Emeka Obi")
+            biz_name  = st.text_input("Business Name *",  placeholder="e.g. BigBay Gadget")
+            full_name = st.text_input("Your Full Name *",  placeholder="e.g. Emeka Atanda Salisu")
             phone     = st.text_input("Phone Number *",    placeholder="e.g. 08012345678")
             email     = st.text_input("Email Address *",   placeholder="you@example.com")
             password  = st.text_input("Password *",        type="password",
