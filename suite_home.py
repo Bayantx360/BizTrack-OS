@@ -92,7 +92,7 @@ def page_login():
   </div>
   <div class="lp-logo-text">BizTrack-OS</div><br>
   <div class="lp-badge"><span>●</span> All-in-one business suite</div>
-  <div class="lp-headline">Run your business<br><span>smarter, not harder</span></div>
+  <div class="lp-headline">Run your business<br><span>smarter, and more efficiently</span></div>
   <div class="lp-sub">
     Sales · Inventory · Business Health — three powerful tool,
     one unified platform built for Enterpreneurs & Businesses
