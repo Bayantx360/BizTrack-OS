@@ -289,17 +289,18 @@ def _page_pending_payment(user: dict):
         st.link_button(
             f"💳 Pay Monthly — ₦{PAYMENT_DETAILS['monthly_price']:,}",
             url=PAYMENT_DETAILS["flutterwave_monthly"],
-            use_container_width=True, type="primary",
+            width='stretch', type="primary",
         )
         st.link_button(
             f"🏆 Pay Yearly — ₦{PAYMENT_DETAILS['yearly_price']:,} (best value, save ₦3,000)",
             url=PAYMENT_DETAILS["flutterwave_yearly"],
-            use_container_width=True,
+            width='stretch',
         )
-        if st.button("← Back to Sign In", use_container_width=True):
+        st.caption("Already paid? Your account will be activated shortly.")
+        if st.button("← Back to Sign In", width='stretch'):
             sign_out()
             st.rerun()
-        st.caption("Already paid? Your account will be activated shortly.")
+        #st.caption("Already paid? Your account will be activated shortly.")
 
 
 def _page_expired(user: dict):
@@ -325,13 +326,13 @@ Your access period has ended. Renew to continue using BizTrack-OS.</div>
         st.link_button(
             f"💳 Renew Monthly — ₦{PAYMENT_DETAILS['monthly_price']:,}",
             url=PAYMENT_DETAILS["flutterwave_monthly"],
-            use_container_width=True, type="primary",
+            width='stretch', type="primary",
         )
         st.link_button(
             f"🏆 Renew Yearly — ₦{PAYMENT_DETAILS['yearly_price']:,} (best value)",
             url=PAYMENT_DETAILS["flutterwave_yearly"],
-            use_container_width=True,
+            width='stretch',
         )
-        if st.button("Sign Out", use_container_width=True):
+        if st.button("Sign Out", width='stretch'):
             sign_out()
             st.rerun()

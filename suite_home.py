@@ -11,8 +11,6 @@ Responsibilities:
   4. Route to the correct page module based on session state
   5. Gate every authenticated page behind check_access()
 
-Run with:
-    streamlit run suite_home.py
 """
 
 from datetime import datetime
@@ -128,7 +126,7 @@ def page_login():
             email    = st.text_input("Email address", placeholder="you@example.com")
             password = st.text_input("Password", type="password", placeholder="••••••••")
             submit   = st.form_submit_button("Sign In →", type="primary",
-                                             use_container_width=True)
+                                             width='stretch')
         if submit:
             if not email or not password:
                 st.error("Please enter both email and password.")
@@ -150,9 +148,9 @@ def page_login():
 
         st.markdown("---")
         c1, c2 = st.columns(2)
-        if c1.button("Create account", use_container_width=True, type="primary"):
+        if c1.button("Create account", width='stretch', type="primary"):
             st.session_state.current_page = "signup"; st.rerun()
-        if c2.button("Forgot password?", use_container_width=True, type="primary"):
+        if c2.button("Forgot password?", width='stretch', type="primary"):
             st.session_state.current_page = "forgot_password"; st.rerun()
 
         st.markdown("""
@@ -240,7 +238,7 @@ def page_signup():
                 horizontal=False,
             )
             submit = st.form_submit_button("Create Account →", type="primary",
-                                           use_container_width=True)
+                                           width='stretch')
 
         if submit:
             if not all([biz_name, full_name, phone, email, password]):
@@ -270,7 +268,7 @@ def page_signup():
                     st.error(msg)
 
         st.markdown("---")
-        if st.button("← Already have an account? Sign in", use_container_width=True):
+        if st.button("← Already have an account? Sign in", width='stretch'):
             st.session_state.current_page = "login"; st.rerun()
 
 
@@ -291,7 +289,7 @@ def page_forgot_password():
         with st.form("forgot_form"):
             email  = st.text_input("Email address", placeholder="you@example.com")
             submit = st.form_submit_button("Request Reset", type="primary",
-                                           use_container_width=True)
+                                           width='stretch')
         if submit:
             if not email:
                 st.error("Please enter your email address.")
@@ -310,7 +308,7 @@ def page_forgot_password():
                     st.info("If that email is registered, a reset request has been submitted.")
 
         st.markdown("---")
-        if st.button("← Back to Sign In", use_container_width=True):
+        if st.button("← Back to Sign In", width='stretch'):
             st.session_state.current_page = "login"; st.rerun()
 
 
@@ -333,7 +331,7 @@ def page_force_password_change():
             new_pw  = st.text_input("New password",     type="password", placeholder="At least 6 characters")
             conf_pw = st.text_input("Confirm password", type="password", placeholder="Repeat new password")
             submit  = st.form_submit_button("Update Password →", type="primary",
-                                            use_container_width=True)
+                                            width='stretch')
         if submit:
             if len(new_pw) < 6:
                 st.error("Password must be at least 6 characters.")
@@ -447,7 +445,7 @@ def render_sidebar():
                 btn_clicked = st.button(
                     f"{emoji} {label}",
                     key=f"nav_{page_key}",
-                    use_container_width=True,
+                    width='stretch',
                     type="primary" if is_active else "secondary",
                 )
                 if btn_clicked:
@@ -457,7 +455,7 @@ def render_sidebar():
         # ── Sign out ──
         st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
         st.markdown("---")
-        if st.button("⎋ Sign Out", use_container_width=True):
+        if st.button("⎋ Sign Out", width='stretch'):
             sign_out()
             st.rerun()
 
