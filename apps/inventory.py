@@ -513,9 +513,9 @@ def page_products():
                             "business_id":  business_id,
                             "product_id":   selected_product["product_id"],
                             "product_name": selected_product["product_name"],
-                            "qty_added":    add_qty,
-                            "qty_before":   cur_stock,
-                            "qty_after":    new_qty,
+                            "qty_added":    int(add_qty),
+                            "qty_before":   int(cur_stock),
+                            "qty_after":    int(new_qty),
                             "note":         restock_note.strip() if restock_note else "",
                             "recorded_by":  user.get("full_name", user.get("email", "")),
                             "restock_date": datetime.now().isoformat(),
@@ -570,4 +570,4 @@ def page_products():
                     "recorded_by":  "Recorded By",
                 }),
                 width='stretch',
-      )
+                      )
