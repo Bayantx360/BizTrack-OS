@@ -93,7 +93,7 @@ def page_login():
   <div class="lp-headline">Run your business<br><span>smarter, and more efficiently</span></div>
   <div class="lp-sub">
     Sales · Inventory · Business Health — three powerful tool,
-    one unified platform built for Enterpreneurs & Businesses
+    one unified platform built for Entrepreneurs & Businesses
   </div>
   <div class="lp-value-grid">
     <div class="lp-value-card">
