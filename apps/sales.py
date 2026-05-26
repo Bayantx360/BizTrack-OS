@@ -26,6 +26,7 @@ import streamlit as st
 from shared.db import (
     get_supabase,
     get_sales_df, get_products_df, get_products_df_live, get_expenses_df,
+    get_sale_items_df,
     compute_kpis,
     db_fetch, db_insert, db_update, db_delete,
     TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS,
@@ -164,7 +165,7 @@ def page_dashboard():
         with st.expander("🏆 Top Selling Products", expanded=True):
             # Load sale_items for accurate per-product breakdown
             # (sales table stores concatenated names for multi-item sales)
-            items_df = db_fetch(TBL_SALE_ITEMS, {"business_id": business_id})
+            items_df = get_sale_items_df(business_id)
 
             if not items_df.empty:
                 section_header("Top Selling Products (by Revenue)")
