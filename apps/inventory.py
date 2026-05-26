@@ -509,23 +509,16 @@ def page_products():
                                    selected_product["product_id"], updates)
                     if ok:
                         db_insert(TBL_RESTOCK, {
-                            "restock_id":     gen_id("RST"),
-                            "business_id":    business_id,
-                            "product_id":     selected_product["product_id"],
-                            "product_name":   selected_product["product_name"],
-                            "qty_added":      add_qty,
-                            "qty_before":     cur_stock,
-                            "qty_after":      new_qty,
-                            "note":           restock_note.strip() if restock_note else "",
-                            "recorded_by":    user.get("full_name", user.get("email", "")),
-                            "restock_date":   datetime.now().isoformat(),
-                            "old_cost_price": cur_cost,
-                            "new_cost_price": new_cost      if update_prices else None,
-                            "old_sell_pack":  cur_sell_pack,
-                            "new_sell_pack":  new_sell_pack if update_prices else None,
-                            "old_sell_unit":  cur_sell_unit,
-                            "new_sell_unit":  new_sell_unit if update_prices else None,
-                            "prices_updated": update_prices,
+                            "restock_id":   gen_id("RST"),
+                            "business_id":  business_id,
+                            "product_id":   selected_product["product_id"],
+                            "product_name": selected_product["product_name"],
+                            "qty_added":    add_qty,
+                            "qty_before":   cur_stock,
+                            "qty_after":    new_qty,
+                            "note":         restock_note.strip() if restock_note else "",
+                            "recorded_by":  user.get("full_name", user.get("email", "")),
+                            "restock_date": datetime.now().isoformat(),
                         })
                         msg = (
                             f"✅ Restocked! {selected_product['product_name']}: "
@@ -577,4 +570,4 @@ def page_products():
                     "recorded_by":  "Recorded By",
                 }),
                 width='stretch',
-                      )
+      )
