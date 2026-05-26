@@ -175,7 +175,7 @@ def get_payments_df() -> pd.DataFrame:
 # Cached per business_id with a short TTL so all three apps stay in sync.
 # ══════════════════════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def get_sales_df(business_id: str) -> pd.DataFrame:
     """Return typed sales DataFrame for this business."""
     df = db_fetch(TBL_SALES, {"business_id": business_id})
@@ -191,17 +191,18 @@ def get_sales_df(business_id: str) -> pd.DataFrame:
     return df
 
 
+@st.cache_data(ttl=15, show_spinner=False)
 def get_products_df_live(business_id: str) -> pd.DataFrame:
     """
-    Return typed products DataFrame — NO cache.
-    Use this wherever stock accuracy is critical:
-      - Record Sale page (cart availability)
-      - Dashboard low-stock alerts
+    Return typed products DataFrame — 15s cache.
+    Short TTL keeps stock counts accurate for sales and low-stock alerts
+    while reducing repeated Supabase hits across concurrent users.
+    Cache is cleared immediately on any db_insert/db_update/db_delete.
     """
     return _type_products_df(db_fetch(TBL_PRODUCTS, {"business_id": business_id}))
 
 
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def get_products_df(business_id: str) -> pd.DataFrame:
     """Return typed products DataFrame — cached 30s. Use for reports/insights."""
     df = db_fetch(TBL_PRODUCTS, {"business_id": business_id})
@@ -225,7 +226,7 @@ def _type_products_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def get_expenses_df(business_id: str) -> pd.DataFrame:
     """Return typed expenses DataFrame for this business."""
     df = db_fetch(TBL_EXPENSES, {"business_id": business_id})
@@ -235,6 +236,27 @@ def get_expenses_df(business_id: str) -> pd.DataFrame:
     df["expense_date"] = pd.to_datetime(
         df["expense_date"], errors="coerce", utc=True
     ).dt.tz_localize(None)
+    return df
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def get_restock_df(business_id: str) -> pd.DataFrame:
+    """Return restock log for this business — cached 60s."""
+    df = db_fetch(TBL_RESTOCK, {"business_id": business_id})
+    if df.empty:
+        return pd.DataFrame()
+    df["restock_date"] = pd.to_datetime(
+        df["restock_date"], errors="coerce", utc=True
+    ).dt.tz_localize(None)
+    return df
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def get_sale_items_df(business_id: str) -> pd.DataFrame:
+    """Return sale items for this business — cached 60s."""
+    df = db_fetch(TBL_SALE_ITEMS, {"business_id": business_id})
+    if df.empty:
+        return pd.DataFrame()
     return df
 
 
