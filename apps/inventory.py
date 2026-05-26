@@ -555,19 +555,49 @@ def page_products():
                     restock_df["product_name"].str.contains(search_rst, case=False, na=False)
                 ]
 
-            display_cols = [c for c in
-                            ["restock_date","product_name","qty_before","qty_added",
-                             "qty_after","note","recorded_by"]
-                            if c in restock_df.columns]
-            st.dataframe(
-                restock_df[display_cols].rename(columns={
-                    "restock_date": "Date",
-                    "product_name": "Product",
-                    "qty_before":   "Stock Before",
-                    "qty_added":    "Units Added",
-                    "qty_after":    "Stock After",
-                    "note":         "Note",
-                    "recorded_by":  "Recorded By",
-                }),
-                width='stretch',
-                      )
+            # ── Per-row display with Reverse button ──
+            for _, row in restock_df.iterrows():
+                restock_id   = row.get("restock_id", "")
+                product_id   = row.get("product_id", "")
+                product_name = row.get("product_name", "")
+                qty_added    = int(row.get("qty_added", 0))
+                qty_before   = int(row.get("qty_before", 0))
+                qty_after    = int(row.get("qty_after",  0))
+                note         = row.get("note", "") or ""
+                recorded_by  = row.get("recorded_by", "") or ""
+                r_date       = row.get("restock_date", "")
+                date_str     = str(r_date)[:16] if r_date else "—"
+
+                with st.container(border=True):
+                    c1, c2 = st.columns([5, 1])
+                    with c1:
+                        st.markdown(
+                            f"**{product_name}** &nbsp;|&nbsp; "
+                            f"📅 {date_str} &nbsp;|&nbsp; "
+                            f"➕ {qty_added} units &nbsp;|&nbsp; "
+                            f"{qty_before} → {qty_after}"
+                        )
+                        if note:
+                            st.caption(f"📝 {note}  •  👤 {recorded_by}")
+                        else:
+                            st.caption(f"👤 {recorded_by}")
+                    with c2:
+                        if st.button("↩️ Reverse", key=f"rev_{restock_id}", type="secondary"):
+                            current_df  = get_products_df_live(business_id)
+                            product_row = current_df[current_df["product_id"] == product_id]
+                            if product_row.empty:
+                                st.error("Product not found.")
+                            else:
+                                current_stock = safe_float(product_row.iloc[0]["stock_quantity"])
+                                restored_qty  = max(0, int(current_stock) - qty_added)
+                                ok = db_update(
+                                    TBL_PRODUCTS, "product_id", product_id,
+                                    {"stock_quantity": restored_qty}
+                                )
+                                if ok:
+                                    db_delete(TBL_RESTOCK, "restock_id", restock_id)
+                                    st.success(
+                                        f"↩️ Reversed! {product_name} stock: "
+                                        f"{int(current_stock)} → {restored_qty}"
+                                    )
+                                    st.rerun()
