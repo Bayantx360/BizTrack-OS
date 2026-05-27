@@ -769,7 +769,7 @@ def page_admin():
                     xaxis=dict(type="category", tickangle=-45),
                     height=300,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
         else:
             st.info("No payment data yet.")
 
@@ -848,7 +848,7 @@ def page_admin():
             "plan_status":     "Status",
             "subscription_end":"Expires",
             "created_at":      "Joined",
-        }), use_container_width=True)
+        }), width='stretch')
 
     # ── Deactivated ──
     with tab7:
