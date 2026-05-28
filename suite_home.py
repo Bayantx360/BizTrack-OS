@@ -170,7 +170,7 @@ def page_login():
             gap:14px;padding:14px 0 6px;">
   <div style="display:flex;align-items:center;">{avatars_html}</div>
   <div style="font-size:13px;color:#10B981;line-height:1.4;">
-    <strong style="color:#E8EAF0;">{biz_count} {label}</strong>
+    <strong style="color:#EAB308;">{biz_count} {label}</strong>
     already running their<br>business efficiently with <strong style="color:#EAB308;"> BizTrack-OS</strong>
   </div>
 </div>
