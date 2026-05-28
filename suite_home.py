@@ -129,7 +129,7 @@ def page_login():
       <div class="lp-value-icon">🧠</div>
       <div class="lp-value-title">Business Health</div>
       <div class="lp-value-desc">Profit/loss, expenses, trend charts and
-        AI-powered insights — all in one view.</div>
+        Data-driven insights — all in one view.</div>
     </div>
   </div>
 </div>
