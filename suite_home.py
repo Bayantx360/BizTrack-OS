@@ -226,7 +226,7 @@ def page_login():
 ">
   <div style="font-size:0.72rem;color:#4A6080;margin-bottom:0.75rem;
     font-family:'DM Mono',monospace;letter-spacing:0.05em;">
-    For Issues & Enquires<br>Contact Us:
+    For Issues & Enquiries<br>Contact Us:
   </div>
   <div style="display:flex;justify-content:center;gap:1.25rem;flex-wrap:wrap;">
     <a href="https://wa.me/+2348136362633"
