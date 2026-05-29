@@ -117,7 +117,7 @@ def page_login():
       <div class="lp-value-icon">💰</div>
       <div class="lp-value-title">Sales Management</div>
       <div class="lp-value-desc">Record sales with multi-item carts,
-        instantly generate PDF receipts (that carries unique Business name) and share on WhatsApp.</div>
+        instantly generate PDF receipts and share on WhatsApp.</div>
     </div>
     <div class="lp-value-card">
       <div class="lp-value-icon">📦</div>
