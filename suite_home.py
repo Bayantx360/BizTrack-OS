@@ -110,14 +110,14 @@ def page_login():
   <div class="lp-headline">Run your business<br><span>smarter, and more efficiently</span></div>
   <div class="lp-sub">
     Sales · Inventory · Business Health — three powerful tool,
-    one unified platform built for Entrepreneurs & Businesses
+    one unified platform built for Business owners & managers
   </div>
   <div class="lp-value-grid">
     <div class="lp-value-card">
       <div class="lp-value-icon">💰</div>
       <div class="lp-value-title">Sales Management</div>
       <div class="lp-value-desc">Record sales with multi-item carts,
-        instant PDF receipts and WhatsApp sharing.</div>
+        instantly generate PDF receipts (that carries unique Business name) and share on WhatsApp.</div>
     </div>
     <div class="lp-value-card">
       <div class="lp-value-icon">📦</div>
