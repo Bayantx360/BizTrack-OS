@@ -556,7 +556,11 @@ def page_record_sale():
                 lines.append(f"  {item['quantity']} {ulbl}(s) x {fmt_naira(neg)} = {fmt_naira(item['line_total'])}")
             if rd["note"]:
                 lines.append(f"  Note: {rd['note']}")
-            lines += [f"{'='*38}", "  Thank you for your purchase!", f"{'='*38}"]
+            lines += [f"{'='*38}", "  Thank you for your purchase!", f"{'='*38}",
+                      "", "  Powered by BizTrack-OS",
+                      "  Smart business mgmt for Nigerian SMEs",
+                      "  biztrack-os.com | wa.me/2348136362633",
+                      f"{'='*38}"]
             st.code("\n".join(lines), language=None)
 
             # PDF Receipt
@@ -627,9 +631,21 @@ def page_record_sale():
                            Paragraph(f"Payment: {rd['payment']}", nc)]
                 if rd["note"]:
                     story.append(Paragraph(f"Note: {rd['note']}", nc))
+                ft_small = ParagraphStyle("ft_small", parent=styl["Normal"], fontName=_body_font,
+                                          fontSize=6, alignment=TA_CENTER,
+                                          textColor=colors.Color(0.5, 0.5, 0.5), spaceAfter=1)
+                ft_brand = ParagraphStyle("ft_brand", parent=styl["Normal"], fontName=_bold_font,
+                                          fontSize=7, alignment=TA_CENTER,
+                                          textColor=colors.Color(0.2, 0.2, 0.2), spaceAfter=1)
+
                 story += [Spacer(1,4*mm),
                            HRFlowable(width="100%", thickness=1, color=colors.black),
-                           Paragraph("Thank you for your purchase!", nc)]
+                           Paragraph("Thank you for your purchase!", nc),
+                           Spacer(1, 4*mm),
+                           HRFlowable(width="100%", thickness=0.5, color=colors.Color(0.8, 0.8, 0.8)),
+                           Spacer(1, 2*mm),
+                           Paragraph("Powered by <b>BizTrack-OS</b>", ft_brand),
+                           Paragraph("Smart business management for SMEs", ft_small),]
                 doc.build(story)
                 pdf_bytes = buf.getvalue()
                 fname = (f"receipt_{rd['sale_id']}_"
@@ -645,7 +661,9 @@ def page_record_sale():
                     f"Receipt from {rd['business_name']}\n"
                     f"Date: {datetime.fromisoformat(rd['sale_time']).strftime('%d %b %Y %H:%M')}\n"
                     f"Items: {item_lines}\n"
-                    f"Total: \u20a6{rd['grand_total']:,.0f}\nPayment: {rd['payment']}\nThank you!"
+                    f"Total: \u20a6{rd['grand_total']:,.0f}\nPayment: {rd['payment']}\n"
+                    f"Thank you!\n\n"
+                    f"Powered by BizTrack-OS"
                 )
                 wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
                 st.markdown(
