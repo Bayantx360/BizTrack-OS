@@ -281,8 +281,8 @@ def _page_pending_payment(user: dict):
                 st.markdown("Monthly")
                 st.markdown("Yearly")
             with c2:
-                st.markdown(f"**₦{PAYMENT_DETAILS['monthly_price']:,}/mo**")
-                st.markdown(f"**₦{PAYMENT_DETAILS['yearly_price']:,}/yr** — save ₦3,000")
+                st.markdown(f"**₦{PAYMENT_DETAILS['monthly_price']:,}/month**")
+                st.markdown(f"**₦{PAYMENT_DETAILS['yearly_price']:,}/year** — save ₦3,000")
 
         st.markdown(f"Signed up as: `{email}`")
         st.caption("🔒 Safe & secure payment. Your account activates immediately after confirmation.")
@@ -309,10 +309,10 @@ def _page_expired(user: dict):
         st.markdown("""
 <div style="text-align:center;">
 <div style="font-size:2.5rem;margin-bottom:0.5rem;">⏰</div>
-<div style="font-size:1.4rem;font-weight:800;color:#F0F4F8;margin-bottom:0.5rem;">
+<div style="font-size:1.4rem;font-weight:800;color:#FF3B30;margin-bottom:0.5rem;">
 Subscription Expired</div>
-<div style="color:#8BA0B8;font-size:0.9rem;margin-bottom:1.5rem;">
-Your access period has ended. Renew to continue using BizTrack-OS.</div>
+<div style="color:#F59E0B;font-size:0.9rem;margin-bottom:1.5rem;">
+Your access period has ended⚠️. Please renew to continue using BizTrack-OS.</div>
 </div>
         """, unsafe_allow_html=True)
         with st.container(border=True):
@@ -321,8 +321,8 @@ Your access period has ended. Renew to continue using BizTrack-OS.</div>
                 st.markdown("Monthly")
                 st.markdown("Yearly")
             with c2:
-                st.markdown(f"**₦{PAYMENT_DETAILS['monthly_price']:,}/mo**")
-                st.markdown(f"**₦{PAYMENT_DETAILS['yearly_price']:,}/yr** — save ₦3,000")
+                st.markdown(f"**₦{PAYMENT_DETAILS['monthly_price']:,}/month**")
+                st.markdown(f"**₦{PAYMENT_DETAILS['yearly_price']:,}/year** — save ₦3,000")
         st.link_button(
             f"💳 Renew Monthly — ₦{PAYMENT_DETAILS['monthly_price']:,}",
             url=PAYMENT_DETAILS["flutterwave_monthly"],
