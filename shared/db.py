@@ -18,8 +18,10 @@ All three page modules import from here:
         get_sales_df, get_products_df, get_expenses_df,
         compute_kpis, compute_insights,
         log_payment, get_payments_df,
+        get_debts_df, get_debt_payments_df, record_debt_payment,
         TBL_USERS, TBL_PRODUCTS, TBL_SALES, TBL_EXPENSES,
         TBL_PAYMENTS, TBL_RESTOCK, TBL_SALE_ITEMS,
+        TBL_DEBTS, TBL_DEBT_PAYMENTS,
         PAYMENT_DETAILS,
     )
 """
@@ -35,13 +37,15 @@ import streamlit as st
 from supabase import create_client, Client
 
 # ── Table name constants ───────────────────────────────────────────────────────
-TBL_USERS      = "users"
-TBL_PRODUCTS   = "products"
-TBL_SALES      = "sales"
-TBL_EXPENSES   = "expenses"
-TBL_PAYMENTS   = "payments"
-TBL_RESTOCK    = "restock_log"
-TBL_SALE_ITEMS = "sale_items"
+TBL_USERS         = "users"
+TBL_PRODUCTS      = "products"
+TBL_SALES         = "sales"
+TBL_EXPENSES      = "expenses"
+TBL_PAYMENTS      = "payments"
+TBL_RESTOCK       = "restock_log"
+TBL_SALE_ITEMS    = "sale_items"
+TBL_DEBTS         = "debts"
+TBL_DEBT_PAYMENTS = "debt_payments"
 
 # ── Plan / payment config ──────────────────────────────────────────────────────
 PAYMENT_DETAILS = {
@@ -258,6 +262,69 @@ def get_sale_items_df(business_id: str) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame()
     return df
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def get_debts_df(business_id: str) -> pd.DataFrame:
+    """Return all debt records for this business — cached 30s."""
+    df = db_fetch(TBL_DEBTS, {"business_id": business_id})
+    if df.empty:
+        return pd.DataFrame()
+    df["total_amount"] = pd.to_numeric(df["total_amount"], errors="coerce").fillna(0)
+    df["amount_paid"]  = pd.to_numeric(df["amount_paid"],  errors="coerce").fillna(0)
+    df["balance"]      = pd.to_numeric(df["balance"],      errors="coerce").fillna(0)
+    df["sale_date"]    = pd.to_datetime(df["sale_date"],   errors="coerce", utc=True).dt.tz_localize(None)
+    return df
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def get_debt_payments_df(business_id: str) -> pd.DataFrame:
+    """Return all debt instalment records for this business — cached 30s."""
+    df = db_fetch(TBL_DEBT_PAYMENTS, {"business_id": business_id})
+    if df.empty:
+        return pd.DataFrame()
+    df["amount"]       = pd.to_numeric(df["amount"],        errors="coerce").fillna(0)
+    df["payment_date"] = pd.to_datetime(df["payment_date"], errors="coerce", utc=True).dt.tz_localize(None)
+    return df
+
+
+def record_debt_payment(debt_id: str, business_id: str,
+                        amount: float, note: str = "") -> bool:
+    """
+    Log a debt instalment and update the parent debt record atomically.
+    Updates amount_paid, balance, and status on the debts row.
+    Returns True only if both writes succeed.
+    """
+    try:
+        sb  = get_supabase()
+        res = sb.table(TBL_DEBTS).select("*").eq("debt_id", debt_id).execute()
+        if not res.data:
+            st.error("Debt record not found.")
+            return False
+        debt       = res.data[0]
+        new_paid   = round(float(debt["amount_paid"]) + amount, 2)
+        new_bal    = round(max(float(debt["total_amount"]) - new_paid, 0), 2)
+        new_status = "settled" if new_bal <= 0 else "partial"
+
+        pay_ok = db_insert(TBL_DEBT_PAYMENTS, {
+            "dpay_id":      gen_id("DPY"),
+            "debt_id":      debt_id,
+            "business_id":  business_id,
+            "amount":       amount,
+            "payment_date": datetime.now().isoformat(),
+            "note":         note,
+        })
+        if not pay_ok:
+            return False
+
+        return db_update(TBL_DEBTS, "debt_id", debt_id, {
+            "amount_paid": new_paid,
+            "balance":     new_bal,
+            "status":      new_status,
+        })
+    except Exception as e:
+        st.error(f"Error recording debt payment: {e}")
+        return False
 
 
 # ══════════════════════════════════════════════════════════════════════════════
