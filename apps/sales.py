@@ -723,15 +723,66 @@ def page_record_sale():
                      [colors.white, colors.Color(0.95,0.95,0.95)]),
                     ("BOTTOMPADDING", (0,0), (-1,-1), 3),
                 ]))
-                story += [t, Spacer(1,3*mm),
-                           HRFlowable(width="100%", thickness=0.5, color=colors.grey),
-                           Paragraph(f"<b>TOTAL: ₦{rd['grand_total']:,.0f}</b>", bc),
-                           Paragraph(f"Payment: {rd['payment']}", nc)]
+                # ── Totals ──
+                story += [
+                    t,
+                    Spacer(1, 3*mm),
+                    HRFlowable(width="100%", thickness=0.5, color=colors.grey),
+                    Paragraph(f"<b>TOTAL: ₦{rd['grand_total']:,.0f}</b>", bc),
+                    Paragraph(f"Payment: {rd['payment']}", nc),
+                ]
+
+                # ── Debt block ──
+                _ps_pdf   = rd.get("payment_status", "full")
+                _paid_pdf = float(rd.get("amount_paid_now", rd["grand_total"]) or 0)
+                _bal_pdf  = float(rd.get("balance_owed", 0) or 0)
+
+                if _ps_pdf in ("part", "credit"):
+                    _red       = colors.Color(0.75, 0.1, 0.1)
+                    debt_title = ParagraphStyle("dt", parent=styl["Normal"],
+                                               fontName=_bold_font, fontSize=10,
+                                               alignment=TA_CENTER, spaceAfter=3,
+                                               textColor=_red)
+                    debt_body  = ParagraphStyle("db", parent=styl["Normal"],
+                                               fontName=_bold_font, fontSize=9,
+                                               alignment=TA_CENTER, spaceAfter=2,
+                                               textColor=_red)
+                    debt_note  = ParagraphStyle("dn", parent=styl["Normal"],
+                                               fontName=_body_font, fontSize=7,
+                                               alignment=TA_CENTER, spaceAfter=1,
+                                               textColor=colors.grey)
+                    if _ps_pdf == "part":
+                        _label     = "PART PAYMENT"
+                        _paid_line = f"Paid Today:   ₦{_paid_pdf:,.0f}"
+                        _bal_line  = f"Balance Owed: ₦{_bal_pdf:,.0f}"
+                        _note_line = "Please settle the balance at your earliest convenience."
+                    else:
+                        _label     = "CREDIT SALE"
+                        _paid_line = "Paid Today:   ₦0"
+                        _bal_line  = f"Balance Owed: ₦{rd['grand_total']:,.0f}"
+                        _note_line = "Full amount is owed. Please settle at your earliest convenience."
+
+                    story += [
+                        Spacer(1, 3*mm),
+                        HRFlowable(width="100%", thickness=0.75, color=_red),
+                        Spacer(1, 2*mm),
+                        Paragraph(_label,     debt_title),
+                        Paragraph(_paid_line, debt_body),
+                        Paragraph(_bal_line,  debt_body),
+                        Spacer(1, 1*mm),
+                        Paragraph(_note_line, debt_note),
+                        Spacer(1, 2*mm),
+                        HRFlowable(width="100%", thickness=0.75, color=_red),
+                    ]
+
                 if rd["note"]:
                     story.append(Paragraph(f"Note: {rd['note']}", nc))
-                story += [Spacer(1,4*mm),
-                           HRFlowable(width="100%", thickness=1, color=colors.black),
-                           Paragraph("Thank you for your purchase!", nc)]
+
+                story += [
+                    Spacer(1, 4*mm),
+                    HRFlowable(width="100%", thickness=1, color=colors.black),
+                    Paragraph("Thank you for your purchase!", nc),
+                ]
                 doc.build(story)
                 pdf_bytes = buf.getvalue()
                 fname = (f"receipt_{rd['sale_id']}_"
