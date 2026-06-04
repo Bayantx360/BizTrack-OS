@@ -440,36 +440,47 @@ def page_record_sale():
         section_header("💳 Checkout")
 
         if st.session_state.cart:
+            # ── Payment status lives OUTSIDE the form so it re-renders reactively ──
+            grand_total_preview = sum(i["line_total"] for i in st.session_state.cart)
+
+            if "checkout_pay_status" not in st.session_state:
+                st.session_state.checkout_pay_status = "full"
+
+            payment_status = st.radio(
+                "Payment Status",
+                options=["full", "part", "credit"],
+                format_func=lambda x: {
+                    "full":   "✅ Full Payment",
+                    "part":   "💳 Part Payment",
+                    "credit": "📒 Credit (Owes Full Amount)",
+                }[x],
+                horizontal=True,
+                key="checkout_pay_status",
+                help="Select whether the customer paid in full, partially, or owes the full amount.",
+            )
+
+            # Amount paid input — only shown for part payment, also outside the form
+            if payment_status == "part":
+                amount_paid_now = st.number_input(
+                    "Amount Paid Now (₦)",
+                    min_value=0.0,
+                    max_value=float(grand_total_preview),
+                    value=0.0,
+                    step=100.0,
+                    key="checkout_amount_paid",
+                    help="Enter how much the customer is paying now. The rest becomes a debt.",
+                )
+            elif payment_status == "credit":
+                amount_paid_now = 0.0
+                st.info("📒 The full amount will be recorded as a debt for this customer.")
+            else:
+                amount_paid_now = grand_total_preview
+
             with st.form("checkout_form"):
                 customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Emeka Obi")
                 customer_phone = st.text_input("Customer Phone (optional)", placeholder="e.g. 08012345678")
                 payment_method = st.selectbox("Payment Method",
                                               ["Cash","Bank Transfer","POS","Mobile Money"])
-                payment_status = st.radio(
-                    "Payment Status",
-                    options=["full", "part", "credit"],
-                    format_func=lambda x: {
-                        "full":   "✅ Full Payment",
-                        "part":   "💳 Part Payment",
-                        "credit": "📒 Credit (Owes Full Amount)",
-                    }[x],
-                    horizontal=True,
-                    help="Select whether the customer paid in full, partially, or owes the full amount.",
-                )
-                grand_total_preview = sum(i["line_total"] for i in st.session_state.cart)
-                amount_paid_now = grand_total_preview  # default to full
-                if payment_status == "part":
-                    amount_paid_now = st.number_input(
-                        "Amount Paid Now (₦)",
-                        min_value=0.0,
-                        max_value=float(grand_total_preview),
-                        value=0.0,
-                        step=100.0,
-                        help="Enter how much the customer is paying now. The rest becomes a debt.",
-                    )
-                elif payment_status == "credit":
-                    amount_paid_now = 0.0
-                    st.info("📒 The full amount will be recorded as a debt for this customer.")
                 sale_note      = st.text_input("Note (optional)", placeholder="e.g. Bulk order")
                 total_display  = fmt_naira(grand_total_preview)
                 confirm_sale   = st.form_submit_button(
@@ -485,10 +496,12 @@ def page_record_sale():
                 total_discount = sum(i["discount_amt"] for i in cart)
                 total_cost     = sum(i["cost_total"]   for i in cart)
                 total_profit   = sum(i["gross_profit"] for i in cart)
-                # payment_status and amount_paid_now come from the checkout form above
-                _pay_status  = payment_status  if "payment_status"  in dir() else "full"
-                _paid_now    = amount_paid_now  if "amount_paid_now" in dir() else grand_total
-                _cust_phone  = customer_phone.strip() if "customer_phone" in dir() else "" 
+                # payment_status and amount_paid_now are set above outside the form
+                _pay_status = st.session_state.get("checkout_pay_status", "full")
+                _paid_now   = st.session_state.get("checkout_amount_paid", grand_total) \
+                              if _pay_status == "part" else \
+                              (0.0 if _pay_status == "credit" else grand_total)
+                _cust_phone = customer_phone.strip()
 
                 sale_ok = db_insert(TBL_SALES, {
                     "sale_id":        sale_id,
@@ -577,6 +590,9 @@ def page_record_sale():
                         "business_name": user.get("business_name", ""),
                     }
                     st.session_state.cart = []
+                    # Reset checkout payment state for next sale
+                    st.session_state.pop("checkout_pay_status", None)
+                    st.session_state.pop("checkout_amount_paid", None)
                     st.rerun()
                 else:
                     st.error("Failed to record sale. Please try again.")
