@@ -109,8 +109,7 @@ def page_login():
   <div class="lp-badge"><span>●</span> All-in-one business suite</div>
   <div class="lp-headline">Run your business<br><span>smarter, and more efficiently</span></div>
   <div class="lp-sub">
-    Sales · Inventory · Business Health — three powerful tool,
-    one unified platform built for Business owners & managers
+    Record your Daily Sales & Revenue💰· Track your Inventory Stock Level as you sell📦 · Monitor your Business Growth📈— All on BizTrack-OS
   </div>
   <div class="lp-value-grid">
     <div class="lp-value-card">
