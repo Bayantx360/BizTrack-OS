@@ -27,9 +27,10 @@ from shared.db import (
     get_supabase,
     get_sales_df, get_products_df, get_products_df_live, get_expenses_df,
     get_sale_items_df,
+    get_debts_df,
     compute_kpis,
     db_fetch, db_insert, db_update, db_delete,
-    TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS,
+    TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS,
     gen_id, fmt_naira, safe_float, safe_int,
 )
 from shared.theme import apply_suite_css, kpi_card, section_header, page_header
@@ -441,10 +442,36 @@ def page_record_sale():
         if st.session_state.cart:
             with st.form("checkout_form"):
                 customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Emeka Obi")
+                customer_phone = st.text_input("Customer Phone (optional)", placeholder="e.g. 08012345678")
                 payment_method = st.selectbox("Payment Method",
                                               ["Cash","Bank Transfer","POS","Mobile Money"])
+                payment_status = st.radio(
+                    "Payment Status",
+                    options=["full", "part", "credit"],
+                    format_func=lambda x: {
+                        "full":   "✅ Full Payment",
+                        "part":   "💳 Part Payment",
+                        "credit": "📒 Credit (Owes Full Amount)",
+                    }[x],
+                    horizontal=True,
+                    help="Select whether the customer paid in full, partially, or owes the full amount.",
+                )
+                grand_total_preview = sum(i["line_total"] for i in st.session_state.cart)
+                amount_paid_now = grand_total_preview  # default to full
+                if payment_status == "part":
+                    amount_paid_now = st.number_input(
+                        "Amount Paid Now (₦)",
+                        min_value=0.0,
+                        max_value=float(grand_total_preview),
+                        value=0.0,
+                        step=100.0,
+                        help="Enter how much the customer is paying now. The rest becomes a debt.",
+                    )
+                elif payment_status == "credit":
+                    amount_paid_now = 0.0
+                    st.info("📒 The full amount will be recorded as a debt for this customer.")
                 sale_note      = st.text_input("Note (optional)", placeholder="e.g. Bulk order")
-                total_display  = fmt_naira(sum(i["line_total"] for i in st.session_state.cart))
+                total_display  = fmt_naira(grand_total_preview)
                 confirm_sale   = st.form_submit_button(
                     f"✅ Record Sale — {total_display}",
                     type="primary", width='stretch',
@@ -458,6 +485,10 @@ def page_record_sale():
                 total_discount = sum(i["discount_amt"] for i in cart)
                 total_cost     = sum(i["cost_total"]   for i in cart)
                 total_profit   = sum(i["gross_profit"] for i in cart)
+                # payment_status and amount_paid_now come from the checkout form above
+                _pay_status  = payment_status  if "payment_status"  in dir() else "full"
+                _paid_now    = amount_paid_now  if "amount_paid_now" in dir() else grand_total
+                _cust_phone  = customer_phone.strip() if "customer_phone" in dir() else "" 
 
                 sale_ok = db_insert(TBL_SALES, {
                     "sale_id":        sale_id,
@@ -513,11 +544,31 @@ def page_record_sale():
                                 db_update(TBL_PRODUCTS, "product_id", item["product_id"],
                                           {"stock_quantity": new_stock})
 
+                    # ── Debt recording (part payment or full credit) ──
+                    _balance = round(grand_total - _paid_now, 2)
+                    if _pay_status in ("part", "credit") and _balance > 0:
+                        db_insert(TBL_DEBTS, {
+                            "debt_id":       gen_id("DBT"),
+                            "business_id":   business_id,
+                            "sale_id":       sale_id,
+                            "customer_name": customer_name.strip(),
+                            "customer_phone": _cust_phone,
+                            "total_amount":  grand_total,
+                            "amount_paid":   round(_paid_now, 2),
+                            "balance":       _balance,
+                            "sale_date":     sale_time,
+                            "status":        "partial" if _pay_status == "part" else "unpaid",
+                            "note":          sale_note.strip(),
+                        })
+
                     st.session_state.sale_done = {
                         "sale_id":       sale_id,
                         "sale_time":     sale_time,
                         "customer_name": customer_name.strip(),
                         "payment":       payment_method,
+                        "payment_status": _pay_status,
+                        "amount_paid_now": _paid_now,
+                        "balance_owed":  round(grand_total - _paid_now, 2),
                         "note":          sale_note.strip(),
                         "items":         cart,
                         "grand_total":   grand_total,
@@ -549,6 +600,14 @@ def page_record_sale():
             if rd["customer_name"]:
                 lines.append(f"  Customer: {rd['customer_name']}")
             lines.append(f"{'='*38}")
+            # Show payment status on receipt
+            _ps = rd.get("payment_status", "full")
+            if _ps == "part":
+                lines.append(f"  Paid Now: {fmt_naira(rd.get('amount_paid_now', rd['grand_total']))}")
+                lines.append(f"  Balance Owed: {fmt_naira(rd.get('balance_owed', 0))}")
+            elif _ps == "credit":
+                lines.append(f"  Credit Sale — Full amount owed")
+                lines.append(f"  Balance Owed: {fmt_naira(rd.get('balance_owed', rd['grand_total']))}")
             for item in rd["items"]:
                 neg      = item.get("negotiated_price", item["unit_price"])
                 ulbl     = item.get("unit_label", "unit")
