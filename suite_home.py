@@ -42,7 +42,7 @@ from shared.theme import apply_suite_css
 # ── Page module imports ────────────────────────────────────────────────────────
 from apps.sales     import page_dashboard, page_record_sale, page_sales_history
 from apps.inventory import page_products
-from apps.health    import page_expenses, page_insights, page_admin
+from apps.health    import page_expenses, page_insights, page_admin, page_debtors
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -59,6 +59,7 @@ PAGES = {
     # Business Health
     "expenses":      ("Expenses",      "💸", "health",    page_expenses),
     "insights":      ("Insights",      "🧠", "health",    page_insights),
+    "debtors":       ("Debtors Ledger","📒", "health",    page_debtors),
     # Admin (conditionally shown)
     "admin":         ("Admin Panel",   "🛡️", "health",    page_admin),
 }
@@ -73,7 +74,7 @@ APP_META = {
 APP_PAGES = {
     "sales":     ["dashboard", "record_sale", "sales_history"],
     "inventory": ["inventory"],
-    "health":    ["expenses", "insights"],
+    "health":    ["expenses", "insights", "debtors"],
 }
 
 
