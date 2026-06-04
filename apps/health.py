@@ -26,7 +26,9 @@ from shared.db import (
     compute_kpis, compute_insights,
     db_fetch, db_insert, db_update, db_delete,
     get_payments_df, log_payment,
+    get_debts_df, get_debt_payments_df, record_debt_payment,
     TBL_USERS, TBL_EXPENSES, TBL_PAYMENTS, TBL_SALE_ITEMS,
+    TBL_DEBTS,
     PAYMENT_DETAILS,
     gen_id, fmt_naira, safe_float, safe_int, parse_date,
 )
@@ -594,6 +596,255 @@ display:flex;align-items:center;justify-content:space-between;">
                                    data=expenses_df.to_csv(index=False).encode("utf-8"),
                                    file_name="expenses_export.csv", mime="text/csv",
                                    width='stretch')
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DEBTORS LEDGER
+# ══════════════════════════════════════════════════════════════════════════════
+
+def page_debtors():
+    """
+    Debtors Ledger — tracks part payments and credit sales.
+    Lets the business owner:
+      • View all outstanding debts sorted by oldest first
+      • Record instalment payments against any open debt
+      • Send a WhatsApp reminder to the debtor in one tap
+      • See full payment history per debt
+      • Mark debts as settled
+    """
+    apply_suite_css()
+    user        = st.session_state.user
+    business_id = user["business_id"]
+
+    page_header("📒 Debtors Ledger", "Track credit sales and part payments")
+
+    import urllib.parse
+    from datetime import timedelta
+
+    debts_df = get_debts_df(business_id)
+
+    # ── Summary KPIs ──
+    if not debts_df.empty:
+        active_df   = debts_df[debts_df["status"] != "settled"]
+        settled_df  = debts_df[debts_df["status"] == "settled"]
+        total_owed  = active_df["balance"].sum()
+        total_debtors = active_df["customer_name"].nunique()
+        oldest_days = 0
+        if not active_df.empty and "sale_date" in active_df.columns:
+            valid_dates = active_df["sale_date"].dropna()
+            if not valid_dates.empty:
+                oldest_days = (datetime.now() - valid_dates.min()).days
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            kpi_card("Total Outstanding", fmt_naira(total_owed),
+                     f"{len(active_df)} open debts", positive=False, icon="📒")
+        with c2:
+            kpi_card("Active Debtors", str(total_debtors),
+                     "Unique customers owing", icon="👥")
+        with c3:
+            kpi_card("Oldest Debt", f"{oldest_days} days",
+                     "Days since oldest unpaid sale", positive=(oldest_days <= 7), icon="⏳")
+        with c4:
+            kpi_card("Settled Debts", str(len(settled_df)),
+                     fmt_naira(settled_df["total_amount"].sum() if not settled_df.empty else 0),
+                     positive=True, icon="✅")
+    else:
+        st.info("📭 No credit sales recorded yet. When you record a Part Payment or Credit sale, it will appear here.")
+        return
+
+    st.markdown("---")
+
+    # ── Filter tabs ──
+    tab_open, tab_settled, tab_all = st.tabs(["🔴 Outstanding", "✅ Settled", "📋 All Debts"])
+
+    for tab, status_filter, label in [
+        (tab_open,    ["partial", "unpaid"], "outstanding"),
+        (tab_settled, ["settled"],           "settled"),
+        (tab_all,     None,                  "all"),
+    ]:
+        with tab:
+            if status_filter:
+                view_df = debts_df[debts_df["status"].isin(status_filter)].copy()
+            else:
+                view_df = debts_df.copy()
+
+            if view_df.empty:
+                st.info(f"No {label} debts.")
+                continue
+
+            # Sort oldest first for outstanding, newest first for settled
+            if status_filter != ["settled"]:
+                view_df = view_df.sort_values("sale_date", ascending=True)
+            else:
+                view_df = view_df.sort_values("sale_date", ascending=False)
+
+            # Search filter
+            search = st.text_input("🔍 Search by customer name",
+                                   key=f"debt_search_{label}",
+                                   placeholder="Customer name…")
+            if search:
+                view_df = view_df[
+                    view_df["customer_name"].str.contains(search, case=False, na=False)
+                ]
+
+            st.caption(f"{len(view_df)} record(s)")
+            st.markdown("---")
+
+            for _, debt in view_df.iterrows():
+                debt_id   = debt["debt_id"]
+                cname     = debt.get("customer_name", "Unknown") or "Unknown"
+                cphone    = debt.get("customer_phone", "") or ""
+                balance   = safe_float(debt["balance"])
+                paid      = safe_float(debt["amount_paid"])
+                total     = safe_float(debt["total_amount"])
+                status    = debt.get("status", "unpaid")
+                sale_date = debt["sale_date"]
+                days_old  = (datetime.now() - sale_date).days if pd.notna(sale_date) else 0
+
+                # Urgency colour
+                if status == "settled":
+                    urgency_css = "alert-success"
+                    urgency_icon = "✅"
+                elif days_old > 14:
+                    urgency_css = "alert-critical"
+                    urgency_icon = "🔴"
+                elif days_old > 7:
+                    urgency_css = "alert-low"
+                    urgency_icon = "🟡"
+                else:
+                    urgency_css = ""
+                    urgency_icon = "🟢"
+
+                date_str = sale_date.strftime("%d %b %Y") if pd.notna(sale_date) else "—"
+                expander_label = (
+                    f"{urgency_icon} **{cname}** | "
+                    f"Owes: {fmt_naira(balance)} | "
+                    f"Paid: {fmt_naira(paid)} / {fmt_naira(total)} | "
+                    f"{date_str} ({days_old}d ago)"
+                )
+
+                with st.expander(expander_label, expanded=False):
+                    dc1, dc2 = st.columns(2)
+                    dc1.markdown(f"**Debt ID:** `{debt_id}`")
+                    dc1.markdown(f"**Sale ID:** `{debt.get('sale_id', '—')}`")
+                    dc1.markdown(f"**Customer:** {cname}")
+                    dc1.markdown(f"**Phone:** {cphone if cphone else '—'}")
+                    dc2.markdown(f"**Total Sale:** {fmt_naira(total)}")
+                    dc2.markdown(f"**Amount Paid:** {fmt_naira(paid)}")
+                    dc2.markdown(f"**Balance Owed:** `{fmt_naira(balance)}`")
+                    dc2.markdown(f"**Status:** `{status.upper()}`")
+                    if debt.get("note"):
+                        st.caption(f"Note: {debt['note']}")
+
+                    # ── Payment history ──
+                    debt_pays = get_debt_payments_df(business_id)
+                    if not debt_pays.empty:
+                        this_debt_pays = debt_pays[debt_pays["debt_id"] == debt_id]
+                        if not this_debt_pays.empty:
+                            with st.expander("📋 Payment History", expanded=False):
+                                for _, p in this_debt_pays.sort_values(
+                                        "payment_date", ascending=False).iterrows():
+                                    pdate = p["payment_date"].strftime("%d %b %Y %H:%M")                                             if pd.notna(p["payment_date"]) else "—"
+                                    st.markdown(
+                                        f"• {fmt_naira(p['amount'])} — {pdate}"
+                                        + (f" — *{p['note']}*" if p.get("note") else "")
+                                    )
+
+                    st.markdown("---")
+
+                    # ── Record instalment (only for open debts) ──
+                    if status != "settled":
+                        with st.form(f"pay_debt_{debt_id}"):
+                            pf1, pf2 = st.columns(2)
+                            pay_amount = pf1.number_input(
+                                "Amount Received (₦)",
+                                min_value=100.0,
+                                max_value=float(balance),
+                                value=float(balance),
+                                step=100.0,
+                                key=f"pay_amt_{debt_id}",
+                            )
+                            pay_note = pf2.text_input(
+                                "Note (optional)",
+                                placeholder="e.g. Cash at shop",
+                                key=f"pay_note_{debt_id}",
+                            )
+                            pay_btn = st.form_submit_button(
+                                f"💰 Record Payment — {fmt_naira(pay_amount)}",
+                                type="primary", width="stretch",
+                            )
+
+                        if pay_btn:
+                            ok = record_debt_payment(debt_id, business_id,
+                                                     pay_amount, pay_note)
+                            if ok:
+                                remaining = round(balance - pay_amount, 2)
+                                if remaining <= 0:
+                                    st.success(f"✅ Debt fully settled for {cname}!")
+                                else:
+                                    st.success(
+                                        f"✅ Payment of {fmt_naira(pay_amount)} recorded. "
+                                        f"Remaining balance: {fmt_naira(remaining)}"
+                                    )
+                                st.rerun()
+
+                        # ── WhatsApp reminder ──
+                        if cphone:
+                            reminder_text = (
+                                f"Hello {cname}, this is a reminder from "
+                                f"{user.get('business_name', 'our business')}.\n"
+                                f"You have an outstanding balance of {fmt_naira(balance)}.\n"
+                                f"Kindly make payment at your earliest convenience.\n\n"
+                                f"Thank you \U0001f64f\n"
+                                f"Powered by BizTrack-OS"
+                            )
+                            wa_url = (
+                                f"https://wa.me/{cphone.replace('+','').replace(' ','')}?"
+                                f"text={urllib.parse.quote(reminder_text)}"
+                            )
+                            st.markdown(
+                                f'''<a href="{wa_url}" target="_blank"
+                                    style="display:block;text-align:center;
+                                           background:#25D366;color:white;
+                                           padding:0.5rem;border-radius:8px;
+                                           font-weight:600;text-decoration:none;
+                                           margin-top:0.25rem;">
+                                    💬 Send WhatsApp Reminder to {cname}
+                                </a>''',
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.caption("💡 Add customer phone number when recording the sale to enable WhatsApp reminders.")
+
+                    # ── Manual settle button (for edge cases) ──
+                    if status != "settled":
+                        settle_key = f"settle_{debt_id}"
+                        if not st.session_state.get(settle_key, False):
+                            if st.button("🏳️ Mark as Settled (manually)",
+                                         key=f"settle_btn_{debt_id}",
+                                         help="Use only if paid outside the app"):
+                                st.session_state[settle_key] = True
+                                st.rerun()
+                        else:
+                            st.warning("Mark this debt as fully settled?")
+                            sc1, sc2 = st.columns(2)
+                            if sc1.button("✅ Yes, settle", key=f"yes_settle_{debt_id}",
+                                          type="primary"):
+                                db_update(TBL_DEBTS, "debt_id", debt_id, {
+                                    "status":      "settled",
+                                    "amount_paid": total,
+                                    "balance":     0,
+                                })
+                                st.session_state.pop(settle_key, None)
+                                st.success("✅ Debt marked as settled.")
+                                st.rerun()
+                            if sc2.button("❌ Cancel", key=f"no_settle_{debt_id}"):
+                                st.session_state.pop(settle_key, None)
+                                st.rerun()
+
+                st.markdown("---")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
