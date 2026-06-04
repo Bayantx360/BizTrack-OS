@@ -109,7 +109,7 @@ def page_login():
   <div class="lp-badge"><span>●</span> All-in-one business suite</div>
   <div class="lp-headline">Run & monitor your business<br><span>smarter</span></div>
   <div class="lp-sub">
-    Record your Daily Sales & Expenses 💰· Track your Inventory Stock Level 📦 · Monitor your Business Growth📈—  All in one place on BizTrack-OS
+    💰Record your Daily Sales & Revenue· 📦Track your Inventory Stock Level· 📈Monitor your Business Growth—  All in one place on BizTrack-OS
   </div>
   <div class="lp-value-grid">
     <div class="lp-value-card">
