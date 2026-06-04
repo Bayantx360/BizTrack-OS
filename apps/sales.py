@@ -755,12 +755,12 @@ def page_record_sale():
                         _label     = "PART PAYMENT"
                         _paid_line = f"Paid Today:   ₦{_paid_pdf:,.0f}"
                         _bal_line  = f"Balance Owed: ₦{_bal_pdf:,.0f}"
-                        _note_line = "Please settle the balance at your earliest convenience."
+                        _note_line = "Please settle the balance at as soon as possible."
                     else:
                         _label     = "CREDIT SALE"
                         _paid_line = "Paid Today:   ₦0"
                         _bal_line  = f"Balance Owed: ₦{rd['grand_total']:,.0f}"
-                        _note_line = "Full amount is owed. Please settle at your earliest convenience."
+                        _note_line = "Full amount is owed. Please settle as soon as possible."
 
                     story += [
                         Spacer(1, 3*mm),
