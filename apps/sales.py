@@ -610,28 +610,55 @@ def page_record_sale():
             st.markdown("---")
             section_header("🧾 Receipt")
 
-            lines = [f"{'='*38}", f"  {rd['business_name'].upper()}",
-                     f"  {datetime.fromisoformat(rd['sale_time']).strftime('%d %b %Y  %H:%M')}",
-                     f"  Sale ID: {rd['sale_id']}"]
+            _ps      = rd.get("payment_status", "full")
+            _paid    = rd.get("amount_paid_now", rd["grand_total"])
+            _balance = rd.get("balance_owed", 0)
+
+            lines = [
+                f"{'='*38}",
+                f"  {rd['business_name'].upper()}",
+                f"  {datetime.fromisoformat(rd['sale_time']).strftime('%d %b %Y  %H:%M')}",
+                f"  Sale ID: {rd['sale_id']}",
+            ]
             if rd["customer_name"]:
                 lines.append(f"  Customer: {rd['customer_name']}")
             lines.append(f"{'='*38}")
-            # Show payment status on receipt
-            _ps = rd.get("payment_status", "full")
-            if _ps == "part":
-                lines.append(f"  Paid Now: {fmt_naira(rd.get('amount_paid_now', rd['grand_total']))}")
-                lines.append(f"  Balance Owed: {fmt_naira(rd.get('balance_owed', 0))}")
-            elif _ps == "credit":
-                lines.append(f"  Credit Sale — Full amount owed")
-                lines.append(f"  Balance Owed: {fmt_naira(rd.get('balance_owed', rd['grand_total']))}")
+
+            # Items
             for item in rd["items"]:
-                neg      = item.get("negotiated_price", item["unit_price"])
-                ulbl     = item.get("unit_label", "unit")
-                lines.append(f"  {item['product_name'][:20]:<20}")
+                neg  = item.get("negotiated_price", item["unit_price"])
+                ulbl = item.get("unit_label", "unit")
+                lines.append(f"  {item['product_name'][:22]:<22}")
                 lines.append(f"  {item['quantity']} {ulbl}(s) x {fmt_naira(neg)} = {fmt_naira(item['line_total'])}")
+
+            lines.append(f"{'='*38}")
+            lines.append(f"  TOTAL:        {fmt_naira(rd['grand_total'])}")
+            lines.append(f"  Payment:      {rd['payment']}")
+
+            # Debt / part payment section
+            if _ps == "part":
+                lines.append(f"  {'-'*36}")
+                lines.append(f"  💳 PART PAYMENT")
+                lines.append(f"  Paid Today:   {fmt_naira(_paid)}")
+                lines.append(f"  Balance Owed: {fmt_naira(_balance)}")
+                lines.append(f"  {'-'*36}")
+                lines.append(f"  Please settle the balance at your")
+                lines.append(f"  earliest convenience.")
+            elif _ps == "credit":
+                lines.append(f"  {'-'*36}")
+                lines.append(f"  📒 CREDIT SALE")
+                lines.append(f"  Paid Today:   {fmt_naira(0)}")
+                lines.append(f"  Balance Owed: {fmt_naira(rd['grand_total'])}")
+                lines.append(f"  {'-'*36}")
+                lines.append(f"  Full amount is owed.")
+
             if rd["note"]:
                 lines.append(f"  Note: {rd['note']}")
-            lines += [f"{'='*38}", "  Thank you for your purchase!", f"{'='*38}"]
+            lines += [
+                f"{'='*38}",
+                "  Thank you for your purchase!",
+                f"{'='*38}",
+            ]
             st.code("\n".join(lines), language=None)
 
             # PDF Receipt
@@ -716,12 +743,31 @@ def page_record_sale():
                 item_lines = ", ".join(
                     f"{i['product_name']} x{i['quantity']}" for i in rd["items"]
                 )
+                _wa_ps  = rd.get("payment_status", "full")
+                _wa_paid = rd.get("amount_paid_now", rd["grand_total"])
+                _wa_bal  = rd.get("balance_owed", 0)
+
                 wa_text = (
                     f"Receipt from {rd['business_name']}\n"
                     f"Date: {datetime.fromisoformat(rd['sale_time']).strftime('%d %b %Y %H:%M')}\n"
                     f"Items: {item_lines}\n"
-                    f"Total: \u20a6{rd['grand_total']:,.0f}\nPayment: {rd['payment']}\nThank you!"
+                    f"Total: \u20a6{rd['grand_total']:,.0f}\n"
+                    f"Payment: {rd['payment']}\n"
                 )
+                if _wa_ps == "part":
+                    wa_text += (
+                        f"--- PART PAYMENT ---\n"
+                        f"Paid Today: \u20a6{_wa_paid:,.0f}\n"
+                        f"Balance Owed: \u20a6{_wa_bal:,.0f}\n"
+                        f"Please settle the balance at your earliest convenience.\n"
+                    )
+                elif _wa_ps == "credit":
+                    wa_text += (
+                        f"--- CREDIT SALE ---\n"
+                        f"Balance Owed: \u20a6{rd['grand_total']:,.0f}\n"
+                        f"Full amount is owed. Please settle at your earliest convenience.\n"
+                    )
+                wa_text += "Thank you!\n\nPowered by BizTrack-OS\nbiztrack-os.com"
                 wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
                 st.markdown(
                     f"""<a href="{wa_url}" target="_blank"
