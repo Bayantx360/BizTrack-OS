@@ -756,7 +756,7 @@ def page_debtors():
 
                     # ── Record instalment (only for open debts) ──
                     if status != "settled":
-                        with st.form(f"pay_debt_{debt_id}"):
+                        with st.form(f"pay_debt_{debt_id}_{label}"):
                             pf1, pf2 = st.columns(2)
                             pay_amount = pf1.number_input(
                                 "Amount Received (₦)",
@@ -764,12 +764,12 @@ def page_debtors():
                                 max_value=float(balance),
                                 value=float(balance),
                                 step=100.0,
-                                key=f"pay_amt_{debt_id}",
+                                key=f"pay_amt_{debt_id}_{label}",
                             )
                             pay_note = pf2.text_input(
                                 "Note (optional)",
                                 placeholder="e.g. Cash at shop",
-                                key=f"pay_note_{debt_id}",
+                                key=f"pay_note_{debt_id}_{label}",
                             )
                             pay_btn = st.form_submit_button(
                                 f"💰 Record Payment — {fmt_naira(pay_amount)}",
@@ -823,14 +823,14 @@ def page_debtors():
                         settle_key = f"settle_{debt_id}"
                         if not st.session_state.get(settle_key, False):
                             if st.button("🏳️ Mark as Settled (manually)",
-                                         key=f"settle_btn_{debt_id}",
+                                         key=f"settle_btn_{debt_id}_{label}",
                                          help="Use only if paid outside the app"):
                                 st.session_state[settle_key] = True
                                 st.rerun()
                         else:
                             st.warning("Mark this debt as fully settled?")
                             sc1, sc2 = st.columns(2)
-                            if sc1.button("✅ Yes, settle", key=f"yes_settle_{debt_id}",
+                            if sc1.button("✅ Yes, settle", key=f"yes_settle_{debt_id}_{label}",
                                           type="primary"):
                                 db_update(TBL_DEBTS, "debt_id", debt_id, {
                                     "status":      "settled",
@@ -840,7 +840,7 @@ def page_debtors():
                                 st.session_state.pop(settle_key, None)
                                 st.success("✅ Debt marked as settled.")
                                 st.rerun()
-                            if sc2.button("❌ Cancel", key=f"no_settle_{debt_id}"):
+                            if sc2.button("❌ Cancel", key=f"no_settle_{debt_id}_{label}"):
                                 st.session_state.pop(settle_key, None)
                                 st.rerun()
 
