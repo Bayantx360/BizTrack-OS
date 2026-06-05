@@ -342,13 +342,16 @@ def compute_kpis(sales_df: pd.DataFrame, expenses_df: pd.DataFrame) -> dict:
     today = now.date()
 
     kpis = {
-        "today_revenue":   0, "week_revenue":    0, "month_revenue":  0,
-        "today_profit":    0, "week_profit":     0, "month_profit":   0,
-        "today_txn":       0, "week_txn":        0, "month_txn":      0,
-        "week_growth":     0, "month_expenses":  0, "net_profit":     0,
-        "year_revenue":    0, "year_profit":     0, "year_txn":       0,
-        "alltime_revenue": 0, "alltime_profit":  0, "alltime_txn":    0,
-        "avg_daily_revenue": 0,
+        "today_revenue":          0, "week_revenue":    0, "month_revenue":  0,
+        "today_profit":           0, "week_profit":     0, "month_profit":   0,
+        "today_txn":              0, "week_txn":        0, "month_txn":      0,
+        "week_growth":            0, "month_expenses":  0, "net_profit":     0,
+        "year_revenue":           0, "year_profit":     0, "year_txn":       0,
+        "alltime_revenue":        0, "alltime_profit":  0, "alltime_txn":    0,
+        "avg_daily_revenue":      0,
+        # Cash transparency — today only
+        "today_collected":        0,  # actual cash received today (amount_paid)
+        "today_credit_extended":  0,  # credit still outside today (total - paid)
     }
 
     if sales_df.empty:
@@ -373,6 +376,14 @@ def compute_kpis(sales_df: pd.DataFrame, expenses_df: pd.DataFrame) -> dict:
     kpis["today_txn"]      = len(today_df)
     kpis["week_txn"]       = len(week_df)
     kpis["month_txn"]      = len(month_df)
+
+    # Cash transparency breakdown for today
+    if "amount_paid" in today_df.columns:
+        kpis["today_collected"]       = today_df["amount_paid"].sum()
+        kpis["today_credit_extended"] = today_df["total_amount"].sum() - kpis["today_collected"]
+    else:
+        kpis["today_collected"]       = kpis["today_revenue"]
+        kpis["today_credit_extended"] = 0
 
     prev_rev = prev_week["total_amount"].sum()
     curr_rev = kpis["week_revenue"]
