@@ -886,7 +886,7 @@ def page_record_sale():
                         [Paragraph(_bal_line,  S_DEBT_B)],
                         [Paragraph(_note_line, S_DEBT_N)],
                     ]
-                    debt_tbl = Table(debt_rows, colWidths=[78*mm])
+                    debt_tbl = Table(debt_rows, colWidths=[86*mm])
                     debt_tbl.setStyle(TableStyle([
                         ("BACKGROUND",    (0,0), (-1,-1), RED_LIGHT),
                         ("LINEBELOW",     (0,2), (-1, 2), 0.5, RED_BORD),
@@ -911,7 +911,11 @@ def page_record_sale():
                 story.append(Paragraph("Thank you for your purchase!", S_THANKS))
                 story.append(Paragraph("Powered by BizTrack-OS", S_POWER))
 
-                doc.build(story)
+                try:
+                    doc.build(story)
+                except Exception as _build_err:
+                    st.error(f"PDF build failed: {_build_err}")
+                    raise
                 pdf_bytes = buf.getvalue()
                 fname = (f"receipt_{rd['sale_id']}_"
                          f"{datetime.fromisoformat(rd['sale_time']).strftime('%Y%m%d_%H%M')}.pdf")
@@ -1107,3 +1111,4 @@ def page_sales_history():
                      unsafe_allow_html=True)
         if pc3.button("Next ▶", disabled=(pg >= total_pages), key="sh_next"):
             st.session_state.sales_hist_page = min(total_pages, pg+1); st.rerun()
+            
