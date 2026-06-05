@@ -593,5 +593,7 @@ def parse_date(val):
         return None
 
 
+
+
 def validate_email(email: str) -> bool:
     return bool(re.match(r"^[\w\.-]+@[\w\.-]+\.\w{2,}$", email))
