@@ -795,7 +795,7 @@ def page_record_sale():
                         _label     = "PART PAYMENT"
                         _paid_line = f"Paid Today:   ₦{_paid_pdf:,.0f}"
                         _bal_line  = f"Balance Owed: ₦{_bal_pdf:,.0f}"
-                        _note_line = "Please settle the balance at as soon as possible."
+                        _note_line = "Please settle the balance as soon as possible."
                     else:
                         _label     = "CREDIT SALE"
                         _paid_line = "Paid Today:   ₦0"
@@ -850,13 +850,13 @@ def page_record_sale():
                         f"--- PART PAYMENT ---\n"
                         f"Paid Today: \u20a6{_wa_paid:,.0f}\n"
                         f"Balance Owed: \u20a6{_wa_bal:,.0f}\n"
-                        f"Please settle the balance at your earliest convenience.\n"
+                        f"Please settle the balance as soon as possible.\n"
                     )
                 elif _wa_ps == "credit":
                     wa_text += (
                         f"--- CREDIT SALE ---\n"
                         f"Balance Owed: \u20a6{rd['grand_total']:,.0f}\n"
-                        f"Full amount is owed. Please settle at your earliest convenience.\n"
+                        f"Full amount is owed. Please settle as soon as possible.\n"
                     )
                 wa_text += "Thank you!\n\nPowered by BizTrack-OS\nbiztrack-os.com"
                 wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
