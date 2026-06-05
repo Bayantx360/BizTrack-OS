@@ -192,6 +192,11 @@ def get_sales_df(business_id: str) -> pd.DataFrame:
     df["gross_profit"] = pd.to_numeric(df["gross_profit"], errors="coerce").fillna(0)
     df["quantity"]     = pd.to_numeric(df["quantity"],     errors="coerce").fillna(0)
     df["cost_total"]   = pd.to_numeric(df["cost_total"],   errors="coerce").fillna(0)
+    # amount_paid must be cast so compute_kpis can sum it for the cash breakdown
+    if "amount_paid" in df.columns:
+        df["amount_paid"] = pd.to_numeric(df["amount_paid"], errors="coerce").fillna(0)
+    else:
+        df["amount_paid"] = df["total_amount"]  # fallback: treat all as collected
     return df
 
 
