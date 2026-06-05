@@ -515,8 +515,8 @@ def page_record_sale():
                 amount_paid_now = grand_total_preview
 
             with st.form("checkout_form"):
-                customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Emeka Obi")
-                customer_phone = st.text_input("Customer Phone (optional)", placeholder="e.g. 08012345678")
+                customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo")
+                customer_phone = st.text_input("Customer Phone (optional)", placeholder="e.g. +2348012345678")
                 payment_method = st.selectbox("Payment Method",
                                               ["Cash","Bank Transfer","POS","Mobile Money"])
                 sale_note      = st.text_input("Note (optional)", placeholder="e.g. Bulk order")
