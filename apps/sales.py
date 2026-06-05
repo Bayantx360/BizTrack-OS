@@ -898,7 +898,7 @@ def page_record_sale():
                         ("RIGHTPADDING",  (0,0), (-1,-1), 6),
                         ("BOX",           (0,0), (-1,-1), 0.5, RED_BORD),
                     ]))
-                    story.append(KeepTogether(debt_tbl))
+                    story.append(debt_tbl)
                     story.append(Spacer(1, 3*mm))
 
                 # ── Note + footer ────────────────────────────────────────────────────
@@ -962,6 +962,8 @@ def page_record_sale():
                 )
             except ImportError:
                 st.warning("Install reportlab for PDF receipts: pip install reportlab")
+            except Exception as _pdf_err:
+                st.error(f"PDF receipt error: {_pdf_err}")
 
     # ── Today's Sales ──
     st.markdown("---")
@@ -1111,4 +1113,3 @@ def page_sales_history():
                      unsafe_allow_html=True)
         if pc3.button("Next ▶", disabled=(pg >= total_pages), key="sh_next"):
             st.session_state.sales_hist_page = min(total_pages, pg+1); st.rerun()
-            
