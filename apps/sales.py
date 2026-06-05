@@ -97,11 +97,11 @@ def page_dashboard():
 <div style="background:#0D1117;border:1px solid #1F2D3D;border-radius:10px;
   padding:0.6rem 0.85rem;margin-top:-0.5rem;margin-bottom:0.5rem;font-size:0.78rem;">
   <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
-    <span style="color:#4A6080;">✅ Collected</span>
+    <span style="color:#4A6080;">✅ Fully Collected</span>
     <span style="color:#10B981;font-weight:700;">{fmt_naira(collected)}</span>
   </div>
   <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
-    <span style="color:#4A6080;">📒 Credit Extended</span>
+    <span style="color:#4A6080;">📒 Total Credit </span>
     <span style="color:#F59E0B;font-weight:700;">{fmt_naira(credit_extended)}</span>
   </div>
   <div style="border-top:1px solid #1F2D3D;margin-top:0.3rem;padding-top:0.3rem;
@@ -119,7 +119,7 @@ def page_dashboard():
 <div style="background:#0D1117;border:1px solid #1F2D3D;border-radius:10px;
   padding:0.5rem 0.85rem;margin-top:-0.5rem;margin-bottom:0.5rem;font-size:0.78rem;">
   <div style="display:flex;justify-content:space-between;">
-    <span style="color:#4A6080;">✅ Fully collected</span>
+    <span style="color:#4A6080;">✅ All Payment Fully collected</span>
     <span style="color:#10B981;font-weight:700;">{fmt_naira(collected)}</span>
   </div>
 </div>
