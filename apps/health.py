@@ -865,6 +865,25 @@ def page_admin():
         st.info("No users found.")
         return
 
+    # ── Bulk expiry sweep ──────────────────────────────────────────────────────
+    # Flip any "active" user whose subscription_end has passed to "expired".
+    # This catches users whose trial/plan ended but who never logged back in
+    # (since check_access() only runs on the user's own session).
+    _now = datetime.now()
+    _swept = False
+    for _, _u in users_df.iterrows():
+        if _u.get("plan_status") == "active":
+            try:
+                _end = datetime.strptime(str(_u["subscription_end"])[:10], "%Y-%m-%d")
+                if _end < _now:
+                    db_update(TBL_USERS, "user_id", _u["user_id"], {"plan_status": "expired"})
+                    _swept = True
+            except Exception:
+                pass
+    if _swept:
+        users_df = db_fetch(TBL_USERS)  # reload only if something changed
+    # ──────────────────────────────────────────────────────────────────────────
+
     # Platform stats
     c1, c2, c3, c4 = st.columns(4)
     with c1:
