@@ -549,6 +549,8 @@ def page_record_sale():
                     "quantity":       sum(i["quantity"] for i in cart),
                     "unit_price":     cart[0]["unit_price"],
                     "total_amount":   grand_total,
+                    "amount_paid":    round(_paid_now, 2),
+                    "payment_status": _pay_status,
                     "cost_total":     total_cost,
                     "gross_profit":   total_profit,
                     "payment_method": payment_method,
