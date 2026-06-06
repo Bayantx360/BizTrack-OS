@@ -873,7 +873,7 @@ def page_record_sale():
                         _label     = "CREDIT SALE"
                         _paid_line = "Paid Today:   ₦0"
                         _bal_line  = f"Balance Owed: ₦{rd['grand_total']:,.0f}"
-                    _note_line = "Please settle the balance at your earliest convenience."
+                    _note_line = "Please settle the balance as soon as possible."
 
                     debt_rows = [
                         [Paragraph(_label,     S_DEBT_H)],
@@ -935,15 +935,15 @@ def page_record_sale():
                         f"--- PART PAYMENT ---\n"
                         f"Paid Today: \u20a6{_wa_paid:,.0f}\n"
                         f"Balance Owed: \u20a6{_wa_bal:,.0f}\n"
-                        f"Please settle the balance at your earliest convenience.\n"
+                        f"Please settle the balance as soon as possible.\n"
                     )
                 elif _wa_ps == "credit":
                     wa_text += (
                         f"--- CREDIT SALE ---\n"
                         f"Balance Owed: \u20a6{rd['grand_total']:,.0f}\n"
-                        f"Full amount is owed. Please settle at your earliest convenience.\n"
+                        f"Full amount is owed. Please settle the balance as soon as possible.\n"
                     )
-                wa_text += "Thank you!\n\nPowered by BizTrack-OS\nbiztrack-os.com"
+                wa_text += "Thank you!"
                 wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
                 st.markdown(
                     f"""<a href="{wa_url}" target="_blank"
