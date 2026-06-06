@@ -295,8 +295,31 @@ def page_record_sale():
         if in_stock.empty:
             st.warning("All products are out of stock.")
         else:
-            prod_names   = in_stock["product_name"].tolist()
-            sel_name     = st.selectbox("Product", prod_names, key="cart_prod")
+            # ── Product search ──────────────────────────────────────────
+            # Initialise search query in session state so it persists across reruns
+            if "cart_search" not in st.session_state:
+                st.session_state.cart_search = ""
+
+            st.session_state.cart_search = st.text_input(
+                "🔍 Search product",
+                value=st.session_state.cart_search,
+                placeholder="Type any part of the product name…",
+                key="cart_search_input",
+            )
+
+            query = st.session_state.cart_search.strip()
+            if query:
+                filtered = in_stock[
+                    in_stock["product_name"].str.contains(query, case=False, na=False)
+                ]
+                if filtered.empty:
+                    st.warning(f"No products match \"{query}\". Showing all in-stock products.")
+                    filtered = in_stock
+            else:
+                filtered = in_stock
+
+            prod_names = filtered["product_name"].tolist()
+            sel_name   = st.selectbox("Product", prod_names, key="cart_prod")
             sel_prod_row = in_stock[in_stock["product_name"] == sel_name].iloc[0]
 
             # Unit config
