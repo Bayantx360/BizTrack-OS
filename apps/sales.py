@@ -714,115 +714,200 @@ def page_record_sale():
                 from reportlab.pdfbase.ttfonts import TTFont
                 import os
 
-                # Load DejaVuSans bundled in assets/ folder — supports ₦ Naira symbol
+                # ── Fonts ──────────────────────────────────────────────────────────
                 _assets     = os.path.join(os.path.dirname(__file__), "..", "assets")
                 _font_path  = os.path.join(_assets, "DejaVuSans.ttf")
                 _fontb_path = os.path.join(_assets, "DejaVuSans-Bold.ttf")
                 try:
-                    pdfmetrics.registerFont(TTFont("DejaVuSans",     _font_path))
-                    pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", _fontb_path))
-                    _body_font  = "DejaVuSans"
-                    _bold_font  = "DejaVuSans-Bold"
+                    pdfmetrics.registerFont(TTFont("DejaVuSans",      _font_path))
+                    pdfmetrics.registerFont(TTFont("DejaVuSans-Bold",  _fontb_path))
+                    _body_font = "DejaVuSans"
+                    _bold_font = "DejaVuSans-Bold"
                 except Exception:
-                    _body_font  = "Helvetica"
-                    _bold_font  = "Helvetica-Bold"
+                    _body_font = "Helvetica"
+                    _bold_font = "Helvetica-Bold"
 
-                buf  = io.BytesIO()
-                doc  = SimpleDocTemplate(buf, pagesize=A6,
-                                         leftMargin=10*mm, rightMargin=10*mm,
-                                         topMargin=8*mm,  bottomMargin=8*mm)
+                # ── Colors ─────────────────────────────────────────────────────────
+                DARK_BG   = colors.HexColor("#0D1117")
+                GOLD      = colors.HexColor("#F5A623")
+                SLATE     = colors.HexColor("#8BA0B8")
+                ROW_ALT   = colors.HexColor("#F7F9FB")
+                RED_DARK  = colors.HexColor("#991B1B")
+                RED_LIGHT = colors.HexColor("#FEF2F2")
+                RED_BORD  = colors.HexColor("#FCA5A5")
+                RULE      = colors.HexColor("#E2E8F0")
+                INK       = colors.HexColor("#0F172A")
+
+                # ── Page ───────────────────────────────────────────────────────────
+                buf = io.BytesIO()
+                doc = SimpleDocTemplate(
+                    buf, pagesize=A6,
+                    leftMargin=10*mm, rightMargin=10*mm,
+                    topMargin=0*mm,   bottomMargin=8*mm,
+                )
                 styl = getSampleStyleSheet()
-                bc   = ParagraphStyle("bc", parent=styl["Normal"], fontName=_bold_font,
-                                      fontSize=11, alignment=TA_CENTER, spaceAfter=2)
-                nc   = ParagraphStyle("nc", parent=styl["Normal"], fontName=_body_font, fontSize=8,
-                                      alignment=TA_CENTER, spaceAfter=1)
 
-                story = [
-                    Paragraph(rd["business_name"].upper(), bc),
-                    Paragraph(datetime.fromisoformat(rd["sale_time"]).strftime("%d %b %Y  %H:%M"), nc),
-                    Paragraph(f"Sale ID: {rd['sale_id']}", nc),
-                ]
-                if rd["customer_name"]:
-                    story.append(Paragraph(f"Customer: {rd['customer_name']}", nc))
-                story.append(HRFlowable(width="100%", thickness=1, color=colors.black))
+                def _p(name, font=_body_font, size=8, align=TA_CENTER,
+                       color=INK, sa=1, leading=None):
+                    return ParagraphStyle(
+                        name, parent=styl["Normal"],
+                        fontName=font, fontSize=size,
+                        alignment=align, textColor=color,
+                        spaceAfter=sa, leading=leading or size * 1.4,
+                    )
+
+                S_BIZ    = _p("biz",   _bold_font, 13, TA_CENTER, GOLD,     sa=2)
+                S_META   = _p("meta",  _body_font,  8, TA_CENTER, SLATE,    sa=1)
+                S_NC     = _p("nc",    _body_font,  8, TA_CENTER, INK,      sa=1)
+                S_SMALL  = _p("small", _body_font,  7, TA_CENTER, SLATE,    sa=1)
+                S_ID_L   = _p("idl",   _body_font,  7, TA_LEFT,   SLATE,    sa=0)
+                S_ID_V   = _p("idv",   _bold_font,  7, TA_RIGHT,  INK,      sa=0)
+                S_TH     = _p("th",    _bold_font,  8, TA_LEFT,   SLATE,    sa=0)
+                S_TH_R   = _p("thr",   _bold_font,  8, TA_RIGHT,  SLATE,    sa=0)
+                S_TD     = _p("td",    _body_font,  8, TA_LEFT,   INK,      sa=0)
+                S_TD_R   = _p("tdr",   _body_font,  8, TA_RIGHT,  INK,      sa=0)
+                S_LBL    = _p("lbl",   _body_font,  8, TA_LEFT,   SLATE,    sa=2)
+                S_VAL    = _p("val",   _bold_font,  8, TA_RIGHT,  INK,      sa=2)
+                S_TOTAL  = _p("tot",   _bold_font, 11, TA_CENTER, INK,      sa=2)
+                S_DEBT_H = _p("dh",    _bold_font,  9, TA_CENTER, RED_DARK, sa=2)
+                S_DEBT_B = _p("db",    _bold_font,  8, TA_CENTER, RED_DARK, sa=2)
+                S_DEBT_N = _p("dn",    _body_font,  7, TA_CENTER, SLATE,    sa=1)
+                S_THANKS = _p("thx",   _body_font,  8, TA_CENTER, SLATE,    sa=1)
+                S_POWER  = _p("pwr",   _body_font,  7, TA_CENTER, SLATE,    sa=0)
+
+                story = []
+
+                # ── Dark header band ────────────────────────────────────────────────
+                sale_dt = datetime.fromisoformat(rd["sale_time"]).strftime("%d %b %Y  ·  %H:%M")
+                hdr_rows = [[Paragraph(rd["business_name"].upper(), S_BIZ)],
+                             [Paragraph(sale_dt, S_META)]]
+                if rd.get("customer_name"):
+                    hdr_rows.append([Paragraph(f"Customer: {rd['customer_name']}", S_META)])
+                hdr_tbl = Table(hdr_rows, colWidths=[86*mm])
+                hdr_tbl.setStyle(TableStyle([
+                    ("BACKGROUND",    (0,0), (-1,-1), DARK_BG),
+                    ("TOPPADDING",    (0,0), (-1, 0), 7),
+                    ("BOTTOMPADDING", (0,-1),(-1,-1), 7),
+                    ("TOPPADDING",    (0,1), (-1,-1), 1),
+                    ("BOTTOMPADDING", (0,0), (-1,-2), 1),
+                    ("LEFTPADDING",   (0,0), (-1,-1), 6),
+                    ("RIGHTPADDING",  (0,0), (-1,-1), 6),
+                ]))
+                story.append(hdr_tbl)
+
+                # ── Sale ID row ─────────────────────────────────────────────────────
+                id_tbl = Table(
+                    [[Paragraph("Sale ID", S_ID_L), Paragraph(rd["sale_id"], S_ID_V)]],
+                    colWidths=[43*mm, 43*mm],
+                )
+                id_tbl.setStyle(TableStyle([
+                    ("BACKGROUND",    (0,0), (-1,-1), ROW_ALT),
+                    ("TOPPADDING",    (0,0), (-1,-1), 4),
+                    ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+                    ("LEFTPADDING",   (0,0), (-1,-1), 6),
+                    ("RIGHTPADDING",  (0,0), (-1,-1), 6),
+                    ("LINEBELOW",     (0,0), (-1,-1), 0.5, RULE),
+                ]))
+                story.append(id_tbl)
                 story.append(Spacer(1, 3*mm))
 
-                tdata = [["Item","Qty","Price","Total"]]
+                # ── Items table ─────────────────────────────────────────────────────
+                tdata = [[
+                    Paragraph("Item",  S_TH),
+                    Paragraph("Qty",   S_TH_R),
+                    Paragraph("Price", S_TH_R),
+                    Paragraph("Total", S_TH_R),
+                ]]
                 for item in rd["items"]:
                     neg = item.get("negotiated_price", item["unit_price"])
-                    tdata.append([item["product_name"][:18], str(item["quantity"]),
-                                  f"₦{neg:,.0f}", f"₦{item['line_total']:,.0f}"])
-                t = Table(tdata, colWidths=[45*mm, 10*mm, 22*mm, 22*mm])
-                t.setStyle(TableStyle([
-                    ("FONTNAME",  (0,0), (-1,0),   _bold_font),   # header row bold
-                    ("FONTNAME",  (0,1), (-1,-1),  _body_font),   # data rows — needs Unicode for ₦
-                    ("FONTSIZE",  (0,0), (-1,-1),  8),
-                    ("ALIGN",     (1,0), (-1,-1),  "RIGHT"),
-                    ("LINEBELOW", (0,0), (-1,0),   0.5, colors.black),
-                    ("ROWBACKGROUNDS", (0,1), (-1,-1),
-                     [colors.white, colors.Color(0.95,0.95,0.95)]),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+                    tdata.append([
+                        Paragraph(item["product_name"][:20], S_TD),
+                        Paragraph(str(item["quantity"]),     S_TD_R),
+                        Paragraph(f"₦{neg:,.0f}",           S_TD_R),
+                        Paragraph(f"₦{item['line_total']:,.0f}", S_TD_R),
+                    ])
+                items_tbl = Table(tdata, colWidths=[42*mm, 10*mm, 17*mm, 17*mm])
+                items_tbl.setStyle(TableStyle([
+                    ("FONTSIZE",       (0,0), (-1,-1), 8),
+                    ("LINEBELOW",      (0,0), (-1, 0), 0.5, RULE),
+                    ("LINEBELOW",      (0,1), (-1,-1), 0.3, RULE),
+                    ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, ROW_ALT]),
+                    ("TOPPADDING",     (0,0), (-1,-1), 4),
+                    ("BOTTOMPADDING",  (0,0), (-1,-1), 4),
+                    ("LEFTPADDING",    (0,0), (-1,-1), 0),
+                    ("RIGHTPADDING",   (0,0), (-1,-1), 0),
                 ]))
-                # ── Totals ──
-                story += [
-                    t,
-                    Spacer(1, 3*mm),
-                    HRFlowable(width="100%", thickness=0.5, color=colors.grey),
-                    Paragraph(f"<b>TOTAL: ₦{rd['grand_total']:,.0f}</b>", bc),
-                    Paragraph(f"Payment: {rd['payment']}", nc),
-                ]
+                story.append(items_tbl)
+                story.append(Spacer(1, 3*mm))
 
-                # ── Debt block ──
+                # ── Totals ──────────────────────────────────────────────────────────
+                tot_rows = [[Paragraph("Payment method", S_LBL),
+                              Paragraph(rd["payment"], S_VAL)]]
+                if rd.get("discount", 0) > 0:
+                    tot_rows.append([Paragraph("Discount", S_LBL),
+                                     Paragraph(f"–₦{rd['discount']:,.0f}", S_VAL)])
+                tot_tbl = Table(tot_rows, colWidths=[50*mm, 36*mm])
+                tot_tbl.setStyle(TableStyle([
+                    ("TOPPADDING",    (0,0), (-1,-1), 3),
+                    ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+                    ("LEFTPADDING",   (0,0), (-1,-1), 0),
+                    ("RIGHTPADDING",  (0,0), (-1,-1), 0),
+                ]))
+                story.append(tot_tbl)
+                story.append(HRFlowable(width="100%", thickness=0.5, color=RULE))
+                story.append(Spacer(1, 2*mm))
+                story.append(Paragraph(f"Total  ₦{rd['grand_total']:,.0f}", S_TOTAL))
+                story.append(Spacer(1, 3*mm))
+
+                # ── Part payment / credit block ─────────────────────────────────────
                 _ps_pdf   = rd.get("payment_status", "full")
                 _paid_pdf = float(rd.get("amount_paid_now", rd["grand_total"]) or 0)
                 _bal_pdf  = float(rd.get("balance_owed", 0) or 0)
 
                 if _ps_pdf in ("part", "credit"):
-                    _red       = colors.Color(0.75, 0.1, 0.1)
-                    debt_title = ParagraphStyle("dt", parent=styl["Normal"],
-                                               fontName=_bold_font, fontSize=10,
-                                               alignment=TA_CENTER, spaceAfter=3,
-                                               textColor=_red)
-                    debt_body  = ParagraphStyle("db", parent=styl["Normal"],
-                                               fontName=_bold_font, fontSize=9,
-                                               alignment=TA_CENTER, spaceAfter=2,
-                                               textColor=_red)
-                    debt_note  = ParagraphStyle("dn", parent=styl["Normal"],
-                                               fontName=_body_font, fontSize=7,
-                                               alignment=TA_CENTER, spaceAfter=1,
-                                               textColor=colors.grey)
                     if _ps_pdf == "part":
                         _label     = "PART PAYMENT"
                         _paid_line = f"Paid Today:   ₦{_paid_pdf:,.0f}"
                         _bal_line  = f"Balance Owed: ₦{_bal_pdf:,.0f}"
-                        _note_line = "Please settle the balance as soon as possible."
                     else:
                         _label     = "CREDIT SALE"
                         _paid_line = "Paid Today:   ₦0"
                         _bal_line  = f"Balance Owed: ₦{rd['grand_total']:,.0f}"
-                        _note_line = "Full amount is owed. Please settle as soon as possible."
+                    _note_line = "Please settle the balance at your earliest convenience."
 
-                    story += [
-                        Spacer(1, 3*mm),
-                        HRFlowable(width="100%", thickness=0.75, color=_red),
-                        Spacer(1, 2*mm),
-                        Paragraph(_label,     debt_title),
-                        Paragraph(_paid_line, debt_body),
-                        Paragraph(_bal_line,  debt_body),
-                        Spacer(1, 1*mm),
-                        Paragraph(_note_line, debt_note),
-                        Spacer(1, 2*mm),
-                        HRFlowable(width="100%", thickness=0.75, color=_red),
+                    debt_rows = [
+                        [Paragraph(_label,     S_DEBT_H)],
+                        [Paragraph(_paid_line, S_DEBT_B)],
+                        [Paragraph(_bal_line,  S_DEBT_B)],
+                        [Paragraph(_note_line, S_DEBT_N)],
                     ]
+                    debt_tbl = Table(debt_rows, colWidths=[86*mm])
+                    debt_tbl.setStyle(TableStyle([
+                        ("BACKGROUND",    (0,0), (-1,-1), RED_LIGHT),
+                        ("BOX",           (0,0), (-1,-1), 0.5, RED_BORD),
+                        ("LINEBELOW",     (0,2), (-1, 2), 0.5, RED_BORD),
+                        ("TOPPADDING",    (0,0), (-1, 0), 6),
+                        ("BOTTOMPADDING", (0,-1),(-1,-1), 6),
+                        ("TOPPADDING",    (0,1), (-1,-1), 2),
+                        ("BOTTOMPADDING", (0,0), (-1,-2), 2),
+                        ("LEFTPADDING",   (0,0), (-1,-1), 6),
+                        ("RIGHTPADDING",  (0,0), (-1,-1), 6),
+                    ]))
+                    story.append(debt_tbl)
+                    story.append(Spacer(1, 3*mm))
 
-                if rd["note"]:
-                    story.append(Paragraph(f"Note: {rd['note']}", nc))
+                # ── Note ────────────────────────────────────────────────────────────
+                _note = rd.get("note") or ""
+                if _note.strip():
+                    story.append(Paragraph(f"Note: {_note}", S_SMALL))
+                    story.append(Spacer(1, 2*mm))
 
-                story += [
-                    Spacer(1, 4*mm),
-                    HRFlowable(width="100%", thickness=1, color=colors.black),
-                    Paragraph("Thank you for your purchase!", nc),
-                ]
+                # ── Footer ──────────────────────────────────────────────────────────
+                story.append(HRFlowable(width="100%", thickness=0.5, color=RULE))
+                story.append(Spacer(1, 2*mm))
+                story.append(Paragraph("Thank you for your purchase!", S_THANKS))
+                story.append(Paragraph("Powered by BizTrack-OS", S_POWER))
+
                 doc.build(story)
                 pdf_bytes = buf.getvalue()
                 fname = (f"receipt_{rd['sale_id']}_"
@@ -834,7 +919,7 @@ def page_record_sale():
                 item_lines = ", ".join(
                     f"{i['product_name']} x{i['quantity']}" for i in rd["items"]
                 )
-                _wa_ps  = rd.get("payment_status", "full")
+                _wa_ps   = rd.get("payment_status", "full")
                 _wa_paid = rd.get("amount_paid_now", rd["grand_total"])
                 _wa_bal  = rd.get("balance_owed", 0)
 
@@ -850,13 +935,13 @@ def page_record_sale():
                         f"--- PART PAYMENT ---\n"
                         f"Paid Today: \u20a6{_wa_paid:,.0f}\n"
                         f"Balance Owed: \u20a6{_wa_bal:,.0f}\n"
-                        f"Please settle the balance as soon as possible.\n"
+                        f"Please settle the balance at your earliest convenience.\n"
                     )
                 elif _wa_ps == "credit":
                     wa_text += (
                         f"--- CREDIT SALE ---\n"
                         f"Balance Owed: \u20a6{rd['grand_total']:,.0f}\n"
-                        f"Full amount is owed. Please settle as soon as possible.\n"
+                        f"Full amount is owed. Please settle at your earliest convenience.\n"
                     )
                 wa_text += "Thank you!\n\nPowered by BizTrack-OS\nbiztrack-os.com"
                 wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
@@ -870,6 +955,8 @@ def page_record_sale():
                 )
             except ImportError:
                 st.warning("Install reportlab for PDF receipts: pip install reportlab")
+            except Exception as _pdf_err:
+                st.error(f"PDF receipt error: {_pdf_err}")
 
     # ── Today's Sales ──
     st.markdown("---")
