@@ -31,6 +31,7 @@ from shared.auth import (
     get_user_by_email, is_subscription_active,
     hash_password,
     SUITE_SESSION_KEYS,
+    set_void_pin, has_void_pin,
 )
 from shared.db import (
     db_update, TBL_USERS,
@@ -62,6 +63,8 @@ PAGES = {
     "debtors":       ("Debtors Ledger","📒", "health",    page_debtors),
     # Admin (conditionally shown)
     "admin":         ("Admin Panel",   "🛡️", "health",    page_admin),
+    # Settings
+    "settings":      ("Settings",      "⚙️", "settings",  None),
 }
 
 APP_META = {
@@ -509,9 +512,18 @@ def render_sidebar():
                     st.session_state.current_page = page_key
                     st.rerun()
 
-        # ── Sign out ──
+        # ── Settings + Sign out ──
         st.markdown("<div style='margin-top:1.5rem;'></div>", unsafe_allow_html=True)
         st.markdown("---")
+        is_settings = current_page == "settings"
+        if st.button(
+            "⚙️ Settings",
+            key="nav_settings",
+            width="stretch",
+            type="primary" if is_settings else "secondary",
+        ):
+            st.session_state.current_page = "settings"
+            st.rerun()
         if st.button("⎋ Sign Out", width='stretch'):
             sign_out()
             st.rerun()
@@ -520,6 +532,83 @@ def render_sidebar():
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN ROUTER
 # ══════════════════════════════════════════════════════════════════════════════
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SETTINGS PAGE
+# ══════════════════════════════════════════════════════════════════════════════
+
+def page_settings():
+    from shared.theme import page_header, section_header
+    from shared.auth import set_void_pin, has_void_pin
+    apply_suite_css()
+    page_header("⚙️ Settings", "Manage your account and security preferences")
+
+    user    = st.session_state.get("user", {})
+    user_id = user.get("user_id", "")
+
+    section_header("🔐 Void PIN")
+    st.markdown(
+        "The Void PIN protects sale records from being deleted. "
+        "Only someone who knows this PIN can void a transaction from Sales History."
+    )
+
+    pin_set = has_void_pin(user)
+    if pin_set:
+        st.success("✅ Void PIN is active.")
+    else:
+        st.warning("⚠️ No Void PIN set — anyone can currently void sales. Set one below.")
+
+    action = st.radio(
+        "Action",
+        ["Set / Change PIN", "Remove PIN"] if pin_set else ["Set PIN"],
+        horizontal=True,
+        key="pin_action",
+    )
+
+    if action in ("Set PIN", "Set / Change PIN"):
+        with st.form("set_pin_form", clear_on_submit=True):
+            new_pin     = st.text_input("New PIN (4–6 digits)", type="password",
+                                         placeholder="e.g. 1234")
+            confirm_pin = st.text_input("Confirm PIN", type="password")
+            submitted   = st.form_submit_button("💾 Save PIN", type="primary")
+
+        if submitted:
+            if new_pin != confirm_pin:
+                st.error("PINs do not match.")
+            else:
+                ok, msg = set_void_pin(user_id, new_pin)
+                if ok:
+                    # Refresh user in session so has_void_pin reflects immediately
+                    updated = get_user_by_email(user.get("email", ""))
+                    if updated:
+                        st.session_state.user = updated
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+    elif action == "Remove PIN":
+        st.info("Removing the PIN means anyone can void sales without restriction.")
+        with st.form("remove_pin_form"):
+            current_pin = st.text_input("Enter current PIN to confirm removal",
+                                         type="password")
+            remove_btn  = st.form_submit_button("🗑️ Remove PIN", type="primary")
+        if remove_btn:
+            from shared.auth import verify_void_pin
+            if verify_void_pin(user, current_pin):
+                ok = db_update(TBL_USERS, "user_id", user_id, {"void_pin_hash": None})
+                if ok:
+                    updated = get_user_by_email(user.get("email", ""))
+                    if updated:
+                        st.session_state.user = updated
+                    st.success("Void PIN removed.")
+                    st.rerun()
+                else:
+                    st.error("Failed to remove PIN.")
+            else:
+                st.error("Incorrect PIN.")
+
 
 def main():
     init_session_state()
@@ -550,14 +639,17 @@ def main():
         return
 
     # Dispatch to page render function
-    page_entry = PAGES.get(current_page)
-    if page_entry:
-        _, _, _, render_fn = page_entry
-        render_fn()
+    if current_page == "settings":
+        page_settings()
     else:
-        # Fallback to dashboard
-        st.session_state.current_page = "dashboard"
-        page_dashboard()
+        page_entry = PAGES.get(current_page)
+        if page_entry:
+            _, _, _, render_fn = page_entry
+            render_fn()
+        else:
+            # Fallback to dashboard
+            st.session_state.current_page = "dashboard"
+            page_dashboard()
 
 
 if __name__ == "__main__":
