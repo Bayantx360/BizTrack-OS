@@ -257,7 +257,7 @@ def page_login():
          color:#1877F2;border-radius:99px;
          padding:0.4rem 1rem;font-size:0.78rem;font-weight:600;
          text-decoration:none;transition:opacity 0.2s;">
-      <span>📘</span> Facebook
+      <span>📱</span> Facebook
     </a>
     <a href="mailto:Bayantx360@gmail.com"
        style="display:inline-flex;align-items:center;gap:0.4rem;
