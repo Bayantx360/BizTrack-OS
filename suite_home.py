@@ -232,6 +232,15 @@ def page_login():
     For Issues & Enquiries<br>Contact Us:
   </div>
   <div style="display:flex;justify-content:center;gap:1.25rem;flex-wrap:wrap;">
+    <a href="https://facebook.com/Bayantx360"
+       target="_blank"
+       style="display:inline-flex;align-items:center;gap:0.4rem;
+         background:#0a1020;border:1px solid #1877F2;
+         color:#1877F2;border-radius:99px;
+         padding:0.4rem 1rem;font-size:0.78rem;font-weight:600;
+         text-decoration:none;transition:opacity 0.2s;">
+      <span>📱</span> Facebook
+    </a>
     <a href="https://wa.me/+2348136362633"
        target="_blank"
        style="display:inline-flex;align-items:center;gap:0.4rem;
@@ -249,15 +258,6 @@ def page_login():
          padding:0.4rem 1rem;font-size:0.78rem;font-weight:600;
          text-decoration:none;transition:opacity 0.2s;">
       <span>𝕏</span> Twitter
-    </a>
-    <a href="https://facebook.com/Bayantx360"
-       target="_blank"
-       style="display:inline-flex;align-items:center;gap:0.4rem;
-         background:#0a1020;border:1px solid #1877F2;
-         color:#1877F2;border-radius:99px;
-         padding:0.4rem 1rem;font-size:0.78rem;font-weight:600;
-         text-decoration:none;transition:opacity 0.2s;">
-      <span>📱</span> Facebook
     </a>
     <a href="mailto:Bayantx360@gmail.com"
        style="display:inline-flex;align-items:center;gap:0.4rem;
