@@ -566,10 +566,12 @@ def page_settings():
         key="pin_action",
     )
 
-    if action in ("Set PIN", "Set / Change PIN"):
+    if action == "Set PIN":
+        # ── First-time setup — no existing PIN to verify ──────────────
         with st.form("set_pin_form", clear_on_submit=True):
-            new_pin     = st.text_input("New PIN (4–6 digits)", type="password",
-                                         placeholder="e.g. 1234")
+            new_pin     = st.text_input("New PIN (4–12 characters)",
+                                         type="password",
+                                         placeholder="Letters, numbers or symbols")
             confirm_pin = st.text_input("Confirm PIN", type="password")
             submitted   = st.form_submit_button("💾 Save PIN", type="primary")
 
@@ -579,11 +581,43 @@ def page_settings():
             else:
                 ok, msg = set_void_pin(user_id, new_pin)
                 if ok:
-                    # Refresh user in session so has_void_pin reflects immediately
                     updated = get_user_by_email(user.get("email", ""))
                     if updated:
                         st.session_state.user = updated
                     st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+    elif action == "Set / Change PIN":
+        # ── Change flow — must prove knowledge of the current PIN first ──
+        st.info("🔐 You must enter your **current PIN** before setting a new one.")
+        with st.form("change_pin_form", clear_on_submit=True):
+            current_pin = st.text_input("Current PIN",
+                                         type="password",
+                                         placeholder="Your existing PIN")
+            st.markdown("---")
+            new_pin     = st.text_input("New PIN (4–12 characters)",
+                                         type="password",
+                                         placeholder="Letters, numbers or symbols")
+            confirm_pin = st.text_input("Confirm New PIN", type="password")
+            submitted   = st.form_submit_button("💾 Update PIN", type="primary")
+
+        if submitted:
+            from shared.auth import verify_void_pin
+            if not verify_void_pin(user, current_pin):
+                st.error("❌ Incorrect current PIN. PIN not changed.")
+            elif new_pin != confirm_pin:
+                st.error("New PINs do not match.")
+            elif new_pin == current_pin:
+                st.error("New PIN must be different from your current PIN.")
+            else:
+                ok, msg = set_void_pin(user_id, new_pin)
+                if ok:
+                    updated = get_user_by_email(user.get("email", ""))
+                    if updated:
+                        st.session_state.user = updated
+                    st.success("✅ Void PIN updated successfully.")
                     st.rerun()
                 else:
                     st.error(msg)
