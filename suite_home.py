@@ -42,7 +42,7 @@ from shared.theme import apply_suite_css
 # ── Page module imports ────────────────────────────────────────────────────────
 from apps.sales     import page_dashboard, page_record_sale, page_sales_history
 from apps.inventory import page_products
-from apps.health    import page_expenses, page_insights, page_admin
+from apps.health    import page_expenses, page_insights, page_admin, page_debtors
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -59,6 +59,7 @@ PAGES = {
     # Business Health
     "expenses":      ("Expenses",      "💸", "health",    page_expenses),
     "insights":      ("Insights",      "🧠", "health",    page_insights),
+    "debtors":       ("Debtors Ledger","📒", "health",    page_debtors),
     # Admin (conditionally shown)
     "admin":         ("Admin Panel",   "🛡️", "health",    page_admin),
 }
@@ -73,7 +74,7 @@ APP_META = {
 APP_PAGES = {
     "sales":     ["dashboard", "record_sale", "sales_history"],
     "inventory": ["inventory"],
-    "health":    ["expenses", "insights"],
+    "health":    ["expenses", "insights", "debtors"],
 }
 
 
@@ -107,10 +108,9 @@ def page_login():
   </div>
   <div class="lp-logo-text">BizTrack-OS</div><br>
   <div class="lp-badge"><span>●</span> All-in-one business suite</div>
-  <div class="lp-headline">Run your business<br><span>smarter, and more efficiently</span></div>
+  <div class="lp-headline">Run & Monitor your <span>Business</span><br>Smarter</div>
   <div class="lp-sub">
-    Sales · Inventory · Business Health — three powerful tool,
-    one unified platform built for Business owners & managers
+    💰Record your Daily Sales & Revenue ● 📦Track your Inventory Stock Level ● 📈Monitor your Business Growth—  All in one place on BizTrack-OS
   </div>
   <div class="lp-value-grid">
     <div class="lp-value-card">
@@ -164,14 +164,14 @@ def page_login():
                 f'font-size:11px;font-weight:500;color:#A0A8C0;'
                 f'margin-right:-8px;">+{extra}</div>'
             )
-        label = "business" if biz_count == 1 else "businesses"
+        label = "Business" if biz_count == 1 else "Businesses"
         st.markdown(f"""
 <div style="display:flex;align-items:center;justify-content:center;
             gap:14px;padding:14px 0 6px;">
   <div style="display:flex;align-items:center;">{avatars_html}</div>
   <div style="font-size:13px;color:#10B981;line-height:1.4;">
     <strong style="color:#EAB308;">{biz_count} {label}</strong>
-    are already running their business efficiently with <strong style="color:#EAB308;"> BizTrack-OS</strong>
+    are already running their operations efficiently with <strong style="color:#EAB308;"> BizTrack-OS</strong>
   </div>
 </div>
         """, unsafe_allow_html=True)
