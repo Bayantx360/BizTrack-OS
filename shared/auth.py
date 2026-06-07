@@ -347,8 +347,8 @@ def set_void_pin(user_id: str, plain_pin: str) -> tuple[bool, str]:
     Hash and store a 4-6 digit void PIN for the given user.
     Returns (success, message).
     """
-    if not plain_pin.isdigit() or not (4 <= len(plain_pin) <= 6):
-        return False, "PIN must be 4–6 digits."
+    if not (4 <= len(plain_pin) <= 12) or not plain_pin.strip():
+        return False, "PIN must be 4–12 characters (letters, numbers, symbols)."
     hashed = hash_password(plain_pin)
     ok = db_update(TBL_USERS, "user_id", user_id, {"void_pin_hash": hashed})
     if ok:
