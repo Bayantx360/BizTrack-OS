@@ -336,3 +336,37 @@ Your access period has ended⚠️. Please renew to continue using BizTrack-OS.<
         if st.button("Sign Out", width='stretch'):
             sign_out()
             st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# VOID PIN HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+def set_void_pin(user_id: str, plain_pin: str) -> tuple[bool, str]:
+    """
+    Hash and store a 4-6 digit void PIN for the given user.
+    Returns (success, message).
+    """
+    if not (4 <= len(plain_pin) <= 12) or not plain_pin.strip():
+        return False, "PIN must be 4–12 characters (letters, numbers, symbols)."
+    hashed = hash_password(plain_pin)
+    ok = db_update(TBL_USERS, "user_id", user_id, {"void_pin_hash": hashed})
+    if ok:
+        return True, "Void PIN set successfully."
+    return False, "Failed to save PIN. Please try again."
+
+
+def verify_void_pin(user: dict, plain_pin: str) -> bool:
+    """
+    Check a plain PIN against the stored hash.
+    Returns True if correct, False otherwise.
+    """
+    stored = user.get("void_pin_hash", "") or ""
+    if not stored:
+        return False
+    return check_password(plain_pin, stored)
+
+
+def has_void_pin(user: dict) -> bool:
+    """Return True if the user has set a void PIN."""
+    return bool((user.get("void_pin_hash") or "").strip())

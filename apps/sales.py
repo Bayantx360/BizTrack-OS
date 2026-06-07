@@ -34,6 +34,7 @@ from shared.db import (
     gen_id, fmt_naira, safe_float, safe_int,
 )
 from shared.theme import apply_suite_css, kpi_card, section_header, page_header
+from shared.auth import verify_void_pin, has_void_pin
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -602,23 +603,57 @@ def page_record_sale():
                     # Deduct stock — business_id filter satisfies RLS.
                     # stock_quantity is float8 in Supabase to support sub-unit sales
                     # (e.g. selling 3 out of a 12-unit bag deducts 0.25 bags).
+                    # ── Pre-commit stock guard (concurrent-use safety) ──────
+                    # Re-fetch live stock at commit time and validate every cart
+                    # item before writing anything. If another device sold the
+                    # same product between cart-build and checkout, we catch it
+                    # here and abort cleanly instead of writing negative stock.
                     live_products = get_products_df_live(business_id)
-                    for item in cart:
-                        if not live_products.empty:
-                            pr = live_products[live_products["product_id"] == item["product_id"]]
+                    stock_conflicts = []
+                    if not live_products.empty:
+                        for item in cart:
+                            pr = live_products[
+                                live_products["product_id"] == item["product_id"]
+                            ]
                             if not pr.empty:
-                                current   = safe_float(pr.iloc[0]["stock_quantity"])
-                                deduct    = safe_float(item.get("stock_deduct", item["quantity"]))
-                                raw       = current - deduct
-                                # Keep fractional stock for sub-unit products (upp > 1),
-                                # whole numbers only for products sold in full packs only.
-                                upp       = safe_int(pr.iloc[0].get("units_per_pack", 1)) or 1
-                                if upp > 1:
-                                    new_stock = round(max(0.0, raw), 4)  # float, e.g. 9.75 bags
-                                else:
-                                    new_stock = int(max(0, round(raw)))  # integer, e.g. 7 units
-                                db_update(TBL_PRODUCTS, "product_id", item["product_id"],
-                                          {"stock_quantity": new_stock})
+                                current = safe_float(pr.iloc[0]["stock_quantity"])
+                                deduct  = safe_float(item.get("stock_deduct", item["quantity"]))
+                                if deduct > current:
+                                    upp_chk = safe_int(pr.iloc[0].get("units_per_pack", 1)) or 1
+                                    avail_display = current * upp_chk if item.get("sell_mode") == "sub" else current
+                                    unit_lbl = item.get("unit_label", "unit")
+                                    stock_conflicts.append(
+                                        f"**{item['product_name']}** — only "
+                                        f"{avail_display:.0f} {unit_lbl}(s) left "
+                                        f"(another sale may have just gone through)"
+                                    )
+
+                    if stock_conflicts:
+                        st.error(
+                            "⚠️ **Stock conflict — sale not saved.**\n\n"
+                            "The following items no longer have enough stock:\n\n"
+                            + "\n".join(f"• {c}" for c in stock_conflicts)
+                            + "\n\nPlease remove or reduce those items and try again."
+                        )
+                    else:
+                        for item in cart:
+                            if not live_products.empty:
+                                pr = live_products[
+                                    live_products["product_id"] == item["product_id"]
+                                ]
+                                if not pr.empty:
+                                    current   = safe_float(pr.iloc[0]["stock_quantity"])
+                                    deduct    = safe_float(item.get("stock_deduct", item["quantity"]))
+                                    raw       = current - deduct
+                                    # Keep fractional stock for sub-unit products (upp > 1),
+                                    # whole numbers only for products sold in full packs only.
+                                    upp       = safe_int(pr.iloc[0].get("units_per_pack", 1)) or 1
+                                    if upp > 1:
+                                        new_stock = round(max(0.0, raw), 4)  # float, e.g. 9.75 bags
+                                    else:
+                                        new_stock = int(max(0, round(raw)))  # integer, e.g. 7 units
+                                    db_update(TBL_PRODUCTS, "product_id", item["product_id"],
+                                              {"stock_quantity": new_stock})
 
                     # ── Debt recording (part payment or full credit) ──
                     _balance = round(grand_total - _paid_now, 2)
@@ -1087,38 +1122,97 @@ def page_sales_history():
                 )
                 st.rerun()
 
-            void_key = f"void_{sale_id}"
+            # ── PIN-protected void ──────────────────────────────────────
+            void_key    = f"void_{sale_id}"
+            pin_err_key = f"pin_err_{sale_id}"
+            user        = st.session_state.get("user", {})
+
             if not st.session_state.get(void_key, False):
                 if st.button("🗑️ Void Sale", key=f"del_sale_{sale_id}",
                              help="Void this sale and restore stock"):
-                    st.session_state[void_key] = True
+                    st.session_state[void_key]    = True
+                    st.session_state[pin_err_key] = ""
                     st.rerun()
             else:
                 st.warning("⚠️ Void this sale? Stock will be restored.")
-                vc1, vc2 = st.columns(2)
-                if vc1.button("✅ Yes, void", key=f"yes_void_{sale_id}", type="primary"):
-                    # Restore stock for each line item
-                    items_df = db_fetch(TBL_SALE_ITEMS,
-                                        {"sale_id": sale_id, "business_id": business_id})
-                    live     = get_products_df(business_id)
-                    if not items_df.empty and not live.empty:
-                        for _, item in items_df.iterrows():
-                            pr = live[live["product_id"] == item["product_id"]]
-                            if not pr.empty:
-                                restored = int(pr.iloc[0]["stock_quantity"]) + int(item["quantity"])
-                                db_update(TBL_PRODUCTS, "product_id", item["product_id"],
-                                          {"stock_quantity": restored})
-                    ok = db_delete(TBL_SALES, "sale_id", sale_id)
-                    if not items_df.empty:
-                        db_delete(TBL_SALE_ITEMS, "sale_id", sale_id)
-                    st.session_state.pop(void_key, None)
-                    st.session_state.sale_feedback = (
-                        "✅ Sale voided and stock restored." if ok else "❌ Failed to void."
+
+                if not has_void_pin(user):
+                    # No PIN set — warn owner and still allow void so they
+                    # are not locked out, but nudge them to set a PIN.
+                    st.info(
+                        "ℹ️ No Void PIN is set. Go to **⚙️ Settings** to add one "
+                        "and protect sales records from unauthorised deletion."
                     )
-                    st.rerun()
-                if vc2.button("❌ Cancel", key=f"no_void_{sale_id}"):
-                    st.session_state.pop(void_key, None)
-                    st.rerun()
+                    vc1, vc2 = st.columns(2)
+                    if vc1.button("✅ Yes, void", key=f"yes_void_{sale_id}", type="primary"):
+                        items_df = db_fetch(TBL_SALE_ITEMS,
+                                            {"sale_id": sale_id, "business_id": business_id})
+                        live     = get_products_df(business_id)
+                        if not items_df.empty and not live.empty:
+                            for _, item in items_df.iterrows():
+                                pr = live[live["product_id"] == item["product_id"]]
+                                if not pr.empty:
+                                    restored = int(pr.iloc[0]["stock_quantity"]) + int(item["quantity"])
+                                    db_update(TBL_PRODUCTS, "product_id", item["product_id"],
+                                              {"stock_quantity": restored})
+                        ok = db_delete(TBL_SALES, "sale_id", sale_id)
+                        if not items_df.empty:
+                            db_delete(TBL_SALE_ITEMS, "sale_id", sale_id)
+                        st.session_state.pop(void_key, None)
+                        st.session_state.pop(pin_err_key, None)
+                        st.session_state.sale_feedback = (
+                            "✅ Sale voided and stock restored." if ok else "❌ Failed to void."
+                        )
+                        st.rerun()
+                    if vc2.button("❌ Cancel", key=f"no_void_{sale_id}"):
+                        st.session_state.pop(void_key, None)
+                        st.session_state.pop(pin_err_key, None)
+                        st.rerun()
+
+                else:
+                    # PIN is set — require it before proceeding
+                    if st.session_state.get(pin_err_key):
+                        st.error(st.session_state[pin_err_key])
+
+                    with st.form(f"void_pin_form_{sale_id}", clear_on_submit=True):
+                        entered_pin = st.text_input(
+                            "🔐 Enter Void PIN to confirm",
+                            type="password",
+                            placeholder="Your manager PIN",
+                        )
+                        pf1, pf2 = st.columns(2)
+                        confirm_void = pf1.form_submit_button("✅ Confirm Void", type="primary")
+                        cancel_void  = pf2.form_submit_button("❌ Cancel")
+
+                    if confirm_void:
+                        if verify_void_pin(user, entered_pin):
+                            items_df = db_fetch(TBL_SALE_ITEMS,
+                                                {"sale_id": sale_id, "business_id": business_id})
+                            live     = get_products_df(business_id)
+                            if not items_df.empty and not live.empty:
+                                for _, item in items_df.iterrows():
+                                    pr = live[live["product_id"] == item["product_id"]]
+                                    if not pr.empty:
+                                        restored = int(pr.iloc[0]["stock_quantity"]) + int(item["quantity"])
+                                        db_update(TBL_PRODUCTS, "product_id", item["product_id"],
+                                                  {"stock_quantity": restored})
+                            ok = db_delete(TBL_SALES, "sale_id", sale_id)
+                            if not items_df.empty:
+                                db_delete(TBL_SALE_ITEMS, "sale_id", sale_id)
+                            st.session_state.pop(void_key, None)
+                            st.session_state.pop(pin_err_key, None)
+                            st.session_state.sale_feedback = (
+                                "✅ Sale voided and stock restored." if ok else "❌ Failed to void."
+                            )
+                            st.rerun()
+                        else:
+                            st.session_state[pin_err_key] = "❌ Incorrect PIN. Sale not voided."
+                            st.rerun()
+
+                    if cancel_void:
+                        st.session_state.pop(void_key, None)
+                        st.session_state.pop(pin_err_key, None)
+                        st.rerun()
 
     if total_pages > 1:
         st.markdown("---")
