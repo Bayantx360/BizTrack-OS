@@ -9,6 +9,7 @@ Pages contained in this module:
   • Add Product     — new product form with live margin preview
   • Restock         — add units to existing product + audit log
   • Restock History — searchable restock log table
+  • Suppliers       — supplier directory: add, edit, delete, restock activity
 
 Cross-app links:
   • Stockout projections pull live sales velocity via shared.db.compute_insights
@@ -41,8 +42,8 @@ def page_products():
 
     page_header("📦 Inventory Management", "Add, edit and manage your products")
 
-    tab1, tab2, tab3, tab4 = st.tabs(
-        ["📋 All Products", "➕ Add Product", "🔄 Restock", "📜 Restock History"]
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        ["📋 All Products", "➕ Add Product", "🔄 Restock", "📜 Restock History", "🏭 Suppliers"]
     )
 
     # ══════════════════════════════════════
@@ -722,3 +723,163 @@ def page_products():
                                         f"{int(current_stock)} → {restored_qty}"
                                     )
                                     st.rerun()
+
+    # ══════════════════════════════════════
+    # Tab 5 — Suppliers
+    # ══════════════════════════════════════
+    with tab5:
+        page_header("🏭 Suppliers", "Your supplier directory")
+
+        suppliers_df = get_suppliers_df(business_id)
+        restock_df   = get_restock_df(business_id)
+
+        # ── Summary KPIs ──
+        total_suppliers = len(suppliers_df) if not suppliers_df.empty else 0
+        if not restock_df.empty and "supplier_name" in restock_df.columns:
+            active_suppliers = restock_df["supplier_name"].dropna().nunique()
+        else:
+            active_suppliers = 0
+
+        k1, k2 = st.columns(2)
+        with k1:
+            kpi_card("Total Suppliers", str(total_suppliers), "In your directory", icon="🏭")
+        with k2:
+            kpi_card("Active Suppliers", str(active_suppliers), "Have made at least one delivery", icon="📦")
+
+        st.markdown("---")
+
+        # ── Add New Supplier form ──
+        section_header("➕ Add New Supplier")
+        with st.form("add_supplier_form", clear_on_submit=True):
+            af1, af2 = st.columns(2)
+            sup_name  = af1.text_input("Supplier Name *", placeholder="e.g. Alhaji Musa Traders")
+            sup_phone = af2.text_input("Phone *",         placeholder="e.g. 0801 234 5678")
+            sup_notes = st.text_input("Notes (optional)", placeholder="e.g. Cash on delivery only, delivers Tuesdays")
+            add_sup   = st.form_submit_button("➕ Add Supplier", type="primary", width="stretch")
+
+        if add_sup:
+            if not sup_name.strip() or not sup_phone.strip():
+                st.error("Please enter both name and phone number.")
+            else:
+                # Guard against duplicates (same name + phone for this business)
+                if not suppliers_df.empty:
+                    dup = suppliers_df[
+                        (suppliers_df["name"].str.lower()  == sup_name.strip().lower()) &
+                        (suppliers_df["phone"].str.strip() == sup_phone.strip())
+                    ]
+                    if not dup.empty:
+                        st.warning(f"⚠️ A supplier named **{sup_name.strip()}** with that phone already exists.")
+                        st.stop()
+                ok = db_insert(TBL_SUPPLIERS, {
+                    "supplier_id": gen_id("SUP"),
+                    "business_id": business_id,
+                    "name":        sup_name.strip(),
+                    "phone":       sup_phone.strip(),
+                    "notes":       sup_notes.strip() if sup_notes else "",
+                    "created_at":  datetime.now().isoformat(),
+                })
+                if ok:
+                    st.success(f"✅ {sup_name.strip()} added to your supplier directory.")
+                    st.rerun()
+                else:
+                    st.error("Failed to add supplier. Please try again.")
+
+        st.markdown("---")
+
+        # ── Supplier directory list ──
+        section_header("📋 Your Suppliers")
+
+        if suppliers_df.empty:
+            st.info("No suppliers yet. Add your first supplier above.")
+        else:
+            # Build restock activity summary per supplier for inline display
+            activity = {}
+            if not restock_df.empty and "supplier_name" in restock_df.columns:
+                for sup_name_key, grp in restock_df.groupby("supplier_name"):
+                    activity[sup_name_key] = {
+                        "count":    len(grp),
+                        "last":     str(grp["restock_date"].max())[:10],
+                    }
+
+            search_sup = st.text_input("🔍 Search suppliers", placeholder="Type name…",
+                                       key="sup_dir_search")
+            disp_sup   = suppliers_df
+            if search_sup.strip():
+                disp_sup = suppliers_df[
+                    suppliers_df["name"].str.contains(search_sup.strip(), case=False, na=False)
+                ]
+
+            if disp_sup.empty:
+                st.warning("No suppliers match your search.")
+            else:
+                for _, row in disp_sup.iterrows():
+                    sid        = row["supplier_id"]
+                    sname      = row.get("name",  "")
+                    sphone     = row.get("phone", "")
+                    snotes     = row.get("notes", "") or ""
+                    act        = activity.get(sname, {})
+                    restock_ct = act.get("count", 0)
+                    last_del   = act.get("last",  "No deliveries yet")
+
+                    with st.expander(
+                        f"**{sname}** &nbsp;|&nbsp; 📞 {sphone}"
+                        + (f" &nbsp;|&nbsp; {restock_ct} delivery" + ("" if restock_ct == 1 else "ies") if restock_ct else ""),
+                        expanded=False,
+                    ):
+                        ic1, ic2 = st.columns(2)
+                        ic1.markdown(f"**Phone:** {sphone}")
+                        ic2.markdown(f"**Last Delivery:** {last_del}")
+                        if snotes:
+                            st.markdown(f"**Notes:** {snotes}")
+                        st.markdown(f"**Total Deliveries:** {restock_ct}")
+
+                        # ── Edit form ──
+                        with st.form(f"edit_sup_{sid}"):
+                            st.markdown("**✏️ Edit Supplier**")
+                            ef1, ef2  = st.columns(2)
+                            new_name  = ef1.text_input("Name",  value=sname)
+                            new_phone = ef2.text_input("Phone", value=sphone)
+                            new_notes = st.text_input("Notes", value=snotes)
+                            save_sup  = st.form_submit_button("💾 Save Changes", type="primary",
+                                                              width="stretch")
+
+                        if save_sup:
+                            if not new_name.strip() or not new_phone.strip():
+                                st.error("Name and phone are required.")
+                            else:
+                                ok = db_update(TBL_SUPPLIERS, "supplier_id", sid, {
+                                    "name":  new_name.strip(),
+                                    "phone": new_phone.strip(),
+                                    "notes": new_notes.strip() if new_notes else "",
+                                })
+                                if ok:
+                                    st.success("✅ Supplier updated.")
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to update supplier.")
+
+                        # ── Delete ──
+                        confirm_key = f"confirm_del_sup_{sid}"
+                        if not st.session_state.get(confirm_key, False):
+                            if st.button(f"🗑️ Delete {sname}", key=f"del_sup_{sid}",
+                                         type="secondary"):
+                                st.session_state[confirm_key] = True
+                                st.rerun()
+                        else:
+                            st.warning(
+                                f"⚠️ Delete **{sname}**? Their restock history will be kept "
+                                f"but will no longer link to a directory entry."
+                            )
+                            cy, cn = st.columns(2)
+                            if cy.button("✅ Yes, delete", key=f"yes_del_sup_{sid}",
+                                         type="primary"):
+                                ok = db_delete(TBL_SUPPLIERS, "supplier_id", sid)
+                                st.session_state.pop(confirm_key, None)
+                                if ok:
+                                    st.success(f"✅ {sname} removed from directory.")
+                                else:
+                                    st.error("Failed to delete supplier.")
+                                st.rerun()
+                            if cn.button("❌ Cancel", key=f"no_del_sup_{sid}"):
+                                st.session_state.pop(confirm_key, None)
+                                st.rerun()
