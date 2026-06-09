@@ -429,20 +429,15 @@ def page_products():
             sub_unit      = selected_product.get("sub_unit",  "unit") or "unit"
             upp           = safe_int(selected_product.get("units_per_pack", 1)) or 1
 
-            # Current prices reference card
-            stock_str = (
-                f"{cur_stock:.0f} {base_unit}s ({cur_stock * upp:.0f} {sub_unit}s)"
-                if upp > 1 else f"{cur_stock:.0f} {base_unit}s"
-            )
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                st.metric("Cost Price", fmt_naira(cur_cost), help=f"Per {base_unit}")
-            with c2:
-                st.metric("Sell / Pack", fmt_naira(cur_sell_pack), help=f"Per {base_unit}")
-            with c3:
-                st.metric("Sell / Unit", fmt_naira(cur_sell_unit), help=f"Per {sub_unit}")
-            with c4:
-                st.metric("Current Stock", stock_str)
+            # Current stock — compact single line, no truncation
+            if upp > 1:
+                stock_str = (
+                    f"{cur_stock:.0f} {base_unit}s "
+                    f"({int(cur_stock * upp)} {sub_unit}s)"
+                )
+            else:
+                stock_str = f"{cur_stock:.0f} {base_unit}s"
+            st.caption(f"📦 Current stock: **{stock_str}**")
 
             st.markdown("---")
 
@@ -522,6 +517,11 @@ def page_products():
             )
 
             if update_prices:
+                # Current prices reference — visible only when user is editing prices
+                pc1, pc2, pc3 = st.columns(3)
+                pc1.metric("Current Cost",      fmt_naira(cur_cost),      help=f"Per {base_unit}")
+                pc2.metric("Current Sell/Pack",  fmt_naira(cur_sell_pack), help=f"Per {base_unit}")
+                pc3.metric("Current Sell/Unit",  fmt_naira(cur_sell_unit), help=f"Per {sub_unit}")
                 st.caption("Pre-filled with current prices. Edit only what changed.")
 
                 new_cost = st.number_input(
