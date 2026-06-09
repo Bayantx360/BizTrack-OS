@@ -24,8 +24,8 @@ from shared.db import (
     get_products_df, get_products_df_live, get_sales_df, get_expenses_df,
     compute_insights,
     db_fetch, db_insert, db_update, db_delete,
-    get_restock_df,
-    TBL_PRODUCTS, TBL_RESTOCK,
+    get_restock_df, get_suppliers_df,
+    TBL_PRODUCTS, TBL_RESTOCK, TBL_SUPPLIERS,
     gen_id, fmt_naira, safe_float, safe_int,
 )
 from shared.theme import (
@@ -445,6 +445,55 @@ def page_products():
 
             st.markdown("---")
 
+            # ── Supplier selector (outside form for reactivity) ──
+            st.markdown("**🏭 Supplier**")
+            suppliers_df = get_suppliers_df(business_id)
+
+            add_new_supplier = st.checkbox(
+                "➕ New supplier — add to directory",
+                value=False,
+                key="restock_new_supplier_toggle",
+            )
+
+            if add_new_supplier:
+                ns1, ns2 = st.columns(2)
+                new_sup_name  = ns1.text_input(
+                    "Supplier Name *",
+                    placeholder="e.g. Alhaji Musa Traders",
+                    key="new_sup_name",
+                )
+                new_sup_phone = ns2.text_input(
+                    "Phone *",
+                    placeholder="e.g. 0801 234 5678",
+                    key="new_sup_phone",
+                )
+                new_sup_notes = st.text_input(
+                    "Notes (optional)",
+                    placeholder="e.g. Cash on delivery only",
+                    key="new_sup_notes",
+                )
+                selected_supplier_id   = None
+                selected_supplier_name = new_sup_name.strip() or "—"
+            else:
+                if suppliers_df.empty:
+                    st.info("No suppliers saved yet. Tick the box above to add your first one.")
+                    selected_supplier_id   = None
+                    selected_supplier_name = ""
+                else:
+                    sup_options = {
+                        f"{r['name']}  •  {r.get('phone', '')}": r
+                        for _, r in suppliers_df.iterrows()
+                    }
+                    sup_label            = st.selectbox(
+                        "Select supplier",
+                        list(sup_options.keys()),
+                        key="restock_supplier_select",
+                    )
+                    selected_supplier_id   = sup_options[sup_label]["supplier_id"]
+                    selected_supplier_name = sup_options[sup_label]["name"]
+
+            st.markdown("---")
+
             # ── Delivery fields (outside form for reactivity) ──
             st.markdown("**📥 New Delivery**")
             rd1, rd2 = st.columns(2)
@@ -455,8 +504,8 @@ def page_products():
                 help=f"Number of {base_unit}s received from supplier",
             )
             restock_note = rd2.text_input(
-                "Supplier / Note",
-                placeholder="e.g. Alhaji Musa delivery",
+                "Batch Note (optional)",
+                placeholder="e.g. 3 cartons were dented",
                 key="restock_note",
             )
 
@@ -527,6 +576,30 @@ def page_products():
                 )
 
                 if submitted:
+                    # Validate supplier fields if adding new
+                    if add_new_supplier:
+                        if not new_sup_name.strip() or not new_sup_phone.strip():
+                            st.error("Please enter the new supplier's name and phone number.")
+                            st.stop()
+                        # Save new supplier to directory
+                        new_sup_id = gen_id("SUP")
+                        sup_saved  = db_insert(TBL_SUPPLIERS, {
+                            "supplier_id": new_sup_id,
+                            "business_id": business_id,
+                            "name":        new_sup_name.strip(),
+                            "phone":       new_sup_phone.strip(),
+                            "notes":       new_sup_notes.strip() if new_sup_notes else "",
+                            "created_at":  datetime.now().isoformat(),
+                        })
+                        if not sup_saved:
+                            st.error("Failed to save new supplier. Please try again.")
+                            st.stop()
+                        resolved_supplier_id   = new_sup_id
+                        resolved_supplier_name = new_sup_name.strip()
+                    else:
+                        resolved_supplier_id   = selected_supplier_id   or ""
+                        resolved_supplier_name = selected_supplier_name or ""
+
                     new_qty = int(round(cur_stock + add_qty))
                     updates = {"stock_quantity": new_qty}
                     if update_prices:
@@ -538,21 +611,25 @@ def page_products():
                                    selected_product["product_id"], updates)
                     if ok:
                         db_insert(TBL_RESTOCK, {
-                            "restock_id":   gen_id("RST"),
-                            "business_id":  business_id,
-                            "product_id":   selected_product["product_id"],
-                            "product_name": selected_product["product_name"],
-                            "qty_added":    int(add_qty),
-                            "qty_before":   int(cur_stock),
-                            "qty_after":    int(new_qty),
-                            "note":         restock_note.strip() if restock_note else "",
-                            "recorded_by":  user.get("full_name", user.get("email", "")),
-                            "restock_date": datetime.now().isoformat(),
+                            "restock_id":    gen_id("RST"),
+                            "business_id":   business_id,
+                            "product_id":    selected_product["product_id"],
+                            "product_name":  selected_product["product_name"],
+                            "qty_added":     int(add_qty),
+                            "qty_before":    int(cur_stock),
+                            "qty_after":     int(new_qty),
+                            "supplier_id":   resolved_supplier_id,
+                            "supplier_name": resolved_supplier_name,
+                            "note":          restock_note.strip() if restock_note else "",
+                            "recorded_by":   user.get("full_name", user.get("email", "")),
+                            "restock_date":  datetime.now().isoformat(),
                         })
                         msg = (
                             f"✅ Restocked! {selected_product['product_name']}: "
                             f"{cur_stock:.0f} → {new_qty:.0f} {base_unit}s"
                         )
+                        if resolved_supplier_name:
+                            msg += f" | Supplier: {resolved_supplier_name}"
                         if update_prices:
                             msg += (
                                 f" | Prices updated — Cost: {fmt_naira(new_cost)}, "
@@ -574,25 +651,40 @@ def page_products():
         else:
             restock_df = restock_df.sort_values("restock_date", ascending=False)
 
-            search_rst = st.text_input("🔍 Search by product name", key="restock_search",
+            # ── Filters ──
+            f1, f2 = st.columns(2)
+            search_rst = f1.text_input("🔍 Search by product name", key="restock_search",
                                        placeholder="Type to filter…")
+            # Supplier filter — only shown when supplier_name column exists and has data
+            sup_filter = ""
+            if "supplier_name" in restock_df.columns:
+                sup_names   = sorted(restock_df["supplier_name"].dropna().unique().tolist())
+                sup_names   = [s for s in sup_names if s.strip()]
+                if sup_names:
+                    sup_options = ["All suppliers"] + sup_names
+                    sup_filter  = f2.selectbox("🏭 Filter by supplier", sup_options,
+                                               key="restock_sup_filter")
+
             if search_rst:
                 restock_df = restock_df[
                     restock_df["product_name"].str.contains(search_rst, case=False, na=False)
                 ]
+            if sup_filter and sup_filter != "All suppliers":
+                restock_df = restock_df[restock_df["supplier_name"] == sup_filter]
 
             # ── Per-row display with Reverse button ──
             for _, row in restock_df.iterrows():
-                restock_id   = row.get("restock_id", "")
-                product_id   = row.get("product_id", "")
-                product_name = row.get("product_name", "")
-                qty_added    = int(row.get("qty_added", 0))
-                qty_before   = int(row.get("qty_before", 0))
-                qty_after    = int(row.get("qty_after",  0))
-                note         = row.get("note", "") or ""
-                recorded_by  = row.get("recorded_by", "") or ""
-                r_date       = row.get("restock_date", "")
-                date_str     = str(r_date)[:16] if r_date else "—"
+                restock_id     = row.get("restock_id", "")
+                product_id     = row.get("product_id", "")
+                product_name   = row.get("product_name", "")
+                qty_added      = int(row.get("qty_added", 0))
+                qty_before     = int(row.get("qty_before", 0))
+                qty_after      = int(row.get("qty_after",  0))
+                note           = row.get("note", "") or ""
+                recorded_by    = row.get("recorded_by", "") or ""
+                supplier_name  = row.get("supplier_name", "") or ""
+                r_date         = row.get("restock_date", "")
+                date_str       = str(r_date)[:16] if r_date else "—"
 
                 with st.container(border=True):
                     c1, c2 = st.columns([5, 1])
@@ -603,10 +695,13 @@ def page_products():
                             f"➕ {qty_added} units &nbsp;|&nbsp; "
                             f"{qty_before} → {qty_after}"
                         )
+                        meta_parts = []
+                        if supplier_name:
+                            meta_parts.append(f"🏭 {supplier_name}")
                         if note:
-                            st.caption(f"📝 {note}  •  👤 {recorded_by}")
-                        else:
-                            st.caption(f"👤 {recorded_by}")
+                            meta_parts.append(f"📝 {note}")
+                        meta_parts.append(f"👤 {recorded_by}")
+                        st.caption("  •  ".join(meta_parts))
                     with c2:
                         if st.button("↩️ Reverse", key=f"rev_{restock_id}", type="secondary"):
                             current_df  = get_products_df_live(business_id)
