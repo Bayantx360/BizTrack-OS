@@ -383,14 +383,42 @@ def page_products():
         else:
             st.markdown("#### 🔄 Restock a Product")
 
-            # Product selector outside form for reactive reference card
+            # ── Product search + selector (outside form for reactivity) ──
+            restock_search = st.text_input(
+                "🔍 Search product to restock",
+                placeholder="Type product name…",
+                key="restock_search_query",
+            )
+
+            search_term = restock_search.strip()
+            if search_term:
+                filtered_df = products_df[
+                    products_df["product_name"].str.contains(search_term, case=False, na=False)
+                ]
+            else:
+                filtered_df = products_df
+
+            if filtered_df.empty:
+                st.warning("⚠️ No products match your search. Try a different name.")
+                st.stop()
+
             product_options = {
                 f"{r['product_name']} ({r.get('base_unit','unit')}s)": r
-                for _, r in products_df.iterrows()
+                for _, r in filtered_df.iterrows()
             }
-            selected_label   = st.selectbox("Select product to restock",
-                                            list(product_options.keys()))
-            selected_product = product_options[selected_label]
+
+            # Auto-select when search narrows to exactly one match
+            if len(product_options) == 1:
+                selected_label   = list(product_options.keys())[0]
+                selected_product = product_options[selected_label]
+                st.info(f"✅ Matched: **{selected_label}**")
+            else:
+                selected_label   = st.selectbox(
+                    "Select product to restock",
+                    list(product_options.keys()),
+                    key="restock_product_select",
+                )
+                selected_product = product_options[selected_label]
 
             cur_cost      = safe_float(selected_product["cost_price"])
             cur_sell_pack = safe_float(selected_product["selling_price"])
