@@ -19,9 +19,10 @@ All three page modules import from here:
         compute_kpis, compute_insights,
         log_payment, get_payments_df,
         get_debts_df, get_debt_payments_df, record_debt_payment,
+        get_suppliers_df,
         TBL_USERS, TBL_PRODUCTS, TBL_SALES, TBL_EXPENSES,
         TBL_PAYMENTS, TBL_RESTOCK, TBL_SALE_ITEMS,
-        TBL_DEBTS, TBL_DEBT_PAYMENTS,
+        TBL_DEBTS, TBL_DEBT_PAYMENTS, TBL_SUPPLIERS,
         PAYMENT_DETAILS,
     )
 """
@@ -46,6 +47,7 @@ TBL_RESTOCK       = "restock_log"
 TBL_SALE_ITEMS    = "sale_items"
 TBL_DEBTS         = "debts"
 TBL_DEBT_PAYMENTS = "debt_payments"
+TBL_SUPPLIERS     = "suppliers"
 
 # ── Plan / payment config ──────────────────────────────────────────────────────
 PAYMENT_DETAILS = {
@@ -257,6 +259,19 @@ def get_restock_df(business_id: str) -> pd.DataFrame:
     df["restock_date"] = pd.to_datetime(
         df["restock_date"], errors="coerce", utc=True
     ).dt.tz_localize(None)
+    return df
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def get_suppliers_df(business_id: str) -> pd.DataFrame:
+    """Return suppliers directory for this business — cached 60s."""
+    df = db_fetch(TBL_SUPPLIERS, {"business_id": business_id})
+    if df.empty:
+        return pd.DataFrame()
+    if "created_at" in df.columns:
+        df["created_at"] = pd.to_datetime(
+            df["created_at"], errors="coerce", utc=True
+        ).dt.tz_localize(None)
     return df
 
 
