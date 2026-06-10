@@ -138,36 +138,102 @@ def page_login():
 </div>
     """, unsafe_allow_html=True)
 
-    # ── Social proof — shop icon avatars + named businesses ──
+    # ── Social proof — unique industry silhouette avatars + named businesses ──
     TRUSTED_BUSINESSES = [
-        {"name": "Rabz Pharma",      "color": "E8F4FD", "fg": "1A6FA8"},
-        {"name": "Ammy's Gadgets",   "color": "CFFAFE", "fg": "0E7490"},
-        {"name": "Bara Ventures",     "color": "FEF3C7", "fg": "A07A10"},
-        {"name": "Obantz Ltd",  "color": "FDEDEC", "fg": "A83228"},
-        {"name": "Bularis C.E",  "color": "EDE9FE", "fg": "6D28D9"},
-        {"name": "Tundsam Agromart Ltd",   "color": "D1FAE5", "fg": "065F46"},
-        {"name": "Omokorewa Kitchen Utensils",   "color": "FFF7ED", "fg": "C2410C"},
+        {"name": "Rabz Pharma",                "color": "E8F4FD", "fg": "1A6FA8"},
+        {"name": "Ammy's Gadgets",             "color": "CFFAFE", "fg": "0E7490"},
+        {"name": "Bara Ventures",              "color": "FEF3C7", "fg": "A07A10"},
+        {"name": "Obantz Ltd",                 "color": "FDEDEC", "fg": "A83228"},
+        {"name": "Bularis C.E",                "color": "EDE9FE", "fg": "6D28D9"},
+        {"name": "Tundsam Agromart Ltd",       "color": "D1FAE5", "fg": "065F46"},
+        {"name": "Omokorewa Kitchen Utensils", "color": "FFF7ED", "fg": "C2410C"},
     ]
-    # shop SVG icon — same for all, colour changes per avatar
-    def shop_avatar(bg, fg):
+
+    def _svg_icon(name: str, fg: str) -> str:
+        """Return a unique SVG icon path based on business name."""
+        c = fg
+        if "pharma" in name.lower():
+            # pill capsule + medical cross
+            return (
+                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
+                f'<rect x="3" y="10" width="18" height="4" rx="2" stroke="#{c}" stroke-width="1.7"/>'
+                f'<line x1="12" y1="10" x2="12" y2="14" stroke="#{c}" stroke-width="1.4"/>'
+                f'<line x1="12" y1="3" x2="12" y2="8" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
+                f'<line x1="9.5" y1="5.5" x2="14.5" y2="5.5" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
+                f'</svg>'
+            )
+        elif "gadget" in name.lower():
+            # smartphone
+            return (
+                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
+                f'<rect x="7" y="2" width="10" height="17" rx="2" stroke="#{c}" stroke-width="1.7"/>'
+                f'<line x1="10" y1="17.5" x2="14" y2="17.5" stroke="#{c}" stroke-width="1.4" stroke-linecap="round"/>'
+                f'<line x1="10.5" y1="5" x2="13.5" y2="5" stroke="#{c}" stroke-width="1.2" stroke-linecap="round"/>'
+                f'</svg>'
+            )
+        elif "venture" in name.lower():
+            # briefcase
+            return (
+                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
+                f'<rect x="3" y="8" width="18" height="11" rx="2" stroke="#{c}" stroke-width="1.7"/>'
+                f'<path d="M9 8V6a1 1 0 011-1h4a1 1 0 011 1v2" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
+                f'<line x1="3" y1="13" x2="21" y2="13" stroke="#{c}" stroke-width="1.3"/>'
+                f'<line x1="12" y1="11" x2="12" y2="15" stroke="#{c}" stroke-width="1.3" stroke-linecap="round"/>'
+                f'</svg>'
+            )
+        elif "obantz" in name.lower():
+            # office building
+            return (
+                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
+                f'<rect x="4" y="5" width="16" height="16" rx="1" stroke="#{c}" stroke-width="1.7"/>'
+                f'<line x1="4" y1="9" x2="20" y2="9" stroke="#{c}" stroke-width="1.3"/>'
+                f'<rect x="7" y="12" width="3" height="3" rx="0.5" stroke="#{c}" stroke-width="1.2"/>'
+                f'<rect x="14" y="12" width="3" height="3" rx="0.5" stroke="#{c}" stroke-width="1.2"/>'
+                f'<rect x="10.5" y="16" width="3" height="5" rx="0.5" stroke="#{c}" stroke-width="1.2"/>'
+                f'</svg>'
+            )
+        elif "bularis" in name.lower():
+            # wrench
+            return (
+                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
+                f'<path d="M14.5 4.5a4 4 0 00-4.9 5.1L4 15.2A1.5 1.5 0 006 17.2l5.6-5.6a4 4 0 005.1-4.9l-2.2 2.2-1.5-1.5 2.2-2.2z"'
+                f' stroke="#{c}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+                f'</svg>'
+            )
+        elif "agro" in name.lower():
+            # wheat leaf
+            return (
+                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
+                f'<path d="M12 20V10" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
+                f'<path d="M12 15 C14 13 18 13 18 9 C14 9 12 11 12 15Z" stroke="#{c}" stroke-width="1.5" fill="none" stroke-linejoin="round"/>'
+                f'<path d="M12 12 C10 10 6 10 6 6 C10 6 12 8 12 12Z" stroke="#{c}" stroke-width="1.5" fill="none" stroke-linejoin="round"/>'
+                f'</svg>'
+            )
+        else:
+            # cooking pot (kitchen / default)
+            return (
+                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
+                f'<path d="M6 10h12l-1.5 8H7.5L6 10z" stroke="#{c}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>'
+                f'<line x1="5" y1="10" x2="19" y2="10" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
+                f'<path d="M6 10 C5 10 4 9 4 8 C4 7 5 6 6 7" stroke="#{c}" stroke-width="1.5" stroke-linecap="round" fill="none"/>'
+                f'<path d="M18 10 C19 10 20 9 20 8 C20 7 19 6 18 7" stroke="#{c}" stroke-width="1.5" stroke-linecap="round" fill="none"/>'
+                f'<path d="M10 8 C10 7 11 6.5 10 5.5" stroke="#{c}" stroke-width="1.2" stroke-linecap="round" fill="none"/>'
+                f'<path d="M14 8 C14 7 15 6.5 14 5.5" stroke="#{c}" stroke-width="1.2" stroke-linecap="round" fill="none"/>'
+                f'</svg>'
+            )
+
+    def shop_avatar(bg, fg, name):
         return (
-            f'<div style="width:36px;height:36px;border-radius:50%;'
-            f'background:#{bg};border:2px solid #1a1a2e;flex-shrink:0;'
+            f'<div style="width:42px;height:42px;border-radius:50%;'
+            f'background:#{bg};border:2.5px solid #1a1a2e;flex-shrink:0;'
             f'display:flex;align-items:center;justify-content:center;'
-            f'margin-right:-10px;position:relative;" title="">'
-            f'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
-            f'xmlns="http://www.w3.org/2000/svg">'
-            f'<path d="M3 9l1-5h16l1 5" stroke="#{fg}" stroke-width="1.8" '
-            f'stroke-linecap="round"/>'
-            f'<path d="M3 9h18v11a1 1 0 01-1 1H4a1 1 0 01-1-1V9z" '
-            f'stroke="#{fg}" stroke-width="1.8"/>'
-            f'<path d="M9 21v-6h6v6" stroke="#{fg}" stroke-width="1.8" '
-            f'stroke-linecap="round"/>'
-            f'</svg></div>'
+            f'margin-right:-11px;position:relative;" title="{name}">'
+            + _svg_icon(name, fg)
+            + '</div>'
         )
-    
+
     avatars_html = "".join(
-        shop_avatar(b["color"], b["fg"]) for b in TRUSTED_BUSINESSES
+        shop_avatar(b["color"], b["fg"], b["name"]) for b in TRUSTED_BUSINESSES
     )
     names_str = ", ".join(b["name"] for b in TRUSTED_BUSINESSES[:-1])
     names_str += f", {TRUSTED_BUSINESSES[-1]['name']}"
