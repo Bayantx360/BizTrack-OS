@@ -79,20 +79,34 @@ def get_supabase() -> Client:
 # GENERIC CRUD HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 
+_FETCH_PAGE_SIZE = 1000  # Supabase default cap per request
+
 def db_fetch(table: str, filters: dict = None) -> pd.DataFrame:
     """
     SELECT * FROM table WHERE filters (all AND equality).
     filters = {"column": "value"}
+    Paginates automatically so results beyond the 1,000-row Supabase
+    default are never silently dropped.
     Returns DataFrame, empty on error.
     """
     try:
         sb    = get_supabase()
-        query = sb.table(table).select("*")
-        if filters:
-            for col, val in filters.items():
-                query = query.eq(col, val)
-        res = query.execute()
-        return pd.DataFrame(res.data) if res.data else pd.DataFrame()
+        rows  = []
+        start = 0
+        while True:
+            end   = start + _FETCH_PAGE_SIZE - 1
+            query = sb.table(table).select("*")
+            if filters:
+                for col, val in filters.items():
+                    query = query.eq(col, val)
+            res   = query.range(start, end).execute()
+            batch = res.data or []
+            rows.extend(batch)
+            if len(batch) < _FETCH_PAGE_SIZE:
+                # Received fewer rows than page size — we're done
+                break
+            start += _FETCH_PAGE_SIZE
+        return pd.DataFrame(rows) if rows else pd.DataFrame()
     except Exception as e:
         st.error(f"❌ Error reading {table}: {e}")
         return pd.DataFrame()

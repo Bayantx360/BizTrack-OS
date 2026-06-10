@@ -140,13 +140,13 @@ def page_login():
 
     # ── Social proof — shop icon avatars + named businesses ──
     TRUSTED_BUSINESSES = [
-        {"name": "Babz Pharma",      "color": "E8F4FD", "fg": "1A6FA8"},
+        {"name": "Rabz Pharma",      "color": "E8F4FD", "fg": "1A6FA8"},
         {"name": "Ammy's Gadgets",   "color": "CFFAFE", "fg": "0E7490"},
-        {"name": "Barka Storez",     "color": "FEF3C7", "fg": "A07A10"},
-        {"name": "Kemi Provisions",  "color": "FDEDEC", "fg": "A83228"},
-        {"name": "Lagos Dry Goods",  "color": "EDE9FE", "fg": "6D28D9"},
-        {"name": "Tunde Agromart",   "color": "D1FAE5", "fg": "065F46"},
-        {"name": "Chioma's Place",   "color": "FFF7ED", "fg": "C2410C"},
+        {"name": "Bara Ventures",     "color": "FEF3C7", "fg": "A07A10"},
+        {"name": "Obantz Ltd",  "color": "FDEDEC", "fg": "A83228"},
+        {"name": "Bularis C.E",  "color": "EDE9FE", "fg": "6D28D9"},
+        {"name": "Tundsam Agromart Ltd",   "color": "D1FAE5", "fg": "065F46"},
+        {"name": "Omokorewa Kitchen Utensils",   "color": "FFF7ED", "fg": "C2410C"},
     ]
     # shop SVG icon — same for all, colour changes per avatar
     def shop_avatar(bg, fg):
@@ -165,12 +165,12 @@ def page_login():
             f'stroke-linecap="round"/>'
             f'</svg></div>'
         )
-
+    
     avatars_html = "".join(
         shop_avatar(b["color"], b["fg"]) for b in TRUSTED_BUSINESSES
     )
     names_str = ", ".join(b["name"] for b in TRUSTED_BUSINESSES[:-1])
-    names_str += f" &amp; {TRUSTED_BUSINESSES[-1]['name']}"
+    names_str += f", {TRUSTED_BUSINESSES[-1]['name']}"
 
     biz_count, _ = get_business_social_proof()
     label = "Business" if biz_count == 1 else "Businesses"
@@ -194,7 +194,7 @@ def page_login():
   </div>
   <div style="font-size:11.5px;color:#6B7280;text-align:center;
               line-height:1.6;max-width:340px;">
-    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more.
+    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses 🇳🇬.
   </div>
 </div>
     """, unsafe_allow_html=True)
@@ -227,7 +227,8 @@ def page_login():
                 else:
                     st.error(msg)
 
-        st.markdown("---")
+        st.markdown('<div class="lp-divider"> Register New Account/Reset Password</div>',
+                    unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         if c1.button("Create account", width='stretch', type="primary"):
             st.session_state.current_page = "signup"; st.rerun()
