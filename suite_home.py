@@ -138,46 +138,66 @@ def page_login():
 </div>
     """, unsafe_allow_html=True)
 
-    # ── Social proof — avatar strip ──
-    biz_count, initials = get_business_social_proof()
-    if biz_count > 0:
-        avatar_colors = [
-            ("E8F4FD", "1A6FA8"),
-            ("CFFAFE", "1A7A4A"),
-            ("FEF3C7", "A07A10"),
-            ("FDEDEC", "A83228"),
-        ]
-        avatars_html = ""
-        for i, letter in enumerate(initials):
-            bg, fg = avatar_colors[i % len(avatar_colors)]
-            avatars_html += (
-                f'<div style="width:32px;height:32px;border-radius:50%;'
-                f'background:#{bg};border:2px solid #1a1a2e;'
-                f'display:flex;align-items:center;justify-content:center;'
-                f'font-size:12px;font-weight:500;color:#{fg};'
-                f'margin-right:-8px;position:relative;z-index:{4-i};">'
-                f'{letter}</div>'
-            )
-        extra = biz_count - len(initials)
-        if extra > 0:
-            avatars_html += (
-                f'<div style="width:32px;height:32px;border-radius:50%;'
-                f'background:#2A2A3E;border:2px solid #1a1a2e;'
-                f'display:flex;align-items:center;justify-content:center;'
-                f'font-size:11px;font-weight:500;color:#A0A8C0;'
-                f'margin-right:-8px;">+{extra}</div>'
-            )
-        label = "Business" if biz_count == 1 else "Businesses"
-        st.markdown(f"""
-<div style="display:flex;align-items:center;justify-content:center;
-            gap:14px;padding:14px 0 6px;">
-  <div style="display:flex;align-items:center;">{avatars_html}</div>
-  <div style="font-size:13px;color:#10B981;line-height:1.4;">
-    <strong style="color:#EAB308;">{biz_count} {label}</strong>
-    are already running their operations efficiently with <strong style="color:#EAB308;"> BizTrack-OS</strong>
+    # ── Social proof — shop icon avatars + named businesses ──
+    TRUSTED_BUSINESSES = [
+        {"name": "Babz Pharma",      "color": "E8F4FD", "fg": "1A6FA8"},
+        {"name": "Ammy's Gadgets",   "color": "CFFAFE", "fg": "0E7490"},
+        {"name": "Barka Storez",     "color": "FEF3C7", "fg": "A07A10"},
+        {"name": "Kemi Provisions",  "color": "FDEDEC", "fg": "A83228"},
+        {"name": "Lagos Dry Goods",  "color": "EDE9FE", "fg": "6D28D9"},
+        {"name": "Tunde Agromart",   "color": "D1FAE5", "fg": "065F46"},
+        {"name": "Chioma's Place",   "color": "FFF7ED", "fg": "C2410C"},
+    ]
+    # shop SVG icon — same for all, colour changes per avatar
+    def shop_avatar(bg, fg):
+        return (
+            f'<div style="width:36px;height:36px;border-radius:50%;'
+            f'background:#{bg};border:2px solid #1a1a2e;flex-shrink:0;'
+            f'display:flex;align-items:center;justify-content:center;'
+            f'margin-right:-10px;position:relative;" title="">'
+            f'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" '
+            f'xmlns="http://www.w3.org/2000/svg">'
+            f'<path d="M3 9l1-5h16l1 5" stroke="#{fg}" stroke-width="1.8" '
+            f'stroke-linecap="round"/>'
+            f'<path d="M3 9h18v11a1 1 0 01-1 1H4a1 1 0 01-1-1V9z" '
+            f'stroke="#{fg}" stroke-width="1.8"/>'
+            f'<path d="M9 21v-6h6v6" stroke="#{fg}" stroke-width="1.8" '
+            f'stroke-linecap="round"/>'
+            f'</svg></div>'
+        )
+
+    avatars_html = "".join(
+        shop_avatar(b["color"], b["fg"]) for b in TRUSTED_BUSINESSES
+    )
+    names_str = ", ".join(b["name"] for b in TRUSTED_BUSINESSES[:-1])
+    names_str += f" &amp; {TRUSTED_BUSINESSES[-1]['name']}"
+
+    biz_count, _ = get_business_social_proof()
+    label = "Business" if biz_count == 1 else "Businesses"
+    count_display = biz_count if biz_count > 0 else len(TRUSTED_BUSINESSES)
+
+    st.markdown(f"""
+<div style="display:flex;flex-direction:column;align-items:center;
+            gap:10px;padding:18px 0 8px;">
+  <div style="display:flex;align-items:center;justify-content:center;">
+    {avatars_html}
+    <div style="width:36px;height:36px;border-radius:50%;
+                background:#2A2A3E;border:2px solid #1a1a2e;flex-shrink:0;
+                display:flex;align-items:center;justify-content:center;
+                font-size:11px;font-weight:600;color:#A0A8C0;margin-right:10px;">
+      +{max(0, count_display - len(TRUSTED_BUSINESSES))}
+    </div>
+    <div style="font-size:13px;color:#10B981;line-height:1.4;">
+      <strong style="color:#EAB308;">{count_display} {label}</strong>
+      already running on <strong style="color:#EAB308;">BizTrack-OS</strong>
+    </div>
+  </div>
+  <div style="font-size:11.5px;color:#6B7280;text-align:center;
+              line-height:1.6;max-width:340px;">
+    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more.
   </div>
 </div>
-        """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
     _, form_col, _ = st.columns([1, 1.4, 1])
     with form_col:
