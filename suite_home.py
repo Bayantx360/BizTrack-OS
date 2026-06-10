@@ -170,7 +170,7 @@ def page_login():
         shop_avatar(b["color"], b["fg"]) for b in TRUSTED_BUSINESSES
     )
     names_str = ", ".join(b["name"] for b in TRUSTED_BUSINESSES[:-1])
-    names_str += f" &amp; {TRUSTED_BUSINESSES[-1]['name']}"
+    names_str += f" ,; {TRUSTED_BUSINESSES[-1]['name']}"
 
     biz_count, _ = get_business_social_proof()
     label = "Business" if biz_count == 1 else "Businesses"
