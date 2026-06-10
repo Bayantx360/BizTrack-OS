@@ -165,7 +165,7 @@ def page_login():
             f'stroke-linecap="round"/>'
             f'</svg></div>'
         )
-
+    
     avatars_html = "".join(
         shop_avatar(b["color"], b["fg"]) for b in TRUSTED_BUSINESSES
     )
@@ -227,8 +227,7 @@ def page_login():
                 else:
                     st.error(msg)
 
-        st.markdown("---")
-        st.markdown('<div class="lp-divider"> Register as New Account</div>',
+        st.markdown('<div class="lp-divider"> Register New Account/Reset Password</div>',
                     unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         if c1.button("Create account", width='stretch', type="primary"):
