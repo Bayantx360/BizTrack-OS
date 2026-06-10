@@ -439,6 +439,31 @@ def page_products():
                 stock_str = f"{cur_stock:.0f} {base_unit}s"
             st.caption(f"📦 Current stock: **{stock_str}**")
 
+            # ── Recent deliveries panel (reactive to product selection) ──
+            hist_df = get_restock_df(business_id)
+            if not hist_df.empty:
+                pid          = selected_product["product_id"]
+                product_hist = hist_df[hist_df["product_id"] == pid].copy()
+                product_hist = product_hist.sort_values("restock_date", ascending=False).head(5)
+
+                if not product_hist.empty:
+                    with st.expander(
+                        f"📋 Last {len(product_hist)} deliver{'y' if len(product_hist) == 1 else 'ies'} "
+                        f"for **{selected_product['product_name']}**",
+                        expanded=True,
+                    ):
+                        for _, h in product_hist.iterrows():
+                            date_str     = str(h.get("restock_date", ""))[:10] or "—"
+                            qty          = int(h.get("qty_added", 0))
+                            sup          = h.get("supplier_name", "") or "No supplier recorded"
+                            note         = h.get("note", "") or ""
+                            note_snippet = f" · _{note}_" if note else ""
+                            st.markdown(
+                                f"**{date_str}** &nbsp;·&nbsp; "
+                                f"+{qty} {base_unit}s &nbsp;·&nbsp; "
+                                f"🏭 {sup}{note_snippet}"
+                            )
+
             st.markdown("---")
 
             # ── Supplier selector (outside form for reactivity) ──
