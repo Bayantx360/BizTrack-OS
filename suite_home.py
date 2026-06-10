@@ -142,10 +142,10 @@ def page_login():
     TRUSTED_BUSINESSES = [
         {"name": "Rabz Pharma",      "color": "E8F4FD", "fg": "1A6FA8"},
         {"name": "Ammy's Gadgets",   "color": "CFFAFE", "fg": "0E7490"},
-        {"name": "Barka Stores",     "color": "FEF3C7", "fg": "A07A10"},
+        {"name": "Bara Ventures",     "color": "FEF3C7", "fg": "A07A10"},
         {"name": "Obantz Ltd",  "color": "FDEDEC", "fg": "A83228"},
         {"name": "Bularis C.E",  "color": "EDE9FE", "fg": "6D28D9"},
-        {"name": "Tundsam Agromart",   "color": "D1FAE5", "fg": "065F46"},
+        {"name": "Tundsam Agromart Ltd",   "color": "D1FAE5", "fg": "065F46"},
         {"name": "Omokorewa Kitchen Utensils",   "color": "FFF7ED", "fg": "C2410C"},
     ]
     # shop SVG icon — same for all, colour changes per avatar
@@ -194,7 +194,7 @@ def page_login():
   </div>
   <div style="font-size:11.5px;color:#6B7280;text-align:center;
               line-height:1.6;max-width:340px;">
-    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more.
+    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses 🇳🇬.
   </div>
 </div>
     """, unsafe_allow_html=True)
