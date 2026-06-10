@@ -228,6 +228,8 @@ def page_login():
                     st.error(msg)
 
         st.markdown("---")
+        st.markdown('<div class="lp-divider"> Register as New Account</div>',
+                    unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         if c1.button("Create account", width='stretch', type="primary"):
             st.session_state.current_page = "signup"; st.rerun()
