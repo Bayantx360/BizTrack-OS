@@ -140,13 +140,13 @@ def page_login():
 
     # ── Social proof — shop icon avatars + named businesses ──
     TRUSTED_BUSINESSES = [
-        {"name": "Babz Pharma",      "color": "E8F4FD", "fg": "1A6FA8"},
+        {"name": "Rabz Pharma",      "color": "E8F4FD", "fg": "1A6FA8"},
         {"name": "Ammy's Gadgets",   "color": "CFFAFE", "fg": "0E7490"},
-        {"name": "Barka Storez",     "color": "FEF3C7", "fg": "A07A10"},
-        {"name": "Kemi Provisions",  "color": "FDEDEC", "fg": "A83228"},
-        {"name": "Lagos Dry Goods",  "color": "EDE9FE", "fg": "6D28D9"},
-        {"name": "Tunde Agromart",   "color": "D1FAE5", "fg": "065F46"},
-        {"name": "Chioma's Place",   "color": "FFF7ED", "fg": "C2410C"},
+        {"name": "Barka Stores",     "color": "FEF3C7", "fg": "A07A10"},
+        {"name": "Obantz Ltd",  "color": "FDEDEC", "fg": "A83228"},
+        {"name": "Bularis C.E",  "color": "EDE9FE", "fg": "6D28D9"},
+        {"name": "Tundsam Agromart",   "color": "D1FAE5", "fg": "065F46"},
+        {"name": "Omokorewa Kitchen Utensils",   "color": "FFF7ED", "fg": "C2410C"},
     ]
     # shop SVG icon — same for all, colour changes per avatar
     def shop_avatar(bg, fg):
