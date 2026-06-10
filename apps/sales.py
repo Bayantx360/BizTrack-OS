@@ -459,7 +459,7 @@ def page_record_sale():
             total_profit   = 0
 
             for idx, item in enumerate(st.session_state.cart):
-                ic1, ic2 = st.columns([4, 1])
+                ic1, ic2 = st.columns([6, 1])
                 with ic1:
                     neg = item.get("negotiated_price", item["unit_price"])
                     if neg < item["unit_price"]:
@@ -468,8 +468,9 @@ def page_record_sale():
                     else:
                         price_str = fmt_naira(item["unit_price"])
                     st.markdown(
-                        f"**{item['product_name']}** × {item['quantity']} {item.get('unit_label','unit')}s "
-                        f"@ {price_str}  \n**Line total: {fmt_naira(item['line_total'])}**"
+                        f"**{item['product_name']}** × {item['quantity']} "
+                        f"{item.get('unit_label','unit')}s "
+                        f"@ {price_str} — **{fmt_naira(item['line_total'])}**"
                     )
                 with ic2:
                     if st.button("🗑️", key=f"rm_{idx}", help="Remove"):
@@ -479,7 +480,8 @@ def page_record_sale():
                 total_discount += item["discount_amt"]
                 total_cost     += item["cost_total"]
                 total_profit   += item["gross_profit"]
-                st.markdown("---")
+                if idx < len(st.session_state.cart) - 1:
+                    st.divider()
 
             st.markdown(f"""
 <div class="kpi-card">
