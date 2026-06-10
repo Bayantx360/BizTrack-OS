@@ -254,7 +254,7 @@ def page_login():
       +{max(0, count_display - len(TRUSTED_BUSINESSES))}
     </div>
     <div style="font-size:13px;color:#10B981;line-height:1.4;">
-      <strong style="color:#EAB308;">{count_display} {label}</strong>
+      <strong style="color:#EAB308;">{count_display} {label}<br></strong>
       already running on <strong style="color:#EAB308;">BizTrack-OS</strong>
     </div>
   </div>
