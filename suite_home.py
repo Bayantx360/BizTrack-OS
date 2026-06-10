@@ -253,8 +253,8 @@ def page_login():
                 font-size:11px;font-weight:600;color:#A0A8C0;margin-right:10px;">
       +{max(0, count_display - len(TRUSTED_BUSINESSES))}
     </div>
-    <br><div style="font-size:13px;color:#10B981;line-height:1.4;">
-      <strong style="color:#EAB308;">{count_display} {label}<br></strong>
+    <div style="font-size:13px;color:#10B981;line-height:1.4;">
+      <strong style="color:#EAB308;"><br>{count_display} {label}<br></strong>
       already running on <strong style="color:#EAB308;">BizTrack-OS</strong>
     </div>
   </div>
