@@ -78,6 +78,12 @@ def apply_suite_css():
     background: #080B0F !important;
 }
 
+/* ── Hide GitHub icon; keep sidebar toggle untouched ── */
+[data-testid="stToolbarActions"] a[href*="github"],
+[data-testid="stToolbarActions"] a[href*="github"] * {
+    display: none !important;
+}
+
 header {
     background: #080B0F !important;
 }
