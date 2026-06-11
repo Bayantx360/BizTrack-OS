@@ -78,13 +78,23 @@ def apply_suite_css():
     background: #080B0F !important;
 }
 
-/* ── Hide Streamlit toolbar actions (GitHub, star, fork etc.)
-       but keep the sidebar toggle (stSidebarCollapsedControl) ── */
+/* ── Hide Streamlit toolbar (GitHub, star, share etc.)
+       Sidebar toggle lives in stSidebarCollapsedControl — force it visible ── */
 [data-testid="stToolbar"],
 [data-testid="stToolbarActions"],
 [data-testid="stDecoration"] {
     display: none !important;
     visibility: hidden !important;
+}
+
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"],
+[data-testid="collapsedControl"] button {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 header {
