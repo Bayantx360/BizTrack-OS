@@ -19,7 +19,7 @@ import streamlit as st
 
 st.set_page_config(
     page_title="BizTrack-OS",
-    page_icon="📊",
+    page_icon="📒",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -107,7 +107,7 @@ def page_login():
     st.markdown("""
 <div class="lp-hero">
   <div class="lp-logo-wrap">
-    <div class="lp-logo-icon">📊</div>
+    <div class="lp-logo-icon">📒</div>
   </div>
   <div class="lp-logo-text">BizTrack-OS</div><br>
   <div class="lp-badge"><span>●</span> All-in-one business suite</div>
