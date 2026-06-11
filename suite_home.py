@@ -60,7 +60,7 @@ PAGES = {
     # Business Health
     "expenses":      ("Expenses",      "💸", "health",    page_expenses),
     "insights":      ("Insights",      "🧠", "health",    page_insights),
-    "debtors":       ("Debtors Ledger","📒", "health",    page_debtors),
+    "debtors":       ("Debtors Ledger","📕", "health",    page_debtors),
     # Admin (conditionally shown)
     "admin":         ("Admin Panel",   "🛡️", "health",    page_admin),
     # Settings
