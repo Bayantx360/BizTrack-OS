@@ -78,10 +78,13 @@ def apply_suite_css():
     background: #080B0F !important;
 }
 
-/* ── Hide GitHub icon; keep sidebar toggle untouched ── */
-[data-testid="stToolbarActions"] a[href*="github"],
-[data-testid="stToolbarActions"] a[href*="github"] * {
+/* ── Hide Streamlit toolbar actions (GitHub, star, fork etc.)
+       but keep the sidebar toggle (stSidebarCollapsedControl) ── */
+[data-testid="stToolbar"],
+[data-testid="stToolbarActions"],
+[data-testid="stDecoration"] {
     display: none !important;
+    visibility: hidden !important;
 }
 
 header {
