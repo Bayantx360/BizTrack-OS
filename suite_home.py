@@ -527,7 +527,7 @@ def render_sidebar():
     display:flex;align-items:center;justify-content:center;
     font-size:1.2rem;box-shadow:0 4px 16px rgba(245,166,35,0.3);
     flex-shrink:0;
-  ">📊</div>
+  ">📒</div>
   <div>
     <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;
       color:#F0F4F8;letter-spacing:-0.03em;line-height:1;">BizTrack-OS</div>
@@ -812,7 +812,7 @@ if __name__ == "__main__":
 }
 </style>
 <div class="splash-wrap">
-  <div class="splash-icon">📊</div>
+  <div class="splash-icon">📒</div>
   <div class="splash-title">BizTrack-OS</div>
   <div class="splash-sub">Loading your suite…</div>
 </div>
