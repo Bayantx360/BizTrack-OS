@@ -48,6 +48,11 @@ def page_expenses():
 
     page_header("💸 Expense Tracker", "Log and monitor your business expenses")
 
+    # ── Persistent status message (survives rerun) ──
+    if "exp_log_msg" in st.session_state:
+        _msg = st.session_state.pop("exp_log_msg")
+        st.success(_msg)
+
     tab1, tab2 = st.tabs(["📋 View Expenses", "➕ Log Expense"])
 
     # ══════════════════════
@@ -221,7 +226,7 @@ def page_expenses():
                     "recorded_by":  user.get("full_name", user.get("email", "")),
                 })
                 if ok:
-                    st.success(f"✅ Expense logged: {exp_name} — {fmt_naira(amount)}")
+                    st.session_state["exp_log_msg"] = f"✅ Expense logged: {exp_name} — {fmt_naira(amount)}"
                     st.rerun()
                 else:
                     st.error("Failed to log expense.")

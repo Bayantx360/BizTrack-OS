@@ -42,6 +42,11 @@ def page_products():
 
     page_header("📦 Inventory Management", "Add, edit and manage your products")
 
+    # ── Persistent status message (survives rerun) ──
+    if "inv_msg" in st.session_state:
+        _msg = st.session_state.pop("inv_msg")
+        (st.success if _msg.startswith(("✅", "↩️")) else st.error)(_msg)
+
     tab1, tab2, tab3, tab4, tab5 = st.tabs(
         ["📋 All Products", "➕ Add Product", "🔄 Restock", "📜 Restock History", "🏭 Suppliers"]
     )
@@ -197,7 +202,10 @@ def page_products():
                             "sub_unit":          new_sub.strip()  or "unit",
                             "selling_price_sub": new_sub_price,
                         })
-                        (st.success("✅ Product updated!") if ok else st.error("❌ Update failed."))
+                        if ok:
+                            st.session_state["inv_msg"] = "✅ Product updated!"
+                        else:
+                            st.session_state["inv_msg"] = "❌ Update failed."
                         st.rerun()
 
                     confirm_key = f"confirm_del_{row['product_id']}"
@@ -365,7 +373,7 @@ def page_products():
                     "created_at":        datetime.now().isoformat(),
                 })
                 if ok:
-                    st.success(
+                    st.session_state["inv_msg"] = (
                         f"✅ '{prod_name}' added! "
                         f"Pack: {fmt_naira(sell_price)} per {base_unit} | "
                         f"Unit: {fmt_naira(sell_price_sub)} per {sub_unit}"
@@ -743,7 +751,7 @@ def page_products():
                                 )
                                 if ok:
                                     db_delete(TBL_RESTOCK, "restock_id", restock_id)
-                                    st.success(
+                                    st.session_state["inv_msg"] = (
                                         f"↩️ Reversed! {product_name} stock: "
                                         f"{int(current_stock)} → {restored_qty}"
                                     )
