@@ -622,7 +622,7 @@ def page_debtors():
     user        = st.session_state.user
     business_id = user["business_id"]
 
-    page_header("📒 Debtors Ledger", "Track credit sales and part payments")
+    page_header("📕 Debtors Ledger", "Track credit sales and part payments")
 
     import urllib.parse
     from datetime import timedelta
@@ -644,7 +644,7 @@ def page_debtors():
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             kpi_card("Total Outstanding", fmt_naira(total_owed),
-                     f"{len(active_df)} open debts", positive=False, icon="📒")
+                     f"{len(active_df)} open debts", positive=False, icon="📕")
         with c2:
             kpi_card("Active Debtors", str(total_debtors),
                      "Unique customers owing", icon="👥")
