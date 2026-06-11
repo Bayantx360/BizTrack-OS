@@ -19,7 +19,7 @@ import streamlit as st
 
 st.set_page_config(
     page_title="BizTrack-OS",
-    page_icon="📊",
+    page_icon="📒",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -107,7 +107,7 @@ def page_login():
     st.markdown("""
 <div class="lp-hero">
   <div class="lp-logo-wrap">
-    <div class="lp-logo-icon">📊</div>
+    <div class="lp-logo-icon">📒</div>
   </div>
   <div class="lp-logo-text">BizTrack-OS</div><br>
   <div class="lp-badge"><span>●</span> All-in-one business suite</div>
@@ -254,7 +254,7 @@ def page_login():
       +{max(0, count_display - len(TRUSTED_BUSINESSES))}
     </div>
     <div style="font-size:13px;color:#10B981;line-height:1.4;">
-      <strong style="color:#EAB308;">{count_display} {label}</strong>
+      <strong style="color:#EAB308;">{count_display} {label}<br></strong>
       already running on <strong style="color:#EAB308;">BizTrack-OS</strong>
     </div>
   </div>
@@ -527,7 +527,7 @@ def render_sidebar():
     display:flex;align-items:center;justify-content:center;
     font-size:1.2rem;box-shadow:0 4px 16px rgba(245,166,35,0.3);
     flex-shrink:0;
-  ">📊</div>
+  ">📒</div>
   <div>
     <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;
       color:#F0F4F8;letter-spacing:-0.03em;line-height:1;">BizTrack-OS</div>
@@ -812,7 +812,7 @@ if __name__ == "__main__":
 }
 </style>
 <div class="splash-wrap">
-  <div class="splash-icon">📊</div>
+  <div class="splash-icon">📒</div>
   <div class="splash-title">BizTrack-OS</div>
   <div class="splash-sub">Loading your suite…</div>
 </div>
