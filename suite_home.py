@@ -140,9 +140,9 @@ def page_login():
 
     # ── Social proof — unique industry silhouette avatars + named businesses ──
     TRUSTED_BUSINESSES = [
-        {"name": "Rabz Pharma",                "color": "E8F4FD", "fg": "1A6FA8"},
+        {"name": "Babsam Pharmacy",                "color": "E8F4FD", "fg": "1A6FA8"},
         {"name": "Ammy's Gadgets",             "color": "CFFAFE", "fg": "0E7490"},
-        {"name": "Bara Ventures",              "color": "FEF3C7", "fg": "A07A10"},
+        {"name": "Bularis C.E",              "color": "FEF3C7", "fg": "A07A10"},
         {"name": "Tundsam Agromart Ltd",       "color": "D1FAE5", "fg": "065F46"},
         {"name": "Omokorewa Kitchen Utensils", "color": "FFF7ED", "fg": "C2410C"},
     ]
@@ -150,7 +150,7 @@ def page_login():
     def _svg_icon(name: str, fg: str) -> str:
         """Return a unique SVG icon path based on business name."""
         c = fg
-        if "pharma" in name.lower():
+        if "pharmacy" in name.lower():
             # pill capsule + medical cross
             return (
                 f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
@@ -169,7 +169,7 @@ def page_login():
                 f'<line x1="10.5" y1="5" x2="13.5" y2="5" stroke="#{c}" stroke-width="1.2" stroke-linecap="round"/>'
                 f'</svg>'
             )
-        elif "venture" in name.lower():
+        elif "Bularis" in name.lower():
             # briefcase
             return (
                 f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
