@@ -169,7 +169,7 @@ def page_login():
                 f'<line x1="10.5" y1="5" x2="13.5" y2="5" stroke="#{c}" stroke-width="1.2" stroke-linecap="round"/>'
                 f'</svg>'
             )
-        elif "Bularis" in name.lower():
+        elif "bularis" in name.lower():
             # briefcase
             return (
                 f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
