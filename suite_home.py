@@ -143,8 +143,6 @@ def page_login():
         {"name": "Rabz Pharma",                "color": "E8F4FD", "fg": "1A6FA8"},
         {"name": "Ammy's Gadgets",             "color": "CFFAFE", "fg": "0E7490"},
         {"name": "Bara Ventures",              "color": "FEF3C7", "fg": "A07A10"},
-        {"name": "Obantz Ltd",                 "color": "FDEDEC", "fg": "A83228"},
-        {"name": "Bularis C.E",                "color": "EDE9FE", "fg": "6D28D9"},
         {"name": "Tundsam Agromart Ltd",       "color": "D1FAE5", "fg": "065F46"},
         {"name": "Omokorewa Kitchen Utensils", "color": "FFF7ED", "fg": "C2410C"},
     ]
@@ -181,25 +179,7 @@ def page_login():
                 f'<line x1="12" y1="11" x2="12" y2="15" stroke="#{c}" stroke-width="1.3" stroke-linecap="round"/>'
                 f'</svg>'
             )
-        elif "obantz" in name.lower():
-            # office building
-            return (
-                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
-                f'<rect x="4" y="5" width="16" height="16" rx="1" stroke="#{c}" stroke-width="1.7"/>'
-                f'<line x1="4" y1="9" x2="20" y2="9" stroke="#{c}" stroke-width="1.3"/>'
-                f'<rect x="7" y="12" width="3" height="3" rx="0.5" stroke="#{c}" stroke-width="1.2"/>'
-                f'<rect x="14" y="12" width="3" height="3" rx="0.5" stroke="#{c}" stroke-width="1.2"/>'
-                f'<rect x="10.5" y="16" width="3" height="5" rx="0.5" stroke="#{c}" stroke-width="1.2"/>'
-                f'</svg>'
-            )
-        elif "bularis" in name.lower():
-            # wrench
-            return (
-                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
-                f'<path d="M14.5 4.5a4 4 0 00-4.9 5.1L4 15.2A1.5 1.5 0 006 17.2l5.6-5.6a4 4 0 005.1-4.9l-2.2 2.2-1.5-1.5 2.2-2.2z"'
-                f' stroke="#{c}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
-                f'</svg>'
-            )
+        
         elif "agro" in name.lower():
             # wheat leaf
             return (
