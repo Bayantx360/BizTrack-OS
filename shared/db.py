@@ -53,7 +53,7 @@ TBL_SUPPLIERS     = "suppliers"
 PAYMENT_DETAILS = {
     "monthly_price":       1500,
     "yearly_price":        15000,
-    "trial_days":          14,
+    "trial_days":          7,
     "flutterwave_monthly": "https://flutterwave.com/pay/e2jsc3ckyfya",
     "flutterwave_yearly":  "https://flutterwave.com/pay/ztzprecyyhg2",
 }
