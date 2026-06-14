@@ -4,206 +4,398 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>BizTrack-OS — Run Your Business Smarter</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0B0F17;--bg2:#111827;--bg3:#1C2535;
-  --border:#1F2D3D;--amber:#F5A623;--amber2:#C4831A;
-  --green:#00C896;--blue:#6366F1;--red:#EF4444;
-  --t1:#F0F4F8;--t2:#8BA0B8;--t3:#4A6080;
+  --bg:#08090D;--bg2:#0F1117;--bg3:#161B26;
+  --border:#1E2535;--border2:#2A3347;
+  --amber:#E8973A;--amber2:#C47A28;--amber-soft:rgba(232,151,58,.08);
+  --green:#22C48A;--blue:#5B6CF9;--red:#E85050;
+  --t1:#EDF0F5;--t2:#7D90A8;--t3:#3D4F63;
 }
 html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.6;overflow-x:hidden}
-h1,h2,h3,h4{font-family:'Syne',sans-serif;line-height:1.15}
+body{background:var(--bg);color:var(--t1);font-family:'Inter',sans-serif;font-size:16px;line-height:1.6;overflow-x:hidden}
+h1,h2,h3,h4,.display{font-family:'Plus Jakarta Sans',sans-serif;line-height:1.15}
 a{color:inherit;text-decoration:none}
 
 /* NAV */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;height:60px;
-  background:rgba(11,15,23,0.92);backdrop-filter:blur(16px);
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;height:58px;
+  background:rgba(8,9,13,0.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-bottom:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between;padding:0 20px}
-.nav-brand{display:flex;align-items:center;gap:8px}
-.nav-icon{width:32px;height:32px;border-radius:8px;background:var(--amber);
-  display:flex;align-items:center;justify-content:center}
-.nav-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:800}
-.nav-btn{background:var(--amber);color:#000;font-weight:700;font-size:13px;
-  padding:8px 18px;border-radius:8px;white-space:nowrap;transition:background .2s}
+  display:flex;align-items:center;justify-content:space-between;padding:0 20px
+}
+.nav-brand{display:flex;align-items:center;gap:9px}
+.nav-icon{
+  width:30px;height:30px;border-radius:7px;background:var(--amber);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0
+}
+.nav-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.nav-btn{
+  background:var(--amber);color:#000;font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:700;font-size:13px;padding:8px 16px;border-radius:8px;
+  white-space:nowrap;transition:background .18s
+}
 .nav-btn:hover{background:var(--amber2)}
 
 /* HERO */
-#hero{padding:100px 20px 60px;text-align:center;position:relative;overflow:hidden}
-.hero-glow{position:absolute;top:0;left:50%;transform:translateX(-50%);
-  width:min(700px,100vw);height:400px;border-radius:50%;
-  background:radial-gradient(ellipse,rgba(245,166,35,.07) 0%,transparent 70%);pointer-events:none}
-.badge{display:inline-flex;align-items:center;gap:6px;
-  background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.25);
-  color:var(--amber);font-size:11px;font-weight:600;letter-spacing:.08em;
-  padding:5px 14px;border-radius:20px;margin-bottom:24px;text-transform:uppercase}
-h1{font-size:clamp(36px,8vw,68px);font-weight:800;letter-spacing:-.03em;margin-bottom:20px}
-h1 em{color:var(--amber);font-style:normal;display:block}
-.hero-sub{font-size:clamp(14px,3vw,18px);color:var(--t2);max-width:480px;margin:0 auto 32px}
-.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:40px}
-.btn-a{background:var(--amber);color:#000;font-family:'Syne',sans-serif;font-weight:700;
-  font-size:15px;padding:13px 28px;border-radius:10px;border:none;cursor:pointer;
-  display:inline-flex;align-items:center;gap:7px;transition:all .2s}
+#hero{padding:108px 20px 56px;text-align:center;position:relative;overflow:hidden}
+.hero-glow{
+  position:absolute;top:-60px;left:50%;transform:translateX(-50%);
+  width:min(600px,100vw);height:420px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(232,151,58,.06) 0%,transparent 68%);pointer-events:none
+}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--amber-soft);border:1px solid rgba(232,151,58,.2);
+  color:var(--amber);font-size:11px;font-weight:600;letter-spacing:.07em;
+  padding:5px 13px;border-radius:20px;margin-bottom:28px;text-transform:uppercase;
+  font-family:'Plus Jakarta Sans',sans-serif
+}
+h1{
+  font-size:clamp(34px,7.5vw,62px);font-weight:800;
+  letter-spacing:-.035em;margin-bottom:18px;line-height:1.1
+}
+h1 em{color:var(--amber);font-style:normal}
+.hero-sub{
+  font-size:clamp(14px,2.8vw,17px);color:var(--t2);
+  max-width:440px;margin:0 auto 32px;line-height:1.7;font-weight:400
+}
+.hero-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:44px}
+.btn-a{
+  background:var(--amber);color:#000;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;
+  font-size:14px;padding:12px 24px;border-radius:9px;border:none;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:all .18s
+}
 .btn-a:hover{background:var(--amber2);transform:translateY(-1px)}
-.btn-b{background:transparent;color:var(--t2);font-weight:600;font-size:15px;
-  padding:13px 22px;border-radius:10px;border:1px solid var(--border);
-  display:inline-flex;align-items:center;gap:7px;transition:all .2s}
+.btn-b{
+  background:transparent;color:var(--t2);font-weight:500;font-size:14px;
+  padding:12px 20px;border-radius:9px;border:1px solid var(--border2);
+  display:inline-flex;align-items:center;gap:6px;transition:all .18s
+}
 .btn-b:hover{border-color:var(--t3);color:var(--t1)}
 
 /* TRUST BANNER */
-.trust-banner{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:20px;margin-bottom:0}
-.trust-inner{max-width:900px;margin:0 auto;text-align:center}
-.trust-label{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:16px}
-.trust-logos{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
-.trust-item{display:flex;align-items:center;gap:8px;
+.trust-banner{
+  background:var(--bg2);border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);padding:18px 20px
+}
+.trust-inner{max-width:860px;margin:0 auto;text-align:center}
+.trust-label{
+  font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--t3);margin-bottom:14px;font-family:'Plus Jakarta Sans',sans-serif
+}
+.trust-logos{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.trust-item{
+  display:flex;align-items:center;gap:7px;
   background:var(--bg);border:1px solid var(--border);
-  border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--t2)}
-.trust-item svg{flex-shrink:0}
+  border-radius:8px;padding:7px 13px;font-size:12px;font-weight:500;
+  color:var(--t2);font-family:'Plus Jakarta Sans',sans-serif
+}
 
 /* PHONE MOCKUP */
 .mockup-outer{display:flex;justify-content:center;padding:48px 20px 0;position:relative}
-.phone{width:min(260px,80vw);background:var(--bg2);border:1.5px solid var(--border);
-  border-radius:28px;padding:16px 12px;box-shadow:0 32px 80px rgba(0,0,0,.6);position:relative;z-index:2}
-.notch{width:64px;height:5px;background:var(--border);border-radius:3px;margin:0 auto 14px}
+.phone{
+  width:min(254px,82vw);background:var(--bg2);
+  border:1.5px solid var(--border2);border-radius:30px;padding:14px 11px;
+  box-shadow:0 40px 90px rgba(0,0,0,.7);position:relative;z-index:2
+}
+.notch{width:56px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 12px}
 .screen{border-radius:14px;overflow:hidden;background:var(--bg)}
-.topbar{background:var(--bg2);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
-.topbar-t{font-size:10px;font-weight:700;color:var(--amber)}
-.topbar-s{font-size:9px;color:var(--t3)}
-.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px}
-.kt{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px}
-.kl{font-size:6.5px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px}
-.kv{font-family:'Syne',sans-serif;font-size:13px;font-weight:800}
-.ks{font-size:6.5px;color:var(--green);margin-top:1px}
-.cbars{display:flex;align-items:flex-end;gap:3px;height:44px;padding:8px 8px 0}
+.topbar{
+  background:var(--bg2);padding:7px 11px;
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid var(--border)
+}
+.topbar-t{font-size:9.5px;font-weight:700;color:var(--amber);font-family:'Plus Jakarta Sans',sans-serif}
+.topbar-s{font-size:8.5px;color:var(--t3)}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:7px}
+.kt{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:8px}
+.kl{font-size:6px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px}
+.kv{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:800}
+.ks{font-size:6px;color:var(--green);margin-top:1px}
+.cbars{display:flex;align-items:flex-end;gap:2.5px;height:42px;padding:7px 7px 0}
 .cb{flex:1;border-radius:2px 2px 0 0}
-.mlist{padding:6px 8px 10px}
-.ml{font-size:7px;color:var(--t3);font-weight:600;margin-bottom:5px}
-.mr{display:flex;justify-content:space-between;font-size:8.5px;padding:4px 0;border-bottom:1px solid var(--border)}
+.mlist{padding:5px 7px 9px}
+.ml{font-size:6.5px;color:var(--t3);font-weight:600;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em}
+.mr{display:flex;justify-content:space-between;font-size:8px;padding:3.5px 0;border-bottom:1px solid var(--border)}
 .mr:last-child{border:none}
-.mr span:last-child{color:var(--green);font-weight:700}
+.mr span:last-child{color:var(--green);font-weight:600}
 
 /* SECTIONS */
-.sec{padding:72px 20px}
+.sec{padding:64px 20px}
 .sec-center{text-align:center}
-.container{max-width:1060px;margin:0 auto}
-.eyebrow{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
-.bar{width:40px;height:3px;background:var(--amber);border-radius:2px;margin-bottom:16px}
-.bar-c{margin:0 auto 16px}
-h2{font-size:clamp(26px,5vw,40px);font-weight:800;letter-spacing:-.02em;margin-bottom:14px}
-.sub{font-size:16px;color:var(--t2);max-width:480px;line-height:1.65}
+.container{max-width:1040px;margin:0 auto}
+.eyebrow{
+  font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--amber);margin-bottom:12px;font-family:'Plus Jakarta Sans',sans-serif
+}
+.bar{width:32px;height:2px;background:var(--amber);border-radius:2px;margin-bottom:18px}
+.bar-c{margin:0 auto 18px}
+h2{
+  font-size:clamp(24px,4.5vw,38px);font-weight:800;
+  letter-spacing:-.025em;margin-bottom:14px
+}
+.sub{font-size:15px;color:var(--t2);max-width:460px;line-height:1.7;font-weight:400}
 .sub-c{margin:0 auto}
 
 /* PROBLEM */
 #problem{background:var(--bg)}
-.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:44px}
-.pc{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:22px;transition:border-color .2s}
-.pc:hover{border-color:var(--t3)}
-.pi{font-size:26px;margin-bottom:12px}
-.pt{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:7px}
-.px{font-size:13px;color:var(--t2);line-height:1.6}
+.pgrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;margin-top:40px
+}
+.pc{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:10px;padding:20px;transition:border-color .2s
+}
+.pc:hover{border-color:var(--border2)}
+.pi{font-size:22px;margin-bottom:10px}
+.pt{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:14px;font-weight:700;margin-bottom:6px;letter-spacing:-.01em
+}
+.px{font-size:13px;color:var(--t2);line-height:1.65}
 
 /* FEATURES */
-#features{background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%)}
-.ftabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:40px}
-.ftab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;
-  cursor:pointer;border:1px solid var(--border);color:var(--t2);
-  background:transparent;transition:all .2s;font-family:'DM Sans',sans-serif}
-.ftab.on{background:var(--amber);color:#000;border-color:var(--amber)}
-.ftab:hover:not(.on){border-color:var(--t3);color:var(--t1)}
+#features{background:var(--bg2)}
+.f-header{margin-bottom:32px}
+.ftabs{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:0;margin-bottom:0;
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;padding:5px;gap:4px
+}
+@media(max-width:480px){
+  .ftabs{grid-template-columns:repeat(2,1fr)}
+}
+.ftab{
+  padding:11px 8px;border-radius:8px;font-size:12.5px;font-weight:600;
+  cursor:pointer;border:none;color:var(--t2);
+  background:transparent;transition:all .2s;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  text-align:center;line-height:1.2
+}
+.ftab .ticon{font-size:18px;display:block}
+.ftab .tlabel{display:block;font-size:11px}
+.ftab.on{background:var(--amber);color:#000}
+.ftab:hover:not(.on){background:var(--bg2);color:var(--t1)}
+
+/* tab indicator bar */
+.ftab-bar{
+  height:3px;background:var(--border);border-radius:3px;
+  margin-top:0;margin-bottom:28px;overflow:hidden
+}
+.ftab-bar-inner{
+  height:100%;background:var(--amber);border-radius:3px;
+  width:25%;transition:transform .25s cubic-bezier(.4,0,.2,1)
+}
+
 .fpanel{display:none}
-.fpanel.on{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center}
-@media(max-width:700px){.fpanel.on{grid-template-columns:1fr}}
-.fpt h3{font-size:clamp(22px,4vw,28px);font-weight:800;margin-bottom:14px}
-.fpt p{font-size:14px;color:var(--t2);margin-bottom:20px;line-height:1.65}
-.fbul{list-style:none;display:flex;flex-direction:column;gap:10px}
-.fbul li{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--t2)}
-.fbul li::before{content:'✓';color:var(--green);font-weight:700;font-size:12px;margin-top:2px;flex-shrink:0}
-.fbul li b{color:var(--t1)}
-.fmock{background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.4)}
-.fmbar{background:var(--bg2);padding:9px 14px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border)}
+.fpanel.on{display:block}
+.fpanel-inner{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:36px;align-items:start
+}
+@media(max-width:680px){
+  .fpanel-inner{grid-template-columns:1fr;gap:0}
+}
+.fpt h3{
+  font-size:clamp(22px,4vw,30px);font-weight:800;
+  margin-bottom:10px;letter-spacing:-.025em;line-height:1.15
+}
+.fpt p{font-size:13.5px;color:var(--t2);margin-bottom:20px;line-height:1.7}
+.fbul{list-style:none;display:flex;flex-direction:column;gap:7px}
+.fbul li{
+  display:flex;gap:10px;align-items:center;
+  font-size:13px;line-height:1.4;
+  padding:8px 10px;border-radius:8px;
+  background:var(--bg);border:1px solid var(--border);
+  transition:border-color .15s
+}
+.fbul li:hover{border-color:var(--border2)}
+.fbul li .check{
+  color:var(--green);font-weight:700;font-size:10px;
+  flex-shrink:0;background:rgba(34,196,138,.12);
+  border-radius:50%;width:20px;height:20px;min-width:20px;
+  display:flex;align-items:center;justify-content:center
+}
+.fbul li .ftxt{color:var(--t2);font-size:12.5px}
+.fbul li .ftxt b{color:var(--t1);font-weight:600;display:block;margin-bottom:1px;font-size:13px}
+
+/* preview label */
+.preview-label{
+  display:none;align-items:center;gap:10px;
+  margin:24px 0 16px;
+  font-size:10px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--t3);
+  font-family:'Plus Jakarta Sans',sans-serif
+}
+.preview-label::before,.preview-label::after{
+  content:'';flex:1;height:1px;background:var(--border)
+}
+@media(max-width:680px){.preview-label{display:flex}}
+
+.fmock{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.03)
+}
+.fmbar{
+  background:var(--bg2);padding:10px 14px;
+  display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border)
+}
 .dot{width:7px;height:7px;border-radius:50%}
+.fmbar-title{font-size:10.5px;color:var(--t3);margin-left:8px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:600}
 .fmbody{padding:14px}
 
 /* HOW IT WORKS */
-#how{background:var(--bg2)}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:48px;position:relative}
-@media(max-width:620px){.steps{grid-template-columns:1fr;gap:20px}}
-.steps::before{content:'';position:absolute;top:31px;left:calc(16.66% + 14px);right:calc(16.66% + 14px);
-  height:1px;background:linear-gradient(90deg,var(--amber),var(--blue));opacity:.35}
-@media(max-width:620px){.steps::before{display:none}}
-.step{text-align:center}
-.snum{width:62px;height:62px;border-radius:50%;background:var(--bg);border:2px solid var(--border);
-  display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;
-  font-size:22px;font-weight:800;color:var(--amber);margin:0 auto 18px;position:relative;z-index:1}
-.stit{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:8px}
-.stx{font-size:13px;color:var(--t2);line-height:1.6}
+#how{background:var(--bg)}
+.steps{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:24px;margin-top:44px;position:relative
+}
+@media(max-width:600px){.steps{grid-template-columns:1fr;gap:16px}}
+.steps::before{
+  content:'';position:absolute;top:30px;
+  left:calc(16.66% + 12px);right:calc(16.66% + 12px);
+  height:1px;background:linear-gradient(90deg,rgba(232,151,58,.4),rgba(91,108,249,.3));
+}
+@media(max-width:600px){.steps::before{display:none}}
+.step{text-align:center;padding:0 8px}
+.snum{
+  width:58px;height:58px;border-radius:50%;background:var(--bg2);
+  border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:20px;font-weight:800;color:var(--amber);
+  margin:0 auto 16px;position:relative;z-index:1
+}
+.stit{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:15px;font-weight:700;margin-bottom:7px;letter-spacing:-.01em
+}
+.stx{font-size:13px;color:var(--t2);line-height:1.65}
 
 /* PRICING */
-#pricing{background:var(--bg)}
-.pgrid2{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px}
-@media(max-width:720px){.pgrid2{grid-template-columns:1fr;max-width:380px;margin-left:auto;margin-right:auto}}
-.pcard{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:26px 22px;position:relative;transition:transform .2s}
-.pcard:hover{transform:translateY(-3px)}
-.pcard.feat{border-color:var(--amber)}
-.fbadge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+#pricing{background:var(--bg2)}
+.pgrid2{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:44px}
+@media(max-width:700px){.pgrid2{grid-template-columns:1fr;max-width:360px;margin-left:auto;margin-right:auto}}
+.pcard{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:12px;padding:24px 20px;position:relative;transition:transform .2s,border-color .2s
+}
+.pcard:hover{transform:translateY(-2px);border-color:var(--border2)}
+.pcard.feat{border-color:var(--amber);background:rgba(232,151,58,.03)}
+.fbadge{
+  position:absolute;top:-10px;left:50%;transform:translateX(-50%);
   background:var(--amber);color:#000;font-size:9px;font-weight:800;
-  padding:3px 12px;border-radius:20px;letter-spacing:.07em;white-space:nowrap}
-.pname{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:7px}
-.pprice{font-family:'Syne',sans-serif;font-size:36px;font-weight:800;color:var(--amber);margin-bottom:3px}
-.pprice span{font-size:13px;color:var(--t3);font-family:'DM Sans',sans-serif;font-weight:400}
-.pdesc{font-size:12px;color:var(--t3);margin-bottom:20px}
-.pfeats{list-style:none;display:flex;flex-direction:column;gap:9px;margin-bottom:24px}
-.pfeats li{font-size:12px;color:var(--t2);display:flex;gap:7px;align-items:flex-start}
-.pfeats li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0}
-.pbtn{width:100%;padding:11px;border-radius:9px;font-family:'Syne',sans-serif;
-  font-weight:700;font-size:13px;cursor:pointer;border:none;transition:all .2s;display:block;text-align:center}
+  padding:3px 12px;border-radius:20px;letter-spacing:.06em;white-space:nowrap;
+  font-family:'Plus Jakarta Sans',sans-serif
+}
+.pname{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:15px;font-weight:700;margin-bottom:6px;letter-spacing:-.01em
+}
+.pprice{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:33px;font-weight:800;color:var(--amber);
+  margin-bottom:3px;letter-spacing:-.02em
+}
+.pprice span{font-size:13px;color:var(--t3);font-family:'Inter',sans-serif;font-weight:400}
+.pdesc{font-size:12px;color:var(--t3);margin-bottom:18px}
+.pfeats{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:22px}
+.pfeats li{
+  font-size:12.5px;color:var(--t2);
+  display:flex;gap:7px;align-items:center
+}
+.pfeats li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0;font-size:11px}
+.pbtn{
+  width:100%;padding:10px;border-radius:8px;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:700;font-size:13px;cursor:pointer;
+  border:none;transition:all .18s;display:block;text-align:center
+}
 .pbtn-p{background:var(--amber);color:#000}
 .pbtn-p:hover{background:var(--amber2)}
 .pbtn-g{background:transparent;color:var(--t2);border:1px solid var(--border)}
-.pbtn-g:hover{border-color:var(--t3);color:var(--t1)}
+.pbtn-g:hover{border-color:var(--border2);color:var(--t1)}
 
 /* TESTIMONIALS */
-#testimonials{background:var(--bg2)}
-.tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:48px}
-.tcard{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:22px}
-.tstars{color:var(--amber);font-size:13px;margin-bottom:12px}
-.ttx{font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:16px;font-style:italic}
+#testimonials{background:var(--bg)}
+.tgrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+  gap:14px;margin-top:44px
+}
+.tcard{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:10px;padding:20px
+}
+.tstars{color:var(--amber);font-size:12px;margin-bottom:12px;letter-spacing:1px}
+.ttx{
+  font-size:13.5px;color:var(--t2);line-height:1.72;
+  margin-bottom:16px;font-style:italic
+}
 .tauth{display:flex;align-items:center;gap:9px}
-.tav{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.tname{font-size:13px;font-weight:600}
-.tbiz{font-size:11px;color:var(--t3)}
+.tav{
+  width:34px;height:34px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0
+}
+.tname{font-size:13px;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif}
+.tbiz{font-size:11px;color:var(--t3);margin-top:1px}
 
 /* CTA */
-#cta{background:var(--bg);padding:88px 20px;text-align:center;position:relative;overflow:hidden}
-.cta-glow{position:absolute;bottom:-80px;left:50%;transform:translateX(-50%);
-  width:500px;height:350px;border-radius:50%;
-  background:radial-gradient(ellipse,rgba(245,166,35,.05) 0%,transparent 70%);pointer-events:none}
-#cta h2{font-size:clamp(28px,6vw,52px);font-weight:800;letter-spacing:-.03em;margin-bottom:14px}
+#cta{
+  background:var(--bg2);padding:80px 20px;text-align:center;
+  position:relative;overflow:hidden;border-top:1px solid var(--border)
+}
+.cta-glow{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:500px;height:300px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(232,151,58,.04) 0%,transparent 70%);
+  pointer-events:none
+}
+#cta h2{
+  font-size:clamp(26px,5.5vw,48px);font-weight:800;
+  letter-spacing:-.03em;margin-bottom:14px
+}
 #cta h2 em{color:var(--amber);font-style:normal}
-#cta p{font-size:16px;color:var(--t2);margin-bottom:36px}
-.cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.wabtn{background:#25D366;color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;
-  padding:13px 26px;border-radius:10px;border:none;
-  display:inline-flex;align-items:center;gap:7px;cursor:pointer;transition:all .2s}
+#cta p{font-size:15px;color:var(--t2);margin-bottom:32px;max-width:400px;margin-left:auto;margin-right:auto}
+.cta-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.wabtn{
+  background:#25D366;color:#fff;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;
+  padding:12px 22px;border-radius:9px;border:none;
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:all .18s
+}
 .wabtn:hover{background:#1fad55;transform:translateY(-1px)}
 
 /* FOOTER */
-footer{border-top:1px solid var(--border);padding:22px 20px;text-align:center;font-size:12px;color:var(--t3)}
-footer a{color:var(--amber)}
+footer{
+  border-top:1px solid var(--border);padding:22px 20px;
+  text-align:center;font-size:12px;color:var(--t3)
+}
+footer a{color:var(--t2)}
+footer a:hover{color:var(--amber)}
 
 /* REVEAL */
-.rv{opacity:0;transform:translateY(20px);transition:opacity .55s ease,transform .55s ease}
+.rv{opacity:0;transform:translateY(18px);transition:opacity .5s ease,transform .5s ease}
 .rv.in{opacity:1;transform:translateY(0)}
 
-/* MOBILE PADDING FIX */
+/* MOBILE */
 @media(max-width:480px){
-  .sec{padding:56px 16px}
-  #hero{padding:88px 16px 48px}
-  .trust-logos{gap:8px}
-  .trust-item{font-size:11px;padding:7px 11px}
+  .sec{padding:48px 16px}
+  #hero{padding:96px 16px 44px}
+  .trust-logos{gap:7px}
+  .trust-item{font-size:11px;padding:6px 10px}
+  h2{margin-bottom:10px}
+  .ftabs{gap:5px}
+  .ftab{padding:6px 12px;font-size:12px}
 }
 </style>
 </head>
@@ -213,7 +405,7 @@ footer a{color:var(--amber)}
 <nav>
   <div class="nav-brand">
     <div class="nav-icon">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
         <rect x="1" y="7" width="7" height="10" rx="1" fill="#000" opacity=".9"/>
         <rect x="10" y="3" width="7" height="14" rx="1" fill="#000" opacity=".9"/>
         <rect x="1" y="1" width="7" height="4" rx="1" fill="#000" opacity=".5"/>
@@ -228,7 +420,7 @@ footer a{color:var(--amber)}
 <section id="hero">
   <div class="hero-glow"></div>
   <div class="badge"><span>🇳🇬</span> Built for Nigerian SMEs</div>
-  <h1>Run your business<em>smarter.</em></h1>
+  <h1>Run your business<br><em>smarter.</em></h1>
   <p class="hero-sub">Sales · Inventory · Business Health — one platform. Know your profit every single day.</p>
   <div class="hero-btns">
     <a href="https://biztrack.streamlit.app/" class="btn-a">🚀 Start Free Trial</a>
@@ -241,58 +433,42 @@ footer a{color:var(--amber)}
   <div class="trust-inner">
     <div class="trust-label">Trusted by businesses across Nigeria</div>
     <div class="trust-logos">
-
-      <!-- Pharmacy -->
       <div class="trust-item">
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
           <rect x="2" y="4" width="18" height="14" rx="2" fill="#6366F1" opacity=".15" stroke="#6366F1" stroke-width="1"/>
           <line x1="11" y1="8" x2="11" y2="16" stroke="#6366F1" stroke-width="2" stroke-linecap="round"/>
           <line x1="7" y1="12" x2="15" y2="12" stroke="#6366F1" stroke-width="2" stroke-linecap="round"/>
         </svg>
         Babsam Pharmacy
       </div>
-
-      <!-- Electronics/Gadgets -->
       <div class="trust-item">
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
           <rect x="3" y="5" width="16" height="11" rx="2" fill="#F5A623" opacity=".15" stroke="#F5A623" stroke-width="1"/>
-          <rect x="8" y="16" width="6" height="2" rx="1" fill="#F5A623" opacity=".6"/>
-          <rect x="7" y="18" width="8" height="1.5" rx=".75" fill="#F5A623" opacity=".4"/>
           <circle cx="11" cy="10.5" r="2.5" fill="#F5A623" opacity=".5"/>
         </svg>
         Ammy's Gadgets
       </div>
-
-      <!-- General store -->
       <div class="trust-item">
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
           <path d="M3 9L11 3L19 9V19H3V9Z" fill="#00C896" opacity=".12" stroke="#00C896" stroke-width="1" stroke-linejoin="round"/>
           <rect x="8" y="13" width="6" height="6" rx="1" fill="#00C896" opacity=".5"/>
-          <rect x="9" y="14" width="4" height="2" rx=".5" fill="#00C896" opacity=".8"/>
         </svg>
         Bularis C.E
       </div>
-
-      <!-- Agro/Farm -->
       <div class="trust-item">
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
           <rect x="2" y="12" width="18" height="7" rx="1.5" fill="#10b981" opacity=".15" stroke="#10b981" stroke-width="1"/>
-          <path d="M6 12 C6 7 10 5 11 5 C12 5 16 7 16 12" fill="#10b981" opacity=".2" stroke="#10b981" stroke-width="1" stroke-linecap="round"/>
-          <line x1="11" y1="5" x2="11" y2="12" stroke="#10b981" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M6 12 C6 7 10 5 11 5 C12 5 16 7 16 12" fill="#10b981" opacity=".2" stroke="#10b981" stroke-width="1"/>
         </svg>
         Tundsam Agromart
       </div>
-
-      <!-- Kitchen/Utensils -->
       <div class="trust-item">
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
           <ellipse cx="11" cy="12" rx="7" ry="5" fill="#EF4444" opacity=".12" stroke="#EF4444" stroke-width="1"/>
           <path d="M11 7 L11 12" stroke="#EF4444" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M8 9 C8 7.5 9 6.5 11 7 C13 7.5 14 8.5 14 9" stroke="#EF4444" stroke-width="1" fill="none" stroke-linecap="round"/>
         </svg>
         Omokorewa Kitchen
       </div>
-
     </div>
   </div>
 </div>
@@ -303,25 +479,25 @@ footer a{color:var(--amber)}
     <div class="notch"></div>
     <div class="screen">
       <div class="topbar">
-        <span class="topbar-t">📊 BizTrack-OS</span>
+        <span class="topbar-t">BizTrack-OS</span>
         <span class="topbar-s">Today</span>
       </div>
       <div class="kgrid">
-        <div class="kt"><div class="kl">Today's Sales</div><div class="kv" style="color:#F5A623">₦186K</div><div class="ks">▲ 12% vs yesterday</div></div>
-        <div class="kt"><div class="kl">Net Profit</div><div class="kv" style="color:#00C896">₦52K</div><div class="ks">After expenses</div></div>
-        <div class="kt"><div class="kl">In Stock</div><div class="kv">47</div><div class="ks" style="color:#8BA0B8">products</div></div>
-        <div class="kt"><div class="kl">Outstanding</div><div class="kv" style="color:#EF4444">₦23K</div><div class="ks" style="color:#EF4444">2 debtors</div></div>
+        <div class="kt"><div class="kl">Today's Sales</div><div class="kv" style="color:#E8973A">₦186K</div><div class="ks">▲ 12% vs yesterday</div></div>
+        <div class="kt"><div class="kl">Net Profit</div><div class="kv" style="color:#22C48A">₦52K</div><div class="ks">After expenses</div></div>
+        <div class="kt"><div class="kl">In Stock</div><div class="kv">47</div><div class="ks" style="color:var(--t3)">products</div></div>
+        <div class="kt"><div class="kl">Outstanding</div><div class="kv" style="color:#E85050">₦23K</div><div class="ks" style="color:#E85050">2 debtors</div></div>
       </div>
-      <div style="padding:0 8px 4px">
-        <div style="font-size:7px;color:var(--t3);font-weight:600;margin-bottom:4px">Revenue — last 7 days</div>
+      <div style="padding:0 7px 4px">
+        <div style="font-size:6.5px;color:var(--t3);font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Revenue — last 7 days</div>
         <div class="cbars">
-          <div class="cb" style="height:52%;background:#6366F1;opacity:.6"></div>
-          <div class="cb" style="height:38%;background:#6366F1;opacity:.6"></div>
-          <div class="cb" style="height:68%;background:#F5A623"></div>
-          <div class="cb" style="height:48%;background:#6366F1;opacity:.6"></div>
-          <div class="cb" style="height:44%;background:#6366F1;opacity:.6"></div>
-          <div class="cb" style="height:84%;background:#00C896"></div>
-          <div class="cb" style="height:96%;background:#00C896"></div>
+          <div class="cb" style="height:52%;background:var(--blue);opacity:.5"></div>
+          <div class="cb" style="height:38%;background:var(--blue);opacity:.5"></div>
+          <div class="cb" style="height:68%;background:var(--amber)"></div>
+          <div class="cb" style="height:48%;background:var(--blue);opacity:.5"></div>
+          <div class="cb" style="height:44%;background:var(--blue);opacity:.5"></div>
+          <div class="cb" style="height:84%;background:var(--green)"></div>
+          <div class="cb" style="height:96%;background:var(--green)"></div>
         </div>
       </div>
       <div class="mlist">
@@ -356,154 +532,231 @@ footer a{color:var(--amber)}
 
 <!-- FEATURES -->
 <section id="features" class="sec">
-  <div class="container rv">
-    <div class="eyebrow">Features</div>
-    <div class="bar"></div>
-    <h2>Everything your business needs.<br>Nothing it doesn't.</h2>
-  </div>
   <div class="container">
-    <div class="ftabs rv">
-      <button class="ftab on" onclick="showTab('sales',this)">💰 Sales</button>
-      <button class="ftab" onclick="showTab('inventory',this)">📦 Inventory</button>
-      <button class="ftab" onclick="showTab('health',this)">🧠 Health</button>
-      <button class="ftab" onclick="showTab('debts',this)">📒 Debtors</button>
+    <div class="f-header">
+      <div class="eyebrow">Features</div>
+      <div class="bar"></div>
+      <h2>Everything your business needs.<br>Nothing it doesn't.</h2>
+      <p class="sub" style="margin-top:10px">Four modules. One platform. Open on any phone.</p>
     </div>
 
+    <!-- Tab switcher -->
+    <div class="ftabs" role="tablist">
+      <button class="ftab on" onclick="showTab('sales',this,0)" role="tab">
+        <span class="ticon">💰</span><span class="tlabel">Sales</span>
+      </button>
+      <button class="ftab" onclick="showTab('inventory',this,1)" role="tab">
+        <span class="ticon">📦</span><span class="tlabel">Inventory</span>
+      </button>
+      <button class="ftab" onclick="showTab('health',this,2)" role="tab">
+        <span class="ticon">🧠</span><span class="tlabel">Health</span>
+      </button>
+      <button class="ftab" onclick="showTab('debts',this,3)" role="tab">
+        <span class="ticon">📒</span><span class="tlabel">Debtors</span>
+      </button>
+    </div>
+    <div class="ftab-bar"><div class="ftab-bar-inner" id="tabbar"></div></div>
+
+    <!-- SALES -->
     <div class="fpanel on" id="tab-sales">
-      <div class="fpt rv">
-        <h3>Record every sale.<br>Send receipts instantly.</h3>
-        <p>Multi-item cart, negotiated pricing, PDF receipts — and send to your customer on WhatsApp in one tap.</p>
-        <ul class="fbul">
-          <li><b>Multi-item cart</b> — add products fast with quantity and price</li>
-          <li><b>PDF receipts</b> — professional A6 receipts with your business name</li>
-          <li><b>WhatsApp sharing</b> — send receipt to customer in one tap</li>
-          <li><b>Full, part & credit sales</b> — record any payment arrangement</li>
-          <li><b>Sales history</b> — every transaction logged and searchable</li>
-        </ul>
-      </div>
-      <div class="fmock rv">
-        <div class="fmbar"><div class="dot" style="background:#EF4444"></div><div class="dot" style="background:#F5A623"></div><div class="dot" style="background:#00C896"></div><span style="font-size:10px;color:var(--t3);margin-left:7px">💰 Record Sale</span></div>
-        <div class="fmbody">
-          <div style="font-size:10px;font-weight:700;color:var(--amber);margin-bottom:10px">🛒 Cart</div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px;margin-bottom:7px">
-            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>Indomie Carton ×2</span><span style="color:var(--green)">₦19,000</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span>Milo 400g ×3</span><span style="color:var(--green)">₦8,400</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:11px"><span>Peak Milk ×5</span><span style="color:var(--green)">₦9,000</span></div>
+      <div class="fpanel-inner">
+        <div class="fpt">
+          <h3>Record every sale.<br>Send receipts instantly.</h3>
+          <p>Multi-item cart, negotiated pricing, PDF receipts — sent to your customer on WhatsApp in one tap.</p>
+          <ul class="fbul">
+            <li><span class="check">✓</span><span class="ftxt"><b>Multi-item cart</b>Add products fast with quantity and price</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>PDF receipts</b>Professional A6 receipts with your business name</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>WhatsApp sharing</b>Send receipt to customer in one tap</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Full, part & credit sales</b>Record any payment arrangement</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Sales history</b>Every transaction logged and searchable</span></li>
+          </ul>
+        </div>
+        <div>
+          <div class="preview-label">Live Preview</div>
+          <div class="fmock">
+            <div class="fmbar">
+              <div class="dot" style="background:#E85050"></div>
+              <div class="dot" style="background:#E8973A"></div>
+              <div class="dot" style="background:#22C48A"></div>
+              <span class="fmbar-title">💰 Record Sale</span>
+            </div>
+            <div class="fmbody">
+              <div style="font-size:10px;font-weight:700;color:var(--amber);margin-bottom:10px;font-family:'Plus Jakarta Sans',sans-serif">🛒 Cart (3 items)</div>
+              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px;margin-bottom:7px">
+                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid var(--border)"><span>Indomie Carton ×2</span><span style="color:var(--green)">₦19,000</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid var(--border)"><span>Milo 400g ×3</span><span style="color:var(--green)">₦8,400</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:11px"><span>Peak Milk ×5</span><span style="color:var(--green)">₦9,000</span></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;margin-bottom:12px">
+                <span style="font-size:11px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif">TOTAL</span>
+                <span style="font-size:16px;font-weight:800;color:var(--amber);font-family:'Plus Jakarta Sans',sans-serif">₦36,400</span>
+              </div>
+              <div style="font-size:9px;color:var(--t3);margin-bottom:7px;font-weight:600;text-transform:uppercase;letter-spacing:.07em">Payment Type</div>
+              <div style="display:flex;gap:5px;margin-bottom:12px">
+                <div style="background:var(--amber);color:#000;font-size:9.5px;font-weight:700;padding:6px 12px;border-radius:6px;flex:1;text-align:center">✅ Full</div>
+                <div style="background:var(--bg2);border:1px solid var(--border);color:var(--t2);font-size:9.5px;padding:6px 12px;border-radius:6px;flex:1;text-align:center">💳 Part</div>
+                <div style="background:var(--bg2);border:1px solid var(--border);color:var(--t2);font-size:9.5px;padding:6px 12px;border-radius:6px;flex:1;text-align:center">📒 Credit</div>
+              </div>
+              <div style="background:var(--amber);color:#000;font-weight:800;font-size:12px;padding:11px;border-radius:8px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.01em">✅ Record Sale — ₦36,400</div>
+            </div>
           </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px;margin-bottom:9px">
-            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700"><span>TOTAL</span><span style="color:var(--amber)">₦36,400</span></div>
-          </div>
-          <div style="font-size:9px;color:var(--t3);margin-bottom:6px">Payment Status</div>
-          <div style="display:flex;gap:6px;margin-bottom:11px">
-            <div style="background:var(--amber);color:#000;font-size:9px;font-weight:700;padding:4px 9px;border-radius:5px">✅ Full</div>
-            <div style="background:var(--bg2);border:1px solid var(--border);color:var(--t2);font-size:9px;padding:4px 9px;border-radius:5px">💳 Part</div>
-            <div style="background:var(--bg2);border:1px solid var(--border);color:var(--t2);font-size:9px;padding:4px 9px;border-radius:5px">📒 Credit</div>
-          </div>
-          <div style="background:var(--amber);color:#000;font-weight:700;font-size:11px;padding:9px;border-radius:7px;text-align:center">✅ Record Sale — ₦36,400</div>
         </div>
       </div>
     </div>
 
+    <!-- INVENTORY -->
     <div class="fpanel" id="tab-inventory">
-      <div class="fpt rv">
-        <h3>Never run out of<br>stock again.</h3>
-        <p>Stock deducts automatically on every sale. Reorder alerts warn you before products run out — not after.</p>
-        <ul class="fbul">
-          <li><b>Live stock counts</b> — deducts automatically on every sale</li>
-          <li><b>Reorder alerts</b> — warned before you run out</li>
-          <li><b>Stockout projection</b> — days until empty based on sales pace</li>
-          <li><b>Restock log</b> — record every delivery with supplier details</li>
-          <li><b>Supplier directory</b> — track who you buy from per product</li>
-        </ul>
-      </div>
-      <div class="fmock rv">
-        <div class="fmbar"><div class="dot" style="background:#EF4444"></div><div class="dot" style="background:#F5A623"></div><div class="dot" style="background:#00C896"></div><span style="font-size:10px;color:var(--t3);margin-left:7px">📦 Inventory</span></div>
-        <div class="fmbody">
-          <div style="font-size:10px;font-weight:700;color:var(--amber);margin-bottom:10px">Live Stock Levels</div>
-          <div style="display:flex;flex-direction:column;gap:9px">
-            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>Indomie Carton</span><span style="color:var(--green)">80 bags</span></div><div style="height:5px;background:var(--border);border-radius:3px"><div style="width:80%;height:5px;background:var(--green);border-radius:3px"></div></div></div>
-            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>Milo 400g</span><span style="color:var(--amber)">22 tins</span></div><div style="height:5px;background:var(--border);border-radius:3px"><div style="width:35%;height:5px;background:var(--amber);border-radius:3px"></div></div></div>
-            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--red)">⚠️ Biscuit</span><span style="color:var(--red)">6 packs</span></div><div style="height:5px;background:var(--border);border-radius:3px"><div style="width:8%;height:5px;background:var(--red);border-radius:3px"></div></div></div>
-            <div><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>Peak Milk</span><span style="color:var(--green)">60 tins</span></div><div style="height:5px;background:var(--border);border-radius:3px"><div style="width:60%;height:5px;background:var(--green);border-radius:3px"></div></div></div>
+      <div class="fpanel-inner">
+        <div class="fpt">
+          <h3>Never run out<br>of stock again.</h3>
+          <p>Stock deducts automatically on every sale. Reorder alerts warn you before products run out — not after.</p>
+          <ul class="fbul">
+            <li><span class="check">✓</span><span class="ftxt"><b>Live stock counts</b>Deducts automatically on every sale</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Reorder alerts</b>Warned before you run out</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Stockout projection</b>Days until empty based on sales pace</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Restock log</b>Record every delivery with supplier details</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Supplier directory</b>Track who you buy from per product</span></li>
+          </ul>
+        </div>
+        <div>
+          <div class="preview-label">Live Preview</div>
+          <div class="fmock">
+            <div class="fmbar">
+              <div class="dot" style="background:#E85050"></div>
+              <div class="dot" style="background:#E8973A"></div>
+              <div class="dot" style="background:#22C48A"></div>
+              <span class="fmbar-title">📦 Inventory</span>
+            </div>
+            <div class="fmbody">
+              <div style="font-size:10px;font-weight:700;color:var(--amber);margin-bottom:12px;font-family:'Plus Jakarta Sans',sans-serif">Live Stock Levels</div>
+              <div style="display:flex;flex-direction:column;gap:11px">
+                <div><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px"><span>Indomie Carton</span><span style="color:var(--green);font-weight:600">80 bags</span></div><div style="height:5px;background:var(--border);border-radius:3px"><div style="width:80%;height:5px;background:var(--green);border-radius:3px"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px"><span>Milo 400g</span><span style="color:var(--amber);font-weight:600">22 tins</span></div><div style="height:5px;background:var(--border);border-radius:3px"><div style="width:35%;height:5px;background:var(--amber);border-radius:3px"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px"><span style="color:var(--red);font-weight:600">⚠️ Biscuit</span><span style="color:var(--red);font-weight:600">6 packs</span></div><div style="height:5px;background:var(--border);border-radius:3px"><div style="width:8%;height:5px;background:var(--red);border-radius:3px"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px"><span>Peak Milk</span><span style="color:var(--green);font-weight:600">60 tins</span></div><div style="height:5px;background:var(--border);border-radius:3px"><div style="width:60%;height:5px;background:var(--green);border-radius:3px"></div></div></div>
+              </div>
+              <div style="margin-top:14px;background:rgba(232,80,80,.07);border:1px solid rgba(232,80,80,.3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--red);display:flex;gap:8px;align-items:center">
+                <span style="font-size:16px">⚠️</span><span><b>Biscuit</b> — stockout in ~3 days. Reorder now.</span>
+              </div>
+            </div>
           </div>
-          <div style="margin-top:12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:7px;padding:9px;font-size:10px;color:var(--red)">⚠️ <b>Biscuit</b> — estimated stockout in 3 days</div>
         </div>
       </div>
     </div>
 
+    <!-- HEALTH -->
     <div class="fpanel" id="tab-health">
-      <div class="fpt rv">
-        <h3>See your profit.<br>Every single day.</h3>
-        <p>Real numbers. Not guesses. Know exactly what came in, what went out, and what's left.</p>
-        <ul class="fbul">
-          <li><b>Daily revenue dashboard</b> — sales, cash collected, profit</li>
-          <li><b>Expense tracker</b> — log rent, staff, transport, supplies</li>
-          <li><b>Top & slow products</b> — know what to push and what to drop</li>
-          <li><b>P&L summary</b> — gross vs net profit, clearly separated</li>
-          <li><b>Revenue trends</b> — weekly and monthly charts</li>
-        </ul>
-      </div>
-      <div class="fmock rv">
-        <div class="fmbar"><div class="dot" style="background:#EF4444"></div><div class="dot" style="background:#F5A623"></div><div class="dot" style="background:#00C896"></div><span style="font-size:10px;color:var(--t3);margin-left:7px">🧠 Business Health</span></div>
-        <div class="fmbody">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px">
-            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px"><div style="font-size:7px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Revenue</div><div style="font-size:15px;font-family:'Syne',sans-serif;font-weight:800;color:var(--amber)">₦186K</div><div style="font-size:7px;color:var(--green)">▲ 24% growth</div></div>
-            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px"><div style="font-size:7px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Net Profit</div><div style="font-size:15px;font-family:'Syne',sans-serif;font-weight:800;color:var(--green)">₦52K</div><div style="font-size:7px;color:var(--t3)">After expenses</div></div>
-          </div>
-          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px;margin-bottom:9px">
-            <div style="font-size:7px;color:var(--t3);margin-bottom:5px;font-weight:600">Revenue Trend</div>
-            <div style="display:flex;align-items:flex-end;gap:3px;height:38px">
-              <div style="flex:1;height:50%;background:var(--blue);opacity:.6;border-radius:2px 2px 0 0"></div>
-              <div style="flex:1;height:38%;background:var(--blue);opacity:.6;border-radius:2px 2px 0 0"></div>
-              <div style="flex:1;height:68%;background:var(--amber);border-radius:2px 2px 0 0"></div>
-              <div style="flex:1;height:48%;background:var(--blue);opacity:.6;border-radius:2px 2px 0 0"></div>
-              <div style="flex:1;height:42%;background:var(--blue);opacity:.6;border-radius:2px 2px 0 0"></div>
-              <div style="flex:1;height:82%;background:var(--green);border-radius:2px 2px 0 0"></div>
-              <div style="flex:1;height:96%;background:var(--green);border-radius:2px 2px 0 0"></div>
+      <div class="fpanel-inner">
+        <div class="fpt">
+          <h3>See your profit.<br>Every single day.</h3>
+          <p>Real numbers. Not guesses. Know exactly what came in, what went out, and what's left.</p>
+          <ul class="fbul">
+            <li><span class="check">✓</span><span class="ftxt"><b>Daily revenue dashboard</b>Sales, cash collected, and net profit</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Expense tracker</b>Log rent, staff, transport, supplies</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Top & slow products</b>Know what to push and what to drop</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>P&L summary</b>Gross vs net profit, clearly separated</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Revenue trends</b>Weekly and monthly charts</span></li>
+          </ul>
+        </div>
+        <div>
+          <div class="preview-label">Live Preview</div>
+          <div class="fmock">
+            <div class="fmbar">
+              <div class="dot" style="background:#E85050"></div>
+              <div class="dot" style="background:#E8973A"></div>
+              <div class="dot" style="background:#22C48A"></div>
+              <span class="fmbar-title">🧠 Business Health</span>
             </div>
-          </div>
-          <div style="font-size:9px;font-weight:700;color:var(--t2);margin-bottom:5px">Top Products</div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <div style="display:flex;justify-content:space-between;font-size:10px"><span>Indomie Carton</span><span style="color:var(--amber)">₦48K</span></div>
-            <div style="display:flex;justify-content:space-between;font-size:10px"><span>Milo 400g</span><span style="color:var(--amber)">₦28K</span></div>
+            <div class="fmbody">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px">
+                  <div style="font-size:7.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;font-weight:600">Revenue</div>
+                  <div style="font-size:16px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:var(--amber)">₦186K</div>
+                  <div style="font-size:8px;color:var(--green);margin-top:1px">▲ 24% this week</div>
+                </div>
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px">
+                  <div style="font-size:7.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;font-weight:600">Net Profit</div>
+                  <div style="font-size:16px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:var(--green)">₦52K</div>
+                  <div style="font-size:8px;color:var(--t3);margin-top:1px">After expenses</div>
+                </div>
+              </div>
+              <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">
+                <div style="font-size:7.5px;color:var(--t3);margin-bottom:7px;font-weight:600;text-transform:uppercase;letter-spacing:.07em">Revenue — last 7 days</div>
+                <div style="display:flex;align-items:flex-end;gap:3px;height:40px">
+                  <div style="flex:1;height:50%;background:var(--blue);opacity:.4;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;height:38%;background:var(--blue);opacity:.4;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;height:68%;background:var(--amber);border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;height:48%;background:var(--blue);opacity:.4;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;height:42%;background:var(--blue);opacity:.4;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;height:82%;background:var(--green);border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;height:96%;background:var(--green);border-radius:2px 2px 0 0"></div>
+                </div>
+              </div>
+              <div style="font-size:9px;font-weight:700;color:var(--t2);margin-bottom:6px;font-family:'Plus Jakarta Sans',sans-serif;text-transform:uppercase;letter-spacing:.06em">Top Products</div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                <div style="display:flex;justify-content:space-between;font-size:11px;padding:5px 7px;background:var(--bg2);border-radius:5px"><span>Indomie Carton</span><span style="color:var(--amber);font-weight:600">₦48K</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:11px;padding:5px 7px;background:var(--bg2);border-radius:5px"><span>Milo 400g</span><span style="color:var(--amber);font-weight:600">₦28K</span></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- DEBTORS -->
     <div class="fpanel" id="tab-debts">
-      <div class="fpt rv">
-        <h3>Track every debt.<br>Recover every kobo.</h3>
-        <p>Credit sales and part payments are auto-logged. One-tap WhatsApp reminders. Never lose money you're owed.</p>
-        <ul class="fbul">
-          <li><b>Auto-logged debts</b> — credit & part sales create debt records instantly</li>
-          <li><b>Instalment tracking</b> — record every payment a customer makes</li>
-          <li><b>WhatsApp reminders</b> — polite one-tap reminders directly to debtors</li>
-          <li><b>Aging view</b> — oldest debts first so nothing slips through</li>
-          <li><b>Payment history</b> — full audit trail per customer</li>
-        </ul>
-      </div>
-      <div class="fmock rv">
-        <div class="fmbar"><div class="dot" style="background:#EF4444"></div><div class="dot" style="background:#F5A623"></div><div class="dot" style="background:#00C896"></div><span style="font-size:10px;color:var(--t3);margin-left:7px">📒 Debtors Ledger</span></div>
-        <div class="fmbody">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px">
-            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px"><div style="font-size:7px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Outstanding</div><div style="font-size:14px;font-family:'Syne',sans-serif;font-weight:800;color:var(--red)">₦127K</div><div style="font-size:7px;color:var(--t3)">4 open debts</div></div>
-            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px"><div style="font-size:7px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Settled</div><div style="font-size:14px;font-family:'Syne',sans-serif;font-weight:800;color:var(--green)">₦84K</div><div style="font-size:7px;color:var(--green)">6 recovered</div></div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:7px">
-            <div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:7px;padding:9px">
-              <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:2px"><span>🔴 Alhaji Musa</span><span style="color:var(--red)">₦62,000</span></div>
-              <div style="font-size:8px;color:var(--t3);margin-bottom:6px">7 days overdue</div>
-              <div style="background:#25D366;color:#fff;font-size:8px;font-weight:700;padding:4px 7px;border-radius:5px;text-align:center">💬 Send WhatsApp Reminder</div>
+      <div class="fpanel-inner">
+        <div class="fpt">
+          <h3>Track every debt.<br>Recover every kobo.</h3>
+          <p>Credit sales and part payments are auto-logged. One-tap WhatsApp reminders. Never lose money you're owed.</p>
+          <ul class="fbul">
+            <li><span class="check">✓</span><span class="ftxt"><b>Auto-logged debts</b>Credit & part sales create records instantly</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Instalment tracking</b>Record every payment a customer makes</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>WhatsApp reminders</b>Polite one-tap reminders to debtors</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Aging view</b>Oldest debts first so nothing slips through</span></li>
+            <li><span class="check">✓</span><span class="ftxt"><b>Payment history</b>Full audit trail per customer</span></li>
+          </ul>
+        </div>
+        <div>
+          <div class="preview-label">Live Preview</div>
+          <div class="fmock">
+            <div class="fmbar">
+              <div class="dot" style="background:#E85050"></div>
+              <div class="dot" style="background:#E8973A"></div>
+              <div class="dot" style="background:#22C48A"></div>
+              <span class="fmbar-title">📒 Debtors Ledger</span>
             </div>
-            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px">
-              <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:2px"><span>🟡 Mama Tunde</span><span style="color:var(--amber)">₦28,000</span></div>
-              <div style="font-size:8px;color:var(--t3)">6 days · Part paid ₦12,000</div>
+            <div class="fmbody">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px">
+                  <div style="font-size:7.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;font-weight:600">Outstanding</div>
+                  <div style="font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:var(--red)">₦127K</div>
+                  <div style="font-size:8px;color:var(--t3);margin-top:1px">4 open debts</div>
+                </div>
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px">
+                  <div style="font-size:7.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;font-weight:600">Settled</div>
+                  <div style="font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:var(--green)">₦84K</div>
+                  <div style="font-size:8px;color:var(--green);margin-top:1px">6 recovered ✓</div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="background:rgba(232,80,80,.06);border:1px solid rgba(232,80,80,.2);border-radius:8px;padding:10px">
+                  <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;margin-bottom:3px"><span>🔴 Alhaji Musa</span><span style="color:var(--red)">₦62,000</span></div>
+                  <div style="font-size:9px;color:var(--t3);margin-bottom:8px">14 days overdue</div>
+                  <div style="background:#25D366;color:#fff;font-size:9.5px;font-weight:700;padding:6px;border-radius:6px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif">💬 Send WhatsApp Reminder</div>
+                </div>
+                <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px">
+                  <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;margin-bottom:3px"><span>🟡 Mama Tunde</span><span style="color:var(--amber)">₦28,000</span></div>
+                  <div style="font-size:9px;color:var(--t3)">6 days · Paid ₦12,000 of ₦40,000</div>
+                  <div style="height:4px;background:var(--border);border-radius:3px;margin-top:7px"><div style="width:30%;height:4px;background:var(--amber);border-radius:3px"></div></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </section>
 
@@ -517,9 +770,21 @@ footer a{color:var(--amber)}
   </div>
   <div class="container">
     <div class="steps">
-      <div class="step rv"><div class="snum">1</div><div class="stit">Sign Up Free</div><div class="stx">Create your account with your phone number. Your business is live in under 2 minutes.</div></div>
-      <div class="step rv"><div class="snum">2</div><div class="stit">Add Your Products</div><div class="stx">Enter your catalogue — name, cost price, selling price, stock. We help during your free onboarding call.</div></div>
-      <div class="step rv"><div class="snum">3</div><div class="stit">Start Selling</div><div class="stx">Record sales, send WhatsApp receipts, track stock automatically. Watch your profit update in real time.</div></div>
+      <div class="step rv">
+        <div class="snum">1</div>
+        <div class="stit">Sign Up Free</div>
+        <div class="stx">Create your account with your phone number. Your business is live in under 2 minutes.</div>
+      </div>
+      <div class="step rv">
+        <div class="snum">2</div>
+        <div class="stit">Add Your Products</div>
+        <div class="stx">Enter your catalogue — name, cost price, selling price, stock. We help during your free onboarding call.</div>
+      </div>
+      <div class="step rv">
+        <div class="snum">3</div>
+        <div class="stit">Start Selling</div>
+        <div class="stx">Record sales, send WhatsApp receipts, track stock automatically. Watch your profit update in real time.</div>
+      </div>
     </div>
   </div>
 </section>
@@ -538,7 +803,13 @@ footer a{color:var(--amber)}
         <div class="pname">🎁 Free Trial</div>
         <div class="pprice">₦0<span>/14 days</span></div>
         <div class="pdesc">Full access, no card required</div>
-        <ul class="pfeats"><li>All three modules</li><li>PDF receipt generation</li><li>WhatsApp sharing</li><li>Debtors Ledger</li><li>Free onboarding support</li></ul>
+        <ul class="pfeats">
+          <li>All four modules</li>
+          <li>PDF receipt generation</li>
+          <li>WhatsApp sharing</li>
+          <li>Debtors Ledger</li>
+          <li>Free onboarding support</li>
+        </ul>
         <a href="https://biztrack.streamlit.app/" class="pbtn pbtn-g">Start Free Trial</a>
       </div>
       <div class="pcard feat">
@@ -546,14 +817,26 @@ footer a{color:var(--amber)}
         <div class="pname">📅 Monthly</div>
         <div class="pprice">₦1,500<span>/month</span></div>
         <div class="pdesc">Everything, billed monthly</div>
-        <ul class="pfeats"><li>All three modules</li><li>PDF receipt generation</li><li>WhatsApp sharing</li><li>Debtors Ledger</li><li>Priority support</li></ul>
+        <ul class="pfeats">
+          <li>All four modules</li>
+          <li>PDF receipt generation</li>
+          <li>WhatsApp sharing</li>
+          <li>Debtors Ledger</li>
+          <li>Priority support</li>
+        </ul>
         <a href="https://biztrack.streamlit.app/" class="pbtn pbtn-p">Get Started →</a>
       </div>
       <div class="pcard">
         <div class="pname">🏆 Yearly</div>
         <div class="pprice">₦15,000<span>/year</span></div>
         <div class="pdesc">Save ₦3,000 — 2 months free</div>
-        <ul class="pfeats"><li>All three modules</li><li>PDF receipt generation</li><li>WhatsApp sharing</li><li>Debtors Ledger</li><li>Priority support</li></ul>
+        <ul class="pfeats">
+          <li>All four modules</li>
+          <li>PDF receipt generation</li>
+          <li>WhatsApp sharing</li>
+          <li>Debtors Ledger</li>
+          <li>Priority support</li>
+        </ul>
         <a href="https://biztrack.streamlit.app/" class="pbtn pbtn-g">Get Yearly Plan</a>
       </div>
     </div>
@@ -574,7 +857,7 @@ footer a{color:var(--amber)}
         <div class="ttx">"Before BizTrack I was guessing my profit every day. Now I see exactly what I made before I close my shop. The WhatsApp receipt has made me look so professional."</div>
         <div class="tauth">
           <div class="tav" style="background:#1a3a5e">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="8" width="16" height="10" rx="1.5" fill="#6fa8d0" opacity=".3" stroke="#6fa8d0" stroke-width="1"/><path d="M5 8 L5 5 C5 3.5 7 2 10 2 C13 2 15 3.5 15 5 L15 8" stroke="#6fa8d0" stroke-width="1.2" fill="none"/><circle cx="10" cy="13" r="2" fill="#6fa8d0" opacity=".7"/></svg>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6" r="4" fill="#6fa8d0" opacity=".4" stroke="#6fa8d0" stroke-width="1"/><path d="M3 18 C3 13 17 13 17 18" fill="#6fa8d0" opacity=".2" stroke="#6fa8d0" stroke-width="1"/></svg>
           </div>
           <div><div class="tname">Emeka O.</div><div class="tbiz">Provision Store, Lagos</div></div>
         </div>
@@ -584,7 +867,7 @@ footer a{color:var(--amber)}
         <div class="ttx">"The debtors feature alone is worth everything. I recovered over ₦80,000 in the first month just by sending reminders. My customers know I'm serious now."</div>
         <div class="tauth">
           <div class="tav" style="background:#1a3a1a">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 18 L3 14 C3 11.8 6 10 10 10 C14 10 17 11.8 17 14 L17 18" fill="#6fc06f" opacity=".2" stroke="#6fc06f" stroke-width="1"/><circle cx="10" cy="6" r="4" fill="#6fc06f" opacity=".3" stroke="#6fc06f" stroke-width="1"/></svg>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6" r="4" fill="#6fc06f" opacity=".4" stroke="#6fc06f" stroke-width="1"/><path d="M3 18 C3 13 17 13 17 18" fill="#6fc06f" opacity=".2" stroke="#6fc06f" stroke-width="1"/></svg>
           </div>
           <div><div class="tname">Amara K.</div><div class="tbiz">Foodstuff Dealer, Abuja</div></div>
         </div>
@@ -594,7 +877,7 @@ footer a{color:var(--amber)}
         <div class="ttx">"I used to run out of stock without knowing. Now BizTrack tells me 3 days before a product finishes. I have never missed a restock since I started using it."</div>
         <div class="tauth">
           <div class="tav" style="background:#2a1a3a">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="10" width="14" height="8" rx="1.5" fill="#b070d0" opacity=".2" stroke="#b070d0" stroke-width="1"/><path d="M6 10 C6 6.5 8.5 4 10 4 C11.5 4 14 6.5 14 10" fill="none" stroke="#b070d0" stroke-width="1.2"/></svg>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6" r="4" fill="#b070d0" opacity=".4" stroke="#b070d0" stroke-width="1"/><path d="M3 18 C3 13 17 13 17 18" fill="#b070d0" opacity=".2" stroke="#b070d0" stroke-width="1"/></svg>
           </div>
           <div><div class="tname">Kabir M.</div><div class="tbiz">Wholesale Distributor, Kano</div></div>
         </div>
@@ -610,7 +893,7 @@ footer a{color:var(--amber)}
     <h2>Your business deserves<br><em>better tools.</em></h2>
     <p>14-day free trial. Free onboarding. No credit card. Cancel anytime.</p>
     <div class="cta-btns">
-      <a href="https://biztrack.streamlit.app/" class="btn-a" style="font-size:15px;padding:14px 32px">🚀 Start Free Trial Today</a>
+      <a href="https://biztrack.streamlit.app/" class="btn-a" style="font-size:14px;padding:13px 28px">🚀 Start Free Trial Today</a>
       <a href="https://wa.me/2348136362633" class="wabtn">💬 Chat on WhatsApp</a>
     </div>
   </div>
@@ -622,16 +905,30 @@ footer a{color:var(--amber)}
 </footer>
 
 <script>
-function showTab(name,el){
+function showTab(name,el,idx){
   document.querySelectorAll('.fpanel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('on'));
   document.getElementById('tab-'+name).classList.add('on');
   el.classList.add('on');
+  // slide the indicator bar
+  const bar=document.getElementById('tabbar');
+  if(bar){bar.style.transform='translateX('+idx*100+'%)';bar.style.width='25%'}
 }
+// init bar position
+document.addEventListener('DOMContentLoaded',function(){
+  const bar=document.getElementById('tabbar');
+  if(bar){bar.style.width='25%'}
+});
+// reveal on scroll — fire immediately for anything already visible
 const io=new IntersectionObserver(entries=>{
   entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})
-},{threshold:0.1});
-document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+},{threshold:0.05,rootMargin:'0px 0px -30px 0px'});
+document.querySelectorAll('.rv').forEach(el=>{
+  // if already in viewport, reveal immediately
+  const r=el.getBoundingClientRect();
+  if(r.top<window.innerHeight){el.classList.add('in')}
+  else{io.observe(el)}
+});
 </script>
 </body>
-</html>
+    </html>
