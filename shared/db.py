@@ -248,6 +248,9 @@ def _type_products_df(df: pd.DataFrame) -> pd.DataFrame:
     if "sub_unit"  not in df.columns: df["sub_unit"]  = "unit"
     df["base_unit"] = df["base_unit"].fillna("unit")
     df["sub_unit"]  = df["sub_unit"].fillna("unit")
+    # ── Expiry / manufacturing dates (optional — NaT for products with no dates set) ──
+    df["mfg_date"]    = pd.to_datetime(df.get("mfg_date"),    errors="coerce", utc=False)
+    df["expiry_date"] = pd.to_datetime(df.get("expiry_date"), errors="coerce", utc=False)
     return df
 
 
@@ -468,6 +471,9 @@ def compute_insights(sales_df, products_df, expenses_df, items_df=None) -> dict:
         "avg_daily_revenue":     0,
         "best_day":              "",
         "worst_day":             "",
+        # Expiry alerts — only populated for products that have expiry_date set
+        "expired":               pd.DataFrame(),
+        "expiring_soon":         pd.DataFrame(),
     }
 
     if sales_df.empty:
@@ -553,6 +559,33 @@ def compute_insights(sales_df, products_df, expenses_df, items_df=None) -> dict:
             prod_sales[prod_sales["quantity"] < avg_qty * 0.5]
             .sort_values("quantity")
         )
+
+    # ── Expiry alerts ─────────────────────────────────────────────────────────
+    # Only evaluated for products that have expiry_date set (NaT rows are skipped).
+    # Thresholds: expired = past today, expiring_soon = within 60 days.
+    _EXPIRY_WARN_DAYS = 60
+    if not products_df.empty and "expiry_date" in products_df.columns:
+        today      = pd.Timestamp(datetime.now().date())
+        dated      = products_df[products_df["expiry_date"].notna()].copy()
+        if not dated.empty:
+            dated["days_to_expiry"] = (dated["expiry_date"] - today).dt.days
+            expiry_cols = ["product_name", "category", "stock_quantity",
+                           "expiry_date", "mfg_date", "days_to_expiry"]
+            # Keep only columns that actually exist (mfg_date is also optional)
+            expiry_cols = [c for c in expiry_cols if c in dated.columns]
+            insights["expired"] = (
+                dated[dated["days_to_expiry"] < 0][expiry_cols]
+                .sort_values("days_to_expiry")
+                .copy()
+            )
+            insights["expiring_soon"] = (
+                dated[
+                    (dated["days_to_expiry"] >= 0) &
+                    (dated["days_to_expiry"] <= _EXPIRY_WARN_DAYS)
+                ][expiry_cols]
+                .sort_values("days_to_expiry")
+                .copy()
+            )
 
     # Low stock + stockout projection
     if not products_df.empty:
