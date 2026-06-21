@@ -263,6 +263,38 @@ def page_dashboard():
                     unsafe_allow_html=True,
                 )
 
+    # ── Expiry Alerts (dashboard banner — critical & imminent only) ──────────
+    if not products_df.empty and "expiry_date" in products_df.columns:
+        from datetime import datetime as _dt
+        _today    = pd.Timestamp(_dt.now().date())
+        _dated    = products_df[products_df["expiry_date"].notna()].copy()
+        if not _dated.empty:
+            _dated["days_to_expiry"] = (_dated["expiry_date"] - _today).dt.days
+            _banner_expired  = _dated[_dated["days_to_expiry"] < 0]
+            _banner_soon     = _dated[
+                (_dated["days_to_expiry"] >= 0) & (_dated["days_to_expiry"] <= 60)
+            ]
+            if not _banner_expired.empty or not _banner_soon.empty:
+                section_header("🚨 Expiry Alerts")
+            for _, r in _banner_expired.iterrows():
+                days_ago = abs(int(r["days_to_expiry"]))
+                exp_str  = pd.Timestamp(r["expiry_date"]).strftime("%d %b %Y")
+                st.markdown(
+                    f'<div class="alert-critical">❌ <strong>{r["product_name"]}</strong> '
+                    f'EXPIRED {days_ago} day{"s" if days_ago != 1 else ""} ago ({exp_str}) — '
+                    f'Remove from shelves immediately.</div>',
+                    unsafe_allow_html=True,
+                )
+            for _, r in _banner_soon.iterrows():
+                days_left = int(r["days_to_expiry"])
+                exp_str   = pd.Timestamp(r["expiry_date"]).strftime("%d %b %Y")
+                urgency   = "alert-critical" if days_left <= 14 else "alert-low"
+                st.markdown(
+                    f'<div class="{urgency}">⚠️ <strong>{r["product_name"]}</strong> '
+                    f'expires in {days_left} day{"s" if days_left != 1 else ""} ({exp_str}).</div>',
+                    unsafe_allow_html=True,
+                )
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # RECORD SALE
