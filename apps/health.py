@@ -495,6 +495,55 @@ display:flex;align-items:center;justify-content:space-between;">
     # Tab 3 — Inventory
     # ══════════════════════
     with tab3:
+        # ── Expiry Alerts ──────────────────────────────────────────────────────
+        _expired       = insights.get("expired",       pd.DataFrame())
+        _expiring_soon = insights.get("expiring_soon", pd.DataFrame())
+
+        if not _expired.empty or not _expiring_soon.empty:
+            section_header("🚨 Product Expiry Alerts")
+
+            # Expired products
+            if not _expired.empty:
+                st.markdown(
+                    '<div class="alert-critical">🔴 <strong>Expired Products</strong> — '
+                    'Remove from shelves immediately and stop selling.</div>',
+                    unsafe_allow_html=True,
+                )
+                for _, r in _expired.iterrows():
+                    days_ago = abs(int(r["days_to_expiry"]))
+                    exp_str  = pd.Timestamp(r["expiry_date"]).strftime("%d %b %Y")
+                    st.markdown(
+                        f'<div class="alert-critical" style="margin-top:6px;">❌ <strong>{r["product_name"]}</strong>'
+                        f' — Expired <strong>{days_ago} day{"s" if days_ago != 1 else ""} ago</strong>'
+                        f' ({exp_str}) | Stock: {safe_int(r["stock_quantity"])} units</div>',
+                        unsafe_allow_html=True,
+                    )
+
+            # Expiring soon
+            if not _expiring_soon.empty:
+                st.markdown(
+                    '<div class="alert-low" style="margin-top:10px;">🟡 <strong>Expiring Within 60 Days</strong> — '
+                    'Prioritise sales or return to supplier.</div>',
+                    unsafe_allow_html=True,
+                )
+                for _, r in _expiring_soon.iterrows():
+                    days_left = int(r["days_to_expiry"])
+                    exp_str   = pd.Timestamp(r["expiry_date"]).strftime("%d %b %Y")
+                    urgency   = "alert-critical" if days_left <= 14 else "alert-low"
+                    st.markdown(
+                        f'<div class="{urgency}" style="margin-top:6px;">⚠️ <strong>{r["product_name"]}</strong>'
+                        f' — Expires in <strong>{days_left} day{"s" if days_left != 1 else ""}</strong>'
+                        f' ({exp_str}) | Stock: {safe_int(r["stock_quantity"])} units</div>',
+                        unsafe_allow_html=True,
+                    )
+        else:
+            section_header("🚨 Product Expiry Alerts")
+            st.markdown(
+                '<div class="alert-success">✅ No expiry alerts. All dated products are well within date.</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("---")
         section_header("🔴 Low Stock Products")
         if not insights["low_stock"].empty:
             for _, r in insights["low_stock"].iterrows():
