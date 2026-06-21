@@ -146,6 +146,37 @@ def page_dashboard():
                 st.session_state.current_page = "inventory"
                 st.rerun()
 
+    # ── Expiry Count Cards (only shown when there is something to flag) ───────
+    if not products_df.empty and "expiry_date" in products_df.columns:
+        from datetime import datetime as _dt
+        _today   = pd.Timestamp(_dt.now().date())
+        _dated   = products_df[products_df["expiry_date"].notna()].copy()
+        if not _dated.empty:
+            _dated["_dte"] = (_dated["expiry_date"] - _today).dt.days
+            _exp_count  = int((_dated["_dte"] <  0).sum())
+            _soon_count = int(((_dated["_dte"] >= 0) & (_dated["_dte"] <= 60)).sum())
+
+            if _exp_count > 0 or _soon_count > 0:
+                ec1, ec2 = st.columns(2)
+                if _exp_count > 0:
+                    with ec1:
+                        kpi_card(
+                            "Expired Products",
+                            str(_exp_count),
+                            f"{'Product' if _exp_count == 1 else 'Products'} past expiry date — act now",
+                            positive=False,
+                            icon="🔴",
+                        )
+                if _soon_count > 0:
+                    with ec2 if _exp_count > 0 else ec1:
+                        kpi_card(
+                            "Expiring Soon",
+                            str(_soon_count),
+                            f"{'Product' if _soon_count == 1 else 'Products'} expiring within 60 days",
+                            positive=False,
+                            icon="🟡",
+                        )
+
     # ── Charts ──
     if not sales_df.empty:
         with st.expander("📈 Revenue Trend — Last 30 Days", expanded=True):
