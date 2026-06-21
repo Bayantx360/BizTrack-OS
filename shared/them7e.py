@@ -67,6 +67,7 @@ def apply_suite_css():
 
 [data-testid="stHeader"] {
     background: #080B0F !important;
+    border-bottom: 1px solid #1F2D3D !important;
     height: 36px !important;
     min-height: 36px !important;
     padding-top: 0px !important;
@@ -75,6 +76,25 @@ def apply_suite_css():
 
 [data-testid="stToolbar"] {
     background: #080B0F !important;
+}
+
+/* ── Hide Streamlit toolbar (GitHub, star, share etc.)
+       Sidebar toggle lives in stSidebarCollapsedControl — force it visible ── */
+[data-testid="stToolbar"],
+[data-testid="stToolbarActions"],
+[data-testid="stDecoration"] {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stSidebarCollapsedControl"] button,
+[data-testid="collapsedControl"],
+[data-testid="collapsedControl"] button {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 header {

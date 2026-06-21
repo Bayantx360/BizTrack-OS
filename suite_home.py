@@ -113,7 +113,7 @@ def page_login():
   <div class="lp-badge"><span>●</span> All-in-one business suite</div>
   <div class="lp-headline">Run & Monitor your <span>Business</span><br>Smarter</div>
   <div class="lp-sub">
-    💰Record your Daily Sales & Revenue ● 📦Track your Inventory Stock Level ● 📈Monitor your Business Growth—  All in one place on BizTrack-OS
+    💰Record your Daily Sales & Revenue ● 📦Track your Inventory Stock Level ● ⚠️Track Debtors ● 📈Monitor your Business Growth—  All in one place on BizTrack-OS
   </div>
   <div class="lp-value-grid">
     <div class="lp-value-card">
@@ -140,11 +140,9 @@ def page_login():
 
     # ── Social proof — unique industry silhouette avatars + named businesses ──
     TRUSTED_BUSINESSES = [
-        {"name": "Rabz Pharma",                "color": "E8F4FD", "fg": "1A6FA8"},
+        {"name": "Babsam Pharmacy",                "color": "E8F4FD", "fg": "1A6FA8"},
         {"name": "Ammy's Gadgets",             "color": "CFFAFE", "fg": "0E7490"},
-        {"name": "Bara Ventures",              "color": "FEF3C7", "fg": "A07A10"},
-        {"name": "Obantz Ltd",                 "color": "FDEDEC", "fg": "A83228"},
-        {"name": "Bularis C.E",                "color": "EDE9FE", "fg": "6D28D9"},
+        {"name": "Bularis C.E",              "color": "FEF3C7", "fg": "A07A10"},
         {"name": "Tundsam Agromart Ltd",       "color": "D1FAE5", "fg": "065F46"},
         {"name": "Omokorewa Kitchen Utensils", "color": "FFF7ED", "fg": "C2410C"},
     ]
@@ -152,7 +150,7 @@ def page_login():
     def _svg_icon(name: str, fg: str) -> str:
         """Return a unique SVG icon path based on business name."""
         c = fg
-        if "pharma" in name.lower():
+        if "pharmacy" in name.lower():
             # pill capsule + medical cross
             return (
                 f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
@@ -171,7 +169,7 @@ def page_login():
                 f'<line x1="10.5" y1="5" x2="13.5" y2="5" stroke="#{c}" stroke-width="1.2" stroke-linecap="round"/>'
                 f'</svg>'
             )
-        elif "venture" in name.lower():
+        elif "bularis" in name.lower():
             # briefcase
             return (
                 f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
@@ -181,25 +179,7 @@ def page_login():
                 f'<line x1="12" y1="11" x2="12" y2="15" stroke="#{c}" stroke-width="1.3" stroke-linecap="round"/>'
                 f'</svg>'
             )
-        elif "obantz" in name.lower():
-            # office building
-            return (
-                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
-                f'<rect x="4" y="5" width="16" height="16" rx="1" stroke="#{c}" stroke-width="1.7"/>'
-                f'<line x1="4" y1="9" x2="20" y2="9" stroke="#{c}" stroke-width="1.3"/>'
-                f'<rect x="7" y="12" width="3" height="3" rx="0.5" stroke="#{c}" stroke-width="1.2"/>'
-                f'<rect x="14" y="12" width="3" height="3" rx="0.5" stroke="#{c}" stroke-width="1.2"/>'
-                f'<rect x="10.5" y="16" width="3" height="5" rx="0.5" stroke="#{c}" stroke-width="1.2"/>'
-                f'</svg>'
-            )
-        elif "bularis" in name.lower():
-            # wrench
-            return (
-                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
-                f'<path d="M14.5 4.5a4 4 0 00-4.9 5.1L4 15.2A1.5 1.5 0 006 17.2l5.6-5.6a4 4 0 005.1-4.9l-2.2 2.2-1.5-1.5 2.2-2.2z"'
-                f' stroke="#{c}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
-                f'</svg>'
-            )
+        
         elif "agro" in name.lower():
             # wheat leaf
             return (
@@ -369,9 +349,9 @@ def page_signup():
         st.markdown("""
 <div style="text-align:center;margin-bottom:1.5rem;">
   <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;
-    color:#F0F4F8;letter-spacing:-0.04em;">Create your account</div>
+    color:#F0F4F8;letter-spacing:-0.04em;">👤Create your account</div>
   <div style="font-size:0.85rem;color:#22C55E;margin-top:0.3rem;">
-    Start with a 14-day free trial. No credit card required.</div>
+    ✨️Start with a 7-day free trial. No credit card required<br><br>Start tracking sales💰, inventory📦, debtors📕, expenses💸, profit📈 in under 2 minutes.</div>
 </div>
         """, unsafe_allow_html=True)
 
@@ -387,7 +367,7 @@ def page_signup():
                 "Plan",
                 options=["trial", "monthly", "yearly"],
                 format_func=lambda p: {
-                    "trial":   f"🎁 Free Trial — 14 days, no payment needed",
+                    "trial":   f"🎁 Free Trial — 7 Days, no payment needed",
                     "monthly": f"📅 Monthly — ₦{PAYMENT_DETAILS['monthly_price']:,}/month",
                     "yearly":  f"🏆 Yearly — ₦{PAYMENT_DETAILS['yearly_price']:,}/year (save ₦3,000)",
                 }[p],

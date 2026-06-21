@@ -260,7 +260,7 @@ def _page_pending_payment(user: dict):
     with col:
         st.markdown(
             "<div style='text-align:center;font-size:2rem;font-weight:800;"
-            "color:#F0F4F8;margin-bottom:0.25rem;'>📊 BizTrack-OS</div>",
+            "color:#F0F4F8;margin-bottom:0.25rem;'>📒 BizTrack-OS</div>",
             unsafe_allow_html=True,
         )
         st.markdown("---")
