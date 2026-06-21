@@ -187,6 +187,25 @@ def page_products():
                                 f"vs pack {fmt_naira(new_sell)}"
                             )
 
+                        st.markdown("---")
+
+                        # ── Dates (optional) ──
+                        st.markdown("**📅 Product Dates** *(optional — perishable goods only)*")
+                        ed1, ed2 = st.columns(2)
+                        # Safely parse existing dates; fall back to None if not set
+                        _cur_mfg    = row.get("mfg_date")
+                        _cur_expiry = row.get("expiry_date")
+                        try:
+                            _cur_mfg    = pd.to_datetime(_cur_mfg).date()    if pd.notna(_cur_mfg)    else None
+                        except Exception:
+                            _cur_mfg    = None
+                        try:
+                            _cur_expiry = pd.to_datetime(_cur_expiry).date() if pd.notna(_cur_expiry) else None
+                        except Exception:
+                            _cur_expiry = None
+                        new_mfg_date    = ed1.date_input("Manufacturing Date",        value=_cur_mfg,    key=f"edit_mfg_{row['product_id']}")
+                        new_expiry_date = ed2.date_input("Expiry / Best-Before Date", value=_cur_expiry, key=f"edit_expiry_{row['product_id']}")
+
                         save = st.form_submit_button("💾 Save Changes", type="primary",
                                                      width='stretch')
 
@@ -201,6 +220,8 @@ def page_products():
                             "base_unit":         new_base.strip() or "unit",
                             "sub_unit":          new_sub.strip()  or "unit",
                             "selling_price_sub": new_sub_price,
+                            "mfg_date":          new_mfg_date.isoformat()    if new_mfg_date    else None,
+                            "expiry_date":       new_expiry_date.isoformat()  if new_expiry_date else None,
                         })
                         if ok:
                             st.session_state["inv_msg"] = "✅ Product updated!"
@@ -351,6 +372,15 @@ def page_products():
                     f"vs pack price **{fmt_naira(sell_price)}**"
                 )
 
+            st.markdown("---")
+
+            # ── Dates (optional — for perishable goods only) ──────────────────
+            st.markdown("#### 📅 Product Dates *(optional)*")
+            st.caption("Only for perishable goods — food, drugs, cosmetics. Leave blank if not applicable.")
+            pd1, pd2 = st.columns(2)
+            mfg_date_input    = pd1.date_input("Manufacturing Date",    value=None, key="add_mfg_date")
+            expiry_date_input = pd2.date_input("Expiry / Best-Before Date", value=None, key="add_expiry_date")
+
             submitted = st.form_submit_button("➕ Add Product", width='stretch', type="primary")
 
         if submitted:
@@ -370,6 +400,8 @@ def page_products():
                     "base_unit":         base_unit.strip() or "unit",
                     "sub_unit":          sub_unit.strip()  or "unit",
                     "units_per_pack":    int(units_per_pack),
+                    "mfg_date":          mfg_date_input.isoformat()    if mfg_date_input    else None,
+                    "expiry_date":       expiry_date_input.isoformat()  if expiry_date_input else None,
                     "created_at":        datetime.now().isoformat(),
                 })
                 if ok:
@@ -603,6 +635,25 @@ def page_products():
 
             st.markdown("---")
 
+            # ── Expiry date update (optional — for perishable goods) ──────────
+            st.markdown("**📅 New Batch Dates** *(optional)*")
+            st.caption("New delivery? Update expiry if this batch has a different date. Leave blank to keep current.")
+            _existing_expiry = selected_product.get("expiry_date")
+            _existing_mfg    = selected_product.get("mfg_date")
+            try:
+                _existing_expiry = pd.to_datetime(_existing_expiry).date() if pd.notna(_existing_expiry) else None
+            except Exception:
+                _existing_expiry = None
+            try:
+                _existing_mfg = pd.to_datetime(_existing_mfg).date() if pd.notna(_existing_mfg) else None
+            except Exception:
+                _existing_mfg = None
+            rb1, rb2 = st.columns(2)
+            restock_mfg_date    = rb1.date_input("Manufacturing Date",        value=_existing_mfg,    key="restock_mfg_date")
+            restock_expiry_date = rb2.date_input("Expiry / Best-Before Date", value=_existing_expiry, key="restock_expiry_date")
+
+            st.markdown("---")
+
             # ── Submit button inside the form ──
             with st.form("restock_form", clear_on_submit=True):
                 submitted = st.form_submit_button(
@@ -640,6 +691,9 @@ def page_products():
                         updates["cost_price"]        = new_cost
                         updates["selling_price"]     = new_sell_pack
                         updates["selling_price_sub"] = new_sell_unit
+                    # Always write dates (None clears them, a value updates them)
+                    updates["mfg_date"]    = restock_mfg_date.isoformat()    if restock_mfg_date    else None
+                    updates["expiry_date"] = restock_expiry_date.isoformat()  if restock_expiry_date else None
 
                     ok = db_update(TBL_PRODUCTS, "product_id",
                                    selected_product["product_id"], updates)
