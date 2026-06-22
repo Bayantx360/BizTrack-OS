@@ -236,7 +236,7 @@ def page_dashboard():
                 )
                 st.plotly_chart(fig2, width='stretch')
 
-        with st.expander("🏆 Top Selling Products", expanded=True):
+        with st.expander("🏆 Top Selling Products", expanded=False):
             # Load sale_items for accurate per-product breakdown
             # (sales table stores concatenated names for multi-item sales)
             items_df = get_sale_items_df(business_id)
