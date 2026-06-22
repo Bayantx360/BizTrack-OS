@@ -566,7 +566,10 @@ def compute_insights(sales_df, products_df, expenses_df, items_df=None) -> dict:
     _EXPIRY_WARN_DAYS = 60
     if not products_df.empty and "expiry_date" in products_df.columns:
         today      = pd.Timestamp(datetime.now().date())
-        dated      = products_df[products_df["expiry_date"].notna()].copy()
+        dated      = products_df[
+            products_df["expiry_date"].notna() &
+            (products_df["stock_quantity"] > 0)
+        ].copy()
         if not dated.empty:
             dated["days_to_expiry"] = (dated["expiry_date"] - today).dt.days
             expiry_cols = ["product_name", "category", "stock_quantity",
