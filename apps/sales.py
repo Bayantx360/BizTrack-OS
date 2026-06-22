@@ -182,7 +182,7 @@ def page_dashboard():
 
     # ── Charts ──
     if not sales_df.empty:
-        with st.expander("📈 Revenue Trend — Last 30 Days", expanded=True):
+        with st.expander("📈 Revenue Trend — Last 30 Days", expanded=False):
           col_left, col_right = st.columns([3, 2])
 
           with col_left:
