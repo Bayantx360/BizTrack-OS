@@ -150,7 +150,10 @@ def page_dashboard():
     if not products_df.empty and "expiry_date" in products_df.columns:
         from datetime import datetime as _dt
         _today   = pd.Timestamp(_dt.now().date())
-        _dated   = products_df[products_df["expiry_date"].notna()].copy()
+        _dated   = products_df[
+            products_df["expiry_date"].notna() &
+            (products_df["stock_quantity"] > 0)
+        ].copy()
         if not _dated.empty:
             _dated["_dte"] = (_dated["expiry_date"] - _today).dt.days
             _exp_count  = int((_dated["_dte"] <  0).sum())
