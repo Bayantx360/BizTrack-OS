@@ -146,43 +146,9 @@ def page_dashboard():
                 st.session_state.current_page = "inventory"
                 st.rerun()
 
-    # ── Expiry Count Cards (only shown when there is something to flag) ───────
-    if not products_df.empty and "expiry_date" in products_df.columns:
-        from datetime import datetime as _dt
-        _today   = pd.Timestamp(_dt.now().date())
-        _dated   = products_df[
-            products_df["expiry_date"].notna() &
-            (products_df["stock_quantity"] > 0)
-        ].copy()
-        if not _dated.empty:
-            _dated["_dte"] = (_dated["expiry_date"] - _today).dt.days
-            _exp_count  = int((_dated["_dte"] <  0).sum())
-            _soon_count = int(((_dated["_dte"] >= 0) & (_dated["_dte"] <= 60)).sum())
-
-            if _exp_count > 0 or _soon_count > 0:
-                ec1, ec2 = st.columns(2)
-                if _exp_count > 0:
-                    with ec1:
-                        kpi_card(
-                            "Expired Products",
-                            str(_exp_count),
-                            f"{'Product' if _exp_count == 1 else 'Products'} past expiry date — act now",
-                            positive=False,
-                            icon="🔴",
-                        )
-                if _soon_count > 0:
-                    with ec2 if _exp_count > 0 else ec1:
-                        kpi_card(
-                            "Expiring Soon",
-                            str(_soon_count),
-                            f"{'Product' if _soon_count == 1 else 'Products'} expiring within 60 days",
-                            positive=False,
-                            icon="🟡",
-                        )
-
     # ── Charts ──
     if not sales_df.empty:
-        with st.expander("📈 Revenue Trend — Last 30 Days", expanded=False):
+        with st.expander("📈 Revenue Trend — Last 30 Days", expanded=True):
           col_left, col_right = st.columns([3, 2])
 
           with col_left:
@@ -236,7 +202,7 @@ def page_dashboard():
                 )
                 st.plotly_chart(fig2, width='stretch')
 
-        with st.expander("🏆 Top Selling Products", expanded=False):
+        with st.expander("🏆 Top Selling Products", expanded=True):
             # Load sale_items for accurate per-product breakdown
             # (sales table stores concatenated names for multi-item sales)
             items_df = get_sale_items_df(business_id)
@@ -1122,6 +1088,9 @@ def page_sales_history():
         st.info("📭 No sales recorded yet.")
         return
 
+    # Load all sale items once — filtered per-row inside the loop (no N+1 queries)
+    all_items_df = get_sale_items_df(business_id)
+
     # ── Filters ──
     col1, col2, col3 = st.columns(3)
     start_date = col1.date_input("From", value=(datetime.now() - timedelta(days=30)).date())
@@ -1171,6 +1140,22 @@ def page_sales_history():
             dc1.markdown(f"**Customer:** {r.get('customer_name','—') or '—'}")
             dc2.markdown(f"**Gross Profit:** {fmt_naira(r['gross_profit'])}")
             dc2.markdown(f"**Items:** {int(r.get('item_count', 1))}")
+
+            # ── Line-item breakdown ──────────────────────────────────
+            row_items = all_items_df[all_items_df["sale_id"] == sale_id] \
+                if not all_items_df.empty else pd.DataFrame()
+            if not row_items.empty:
+                with st.expander("🧾 View Items", expanded=False):
+                    for _, it in row_items.iterrows():
+                        disc_note = (
+                            f"  *(disc: {fmt_naira(it['discount_amt'])})*"
+                            if it.get("discount_amt") else ""
+                        )
+                        st.markdown(
+                            f"• **{it['product_name']}** × {it['quantity']}  "
+                            f"@ {fmt_naira(it['unit_price'])}  → **{fmt_naira(it['line_total'])}**"
+                            + disc_note
+                        )
 
             with st.form(f"edit_sale_{sale_id}"):
                 ef1, ef2 = st.columns(2)
