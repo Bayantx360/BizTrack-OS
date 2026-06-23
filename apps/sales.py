@@ -182,7 +182,7 @@ def page_dashboard():
 
     # ── Charts ──
     if not sales_df.empty:
-        with st.expander("📈 Revenue Trend — Last 30 Days", expanded=True):
+        with st.expander("📈 Revenue Trend — Last 30 Days", expanded=False):
           col_left, col_right = st.columns([3, 2])
 
           with col_left:
@@ -236,7 +236,7 @@ def page_dashboard():
                 )
                 st.plotly_chart(fig2, width='stretch')
 
-        with st.expander("🏆 Top Selling Products", expanded=True):
+        with st.expander("🏆 Top Selling Products", expanded=False):
             # Load sale_items for accurate per-product breakdown
             # (sales table stores concatenated names for multi-item sales)
             items_df = get_sale_items_df(business_id)
