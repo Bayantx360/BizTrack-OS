@@ -38,6 +38,7 @@ from shared.db import (
     TBL_USERS,
     PAYMENT_DETAILS,
     gen_id, validate_email, parse_date, fmt_naira,
+    log_activity,
 )
 
 # ── Admin credentials (from secrets) ──────────────────────────────────────────
@@ -154,6 +155,18 @@ def login_user(email: str, password: str):
         return False, None, "No account found with that email."
     if not check_password(password, str(user.get("password_hash", ""))):
         return False, None, "Incorrect password."
+
+    # ── Activity logging ───────────────────────────────────────────────
+    biz_id  = user.get("business_id", "")
+    sub_status = user.get("plan_status", "active")
+    now_str = datetime.now().isoformat()
+    db_update(TBL_USERS, "user_id", user["user_id"], {
+        "last_login":    now_str,
+        "total_logins":  (user.get("total_logins") or 0) + 1,
+    })
+    log_activity(biz_id, "login", sub_status)
+    # ──────────────────────────────────────────────────────────────────
+
     return True, user, "Login successful."
 
 
@@ -205,6 +218,9 @@ def signup_user(business_name, full_name, email, phone, password, plan_type):
         "must_change_password":     "no",
     })
     if success:
+        # ── Activity logging ───────────────────────────────────────────
+        log_activity(business_id, "signup", status)
+        # ──────────────────────────────────────────────────────────────
         return True, "Account created successfully."
     return False, "Failed to create account. Please try again."
 
