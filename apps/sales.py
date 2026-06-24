@@ -30,6 +30,7 @@ from shared.db import (
     get_debts_df,
     compute_kpis,
     db_fetch, db_insert, db_update, db_delete,
+    log_activity,
     TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS,
     gen_id, fmt_naira, safe_float, safe_int,
 )
@@ -725,6 +726,16 @@ def page_record_sale():
                     # Reset checkout payment state for next sale
                     st.session_state.pop("checkout_pay_status", None)
                     st.session_state.pop("checkout_amount_paid", None)
+
+                    # ── Activity logging ───────────────────────────────
+                    _sub = user.get("plan_status", "active")
+                    log_activity(business_id, "sale_recorded", _sub)
+                    db_update(
+                        "users", "business_id", business_id,
+                        {"total_transactions": (user.get("total_transactions") or 0) + 1}
+                    )
+                    # ──────────────────────────────────────────────────
+
                     st.rerun()
                 else:
                     st.error("Failed to record sale. Please try again.")
