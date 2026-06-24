@@ -29,9 +29,10 @@ from shared.db import (
     get_debts_df, get_debt_payments_df, record_debt_payment,
     get_sale_items_df,
     TBL_USERS, TBL_EXPENSES, TBL_PAYMENTS, TBL_SALE_ITEMS,
-    TBL_DEBTS,
+    TBL_DEBTS, TBL_ACTIVITY,
     PAYMENT_DETAILS,
     gen_id, fmt_naira, safe_float, safe_int, parse_date,
+    get_supabase,
 )
 from shared.theme import (
     apply_suite_css, kpi_card, section_header, page_header,
@@ -1007,9 +1008,10 @@ def page_admin():
         st.info("💡 No payment records yet.")
 
     st.markdown("---")
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "⏳ Pending Activation", "✅ Active Users", "📈 MRR & Growth",
         "🚨 Churn Alerts", "🔑 Password Resets", "👥 All Users", "⛔ Deactivated",
+        "👁️ User Activity",
     ])
 
     # ── Pending ──
@@ -1233,3 +1235,130 @@ def page_admin():
                         st.success(f"✅ {u['business_name']} reactivated ({react_plan}) until {end_dt}")
                         st.rerun()
                 st.markdown("---")
+
+    # ── User Activity ──
+    with tab8:
+        st.markdown("#### 👁️ User Activity Monitor")
+        st.caption("Live view of who is active, at-risk, or ghost across trial and paid users.")
+
+        now_dt = datetime.now()
+        rows = []
+        for _, u in users_df.iterrows():
+            biz_name    = u.get("business_name", "—")
+            email       = u.get("email", "—")
+            status      = u.get("plan_status", "—")
+            plan        = u.get("plan_type", "—")
+            last_login  = u.get("last_login")
+            total_txns  = int(u.get("total_transactions") or 0)
+            trial_start = u.get("subscription_start")
+
+            # Trial day
+            if status == "active" and trial_start:
+                try:
+                    ts = datetime.strptime(str(trial_start)[:10], "%Y-%m-%d")
+                    trial_label = f"Day {(now_dt - ts).days + 1}"
+                except Exception:
+                    trial_label = "—"
+            else:
+                trial_label = "—"
+
+            # Last login label + days since
+            if last_login:
+                try:
+                    ll   = datetime.fromisoformat(str(last_login)[:19])
+                    diff = (now_dt - ll).days
+                    login_label = "Today" if diff == 0 else ("Yesterday" if diff == 1 else f"{diff}d ago")
+                    login_days  = diff
+                except Exception:
+                    login_label = "—"; login_days = 999
+            else:
+                login_label = "Never"; login_days = 999
+
+            # Health signal
+            if login_days == 999:
+                health = "👻 Ghost"
+            elif login_days <= 1:
+                health = "🟢 Active"
+            elif login_days <= 3:
+                health = "🟡 Quiet"
+            else:
+                health = "🔴 At Risk"
+
+            rows.append({
+                "Business":     biz_name,
+                "Email":        email,
+                "Status":       status,
+                "Plan":         plan,
+                "Trial Day":    trial_label,
+                "Last Login":   login_label,
+                "Transactions": total_txns,
+                "Health":       health,
+                "_login_days":  login_days,
+            })
+
+        activity_df = pd.DataFrame(rows)
+
+        # Summary KPIs
+        k1, k2, k3, k4 = st.columns(4)
+        with k1: kpi_card("Total Users",  str(len(activity_df)),                                   "All registered",   icon="👥")
+        with k2: kpi_card("Active Today", str(len(activity_df[activity_df["Health"] == "🟢 Active"])), "Logged in ≤1 day", icon="🟢")
+        with k3: kpi_card("At Risk",      str(len(activity_df[activity_df["Health"] == "🔴 At Risk"])), "Silent 4+ days",  icon="🔴")
+        with k4: kpi_card("Ghosts",       str(len(activity_df[activity_df["Health"] == "👻 Ghost"])),  "Never logged in",  icon="👻")
+
+        st.markdown("---")
+
+        # Filter
+        f_col, _ = st.columns([2, 4])
+        with f_col:
+            health_filter = st.selectbox(
+                "Filter by health",
+                ["All", "🟢 Active", "🟡 Quiet", "🔴 At Risk", "👻 Ghost"],
+                key="activity_health_filter"
+            )
+
+        display_df = activity_df.copy()
+        if health_filter != "All":
+            display_df = display_df[display_df["Health"] == health_filter]
+        display_df = display_df.sort_values("_login_days").drop(columns=["_login_days"])
+
+        if display_df.empty:
+            st.info("No users match this filter.")
+        else:
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Business":     st.column_config.TextColumn("Business",  width="medium"),
+                    "Email":        st.column_config.TextColumn("Email",     width="medium"),
+                    "Status":       st.column_config.TextColumn("Status",    width="small"),
+                    "Plan":         st.column_config.TextColumn("Plan",      width="small"),
+                    "Trial Day":    st.column_config.TextColumn("Trial Day", width="small"),
+                    "Last Login":   st.column_config.TextColumn("Last Login",width="small"),
+                    "Transactions": st.column_config.NumberColumn("Sales",   width="small"),
+                    "Health":       st.column_config.TextColumn("Health",    width="small"),
+                }
+            )
+
+        # Action nudges
+        st.markdown("---")
+        st.markdown("#### 💡 Who to reach out to today")
+        priority_df = activity_df[
+            activity_df["Health"].isin(["👻 Ghost", "🔴 At Risk"])
+        ].sort_values("_login_days", ascending=False).drop(columns=["_login_days"])
+
+        if priority_df.empty:
+            st.success("✅ All users have been active recently. Nothing urgent.")
+        else:
+            for _, row in priority_df.iterrows():
+                with st.container(border=True):
+                    c1, c2 = st.columns([5, 1])
+                    with c1:
+                        st.markdown(f"**{row['Business']}** — {row['Email']}")
+                        st.caption(
+                            f"{row['Health']} · Last login: {row['Last Login']} · "
+                            f"Sales recorded: {row['Transactions']} · "
+                            f"Plan: {row['Plan']} · Status: {row['Status']}"
+                        )
+                    with c2:
+                        st.markdown("📲 WhatsApp")
