@@ -48,6 +48,7 @@ TBL_SALE_ITEMS    = "sale_items"
 TBL_DEBTS         = "debts"
 TBL_DEBT_PAYMENTS = "debt_payments"
 TBL_SUPPLIERS     = "suppliers"
+TBL_ACTIVITY      = "user_activity"
 
 # ── Plan / payment config ──────────────────────────────────────────────────────
 PAYMENT_DETAILS = {
@@ -122,6 +123,31 @@ def db_insert(table: str, row: dict) -> bool:
     except Exception as e:
         st.error(f"❌ Error inserting into {table}: {e}")
         return False
+
+
+def log_activity(business_id: str, event_type: str, subscription_status: str = "active") -> None:
+    """
+    Append a single activity event to user_activity.
+    Fire-and-forget — errors are silently swallowed so they never
+    interrupt the main user flow.
+
+    event_type values used across the suite:
+        "login"            — user authenticated successfully
+        "sale_recorded"    — a sale was committed to the DB
+        "signup"           — new account created
+
+    subscription_status: 'trial' | 'active' | 'expired'
+    """
+    try:
+        sb = get_supabase()
+        sb.table(TBL_ACTIVITY).insert({
+            "business_id":         business_id,
+            "event_type":          event_type,
+            "subscription_status": subscription_status,
+            "created_at":          datetime.now().isoformat(),
+        }).execute()
+    except Exception:
+        pass  # never surface activity-log errors to the user
 
 
 def db_update(table: str, id_col: str, id_val: str, updates: dict) -> bool:
