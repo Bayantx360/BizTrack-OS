@@ -45,7 +45,6 @@ from shared.theme import (
 
 def page_expenses():
     apply_suite_css()
-    apply_theme_mode()
     user        = st.session_state.user
     business_id = user["business_id"]
 
@@ -241,7 +240,6 @@ def page_expenses():
 
 def page_insights():
     apply_suite_css()
-    apply_theme_mode()
     user        = st.session_state.user
     business_id = user["business_id"]
 
@@ -672,7 +670,6 @@ def page_debtors():
       • Mark debts as settled
     """
     apply_suite_css()
-    apply_theme_mode()
     user        = st.session_state.user
     business_id = user["business_id"]
 
@@ -935,7 +932,6 @@ def page_debtors():
 
 def page_admin():
     apply_suite_css()
-    apply_theme_mode()
     user = st.session_state.user
     if user.get("role") != "admin":
         st.error("⛔ Access denied.")

@@ -37,7 +37,6 @@ from shared.theme import (
 def page_products():
     """Products catalogue — view, edit, delete, restock, history."""
     apply_suite_css()
-    apply_theme_mode()
     user        = st.session_state.user
     business_id = user["business_id"]
 
