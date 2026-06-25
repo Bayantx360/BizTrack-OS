@@ -664,8 +664,8 @@ display:flex;align-items:center;justify-content:space-between;">
 
 def page_debtor_statement(customer_name: str):
     """
-    Full statement of account for a single customer — all their debts and
-    payments merged into one chronological timeline with running balance.
+    Full statement of account for a single customer — all debts and payments
+    merged into one chronological timeline with running balance.
     """
     apply_suite_css()
     import urllib.parse
@@ -719,15 +719,12 @@ def page_debtor_statement(customer_name: str):
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Summary KPIs ──
+    # ── Summary KPIs (plain st.metric to avoid HTML rendering issues in columns) ──
     c1, c2, c3 = st.columns(3)
-    with c1:
-        kpi_card("Total Purchased", fmt_naira(total_purchased), "across all sales")
-    with c2:
-        kpi_card("Total Paid", fmt_naira(total_paid), "all instalments", positive=True)
-    with c3:
-        kpi_card("Still Owing", fmt_naira(still_owing),
-                 "current balance", positive=(still_owing <= 0))
+    c1.metric("Total Purchased", fmt_naira(total_purchased), "across all sales")
+    c2.metric("Total Paid", fmt_naira(total_paid), "all instalments")
+    owing_delta = "✅ Settled" if still_owing <= 0 else f"Owes {fmt_naira(still_owing)}"
+    c3.metric("Still Owing", fmt_naira(still_owing), owing_delta)
 
     st.markdown("---")
 
@@ -738,21 +735,17 @@ def page_debtor_statement(customer_name: str):
             f"{user.get('business_name', 'our business')}.\n"
             f"You have an outstanding balance of {fmt_naira(still_owing)}.\n"
             f"Kindly make payment at your earliest convenience.\n\n"
-            f"Thank you 🙏\nPowered by BizTrack-OS"
+            f"Thank you \U0001f64f\nPowered by BizTrack-OS"
         )
         wa_url = (
             f"https://wa.me/{cphone.replace('+','').replace(' ','')}?"
             f"text={urllib.parse.quote(reminder_text)}"
         )
         st.markdown(
-            f'''<a href="{wa_url}" target="_blank"
-                style="display:block;text-align:center;
-                       background:#25D366;color:white;
-                       padding:0.5rem;border-radius:8px;
-                       font-weight:600;text-decoration:none;
-                       margin-bottom:1rem;">
-                💬 Send WhatsApp Reminder · {fmt_naira(still_owing)} outstanding
-            </a>''',
+            f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;'
+            f'background:#25D366;color:white;padding:0.5rem;border-radius:8px;'
+            f'font-weight:600;text-decoration:none;margin-bottom:1rem;">'
+            f'💬 Send WhatsApp Reminder · {fmt_naira(still_owing)} outstanding</a>',
             unsafe_allow_html=True,
         )
 
@@ -765,14 +758,13 @@ def page_debtor_statement(customer_name: str):
         total     = safe_float(debt["total_amount"])
         status    = debt.get("status", "unpaid")
 
-        # Build item description
         sid  = debt.get("sale_id")
         desc = "Credit sale"
         if sid and not all_items_df.empty:
             items = all_items_df[all_items_df["sale_id"] == sid]
             if not items.empty:
                 parts = [
-                    f"{r['product_name']} ×{int(r['quantity'])}"
+                    f"{r['product_name']} \u00d7{int(r['quantity'])}"
                     for _, r in items.head(3).iterrows()
                 ]
                 if len(items) > 3:
@@ -814,71 +806,62 @@ def page_debtor_statement(customer_name: str):
     # ── Render timeline ──
     section_header("Full Transaction History")
 
-    for e in reversed(events):   # newest first
+    for e in reversed(events):
         etype  = e["type"]
         date_s = e["date"].strftime("%d %b %Y") if pd.notna(e["date"]) else "—"
         rb     = e["running_balance"]
-        rb_col = "#D63355" if rb > 0 else "var(--jade)"
+        rb_col = "#FF4D6D" if rb > 0 else "#00C896"
         rb_bg  = "rgba(255,77,109,0.08)" if rb > 0 else "rgba(0,200,150,0.08)"
         rb_bdr = "rgba(255,77,109,0.25)" if rb > 0 else "rgba(0,200,150,0.25)"
 
         if etype == "sale":
-            dot_col  = "var(--gold)"
-            type_lbl = "Credit Sale"
-            type_col = "var(--gold)"
+            dot_col      = "#F5A623"
+            type_lbl     = "CREDIT SALE"
+            type_col     = "#F5A623"
             settled_badge = (
-                ' <span style="background:var(--surface2);border:0.5px solid var(--border2);'
+                '<span style="background:#1A2332;border:0.5px solid #2D3F55;'
                 'border-radius:20px;padding:2px 8px;font-size:10px;'
-                'color:var(--text-muted);margin-left:6px;">Settled</span>'
+                'color:#8BA0B8;margin-left:6px;">Settled</span>'
                 if e.get("status") == "settled" else ""
             )
-            amount_html = f"""
-              <div style="display:flex;gap:16px;margin-top:8px;padding-top:8px;
-                          border-top:0.5px solid var(--border);">
-                <div><div style="font-size:10px;color:var(--text-muted);">Billed</div>
-                     <div style="font-weight:500;color:var(--text-primary);">{fmt_naira(e['amount'])}</div></div>
-              </div>
-            """
+            detail_html = (
+                f'<div style="font-size:10px;color:#8BA0B8;margin-top:4px;">Billed</div>'
+                f'<div style="font-weight:500;color:#F0F4F8;">{fmt_naira(e["amount"])}</div>'
+            )
         else:
-            dot_col  = "var(--jade)"
-            type_lbl = "Payment"
-            type_col = "var(--jade)"
+            dot_col       = "#00C896"
+            type_lbl      = "PAYMENT"
+            type_col      = "#00C896"
             settled_badge = ""
-            amount_html = f"""
-              <div style="display:flex;gap:16px;margin-top:8px;padding-top:8px;
-                          border-top:0.5px solid var(--border);">
-                <div><div style="font-size:10px;color:var(--text-muted);">Amount paid</div>
-                     <div style="font-weight:500;color:var(--jade);">{fmt_naira(e['amount'])}</div></div>
-              </div>
-            """
+            detail_html   = (
+                f'<div style="font-size:10px;color:#8BA0B8;margin-top:4px;">Amount paid</div>'
+                f'<div style="font-weight:500;color:#00C896;">{fmt_naira(e["amount"])}</div>'
+            )
 
         st.markdown(f"""
-        <div style="display:flex;gap:14px;margin-bottom:10px;">
-          <div style="display:flex;flex-direction:column;align-items:center;width:18px;flex-shrink:0;">
-            <div style="width:10px;height:10px;border-radius:50%;
-                        background:{dot_col};margin-top:14px;flex-shrink:0;"></div>
-            <div style="width:1.5px;flex:1;background:var(--border);margin:3px 0;min-height:20px;"></div>
-          </div>
-          <div style="flex:1;background:var(--surface);border:0.5px solid var(--border);
-                      border-radius:10px;padding:10px 14px;margin-bottom:2px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:11px;font-weight:500;text-transform:uppercase;
-                           letter-spacing:0.07em;color:{type_col};">{type_lbl}{settled_badge}</span>
-              <span style="font-size:11px;color:var(--text-muted);">{date_s}</span>
-            </div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">{e['desc']}</div>
-            {amount_html}
-            <div style="text-align:right;margin-top:6px;">
-              <span style="font-size:11px;font-weight:500;padding:2px 10px;border-radius:20px;
-                           background:{rb_bg};border:0.5px solid {rb_bdr};color:{rb_col};">
-                Balance: {fmt_naira(rb)}
-              </span>
-            </div>
-          </div>
-        </div>
+<div style="display:flex;gap:14px;margin-bottom:10px;">
+  <div style="display:flex;flex-direction:column;align-items:center;width:18px;flex-shrink:0;">
+    <div style="width:10px;height:10px;border-radius:50%;background:{dot_col};margin-top:14px;flex-shrink:0;"></div>
+    <div style="width:1.5px;flex:1;background:#1F2D3D;margin:3px 0;min-height:20px;"></div>
+  </div>
+  <div style="flex:1;background:#111827;border:0.5px solid #1F2D3D;border-radius:10px;padding:10px 14px;margin-bottom:2px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:11px;font-weight:500;letter-spacing:0.07em;color:{type_col};">{type_lbl}{settled_badge}</span>
+      <span style="font-size:11px;color:#8BA0B8;">{date_s}</span>
+    </div>
+    <div style="font-size:12px;color:#8BA0B8;margin-top:4px;">{e["desc"]}</div>
+    <div style="margin-top:8px;padding-top:8px;border-top:0.5px solid #1F2D3D;">{detail_html}</div>
+    <div style="text-align:right;margin-top:6px;">
+      <span style="font-size:11px;font-weight:500;padding:2px 10px;border-radius:20px;
+                   background:{rb_bg};border:0.5px solid {rb_bdr};color:{rb_col};">
+        Balance: {fmt_naira(rb)}
+      </span>
+    </div>
+  </div>
+</div>
         """, unsafe_allow_html=True)
 
-    # ── Record payment form at the bottom ──
+    # ── Record payment form ──
     open_debts = cust_debts[cust_debts["status"] != "settled"]
     if not open_debts.empty:
         st.markdown("---")
@@ -1070,7 +1053,6 @@ def page_debtors():
                 )
 
                 with st.expander(expander_label, expanded=False):
-                    # ── View full customer statement ──
                     if st.button(
                         f"📋 View Full Statement for {cname}",
                         key=f"stmt_btn_{debt_id}_{label}",
