@@ -45,7 +45,6 @@ from shared.theme import (
 
 def page_expenses():
     apply_suite_css()
-    apply_theme_mode()
     user        = st.session_state.user
     business_id = user["business_id"]
 
@@ -241,7 +240,6 @@ def page_expenses():
 
 def page_insights():
     apply_suite_css()
-    apply_theme_mode()
     user        = st.session_state.user
     business_id = user["business_id"]
 
@@ -658,6 +656,9 @@ display:flex;align-items:center;justify-content:space-between;">
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# DEBTORS LEDGER
+# ══════════════════════════════════════════════════════════════════════════════
+
 # DEBTORS LEDGER — CUSTOMER STATEMENT
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -667,7 +668,6 @@ def page_debtor_statement(customer_name: str):
     payments merged into one chronological timeline with running balance.
     """
     apply_suite_css()
-    apply_theme_mode()
     import urllib.parse
 
     user        = st.session_state.user
@@ -677,7 +677,7 @@ def page_debtor_statement(customer_name: str):
         st.session_state.pop("debtor_statement_customer", None)
         st.rerun()
 
-    debts_df = get_debts_df(business_id)
+    debts_df     = get_debts_df(business_id)
     all_items_df = get_sale_items_df(business_id)
     debt_pays_df = get_debt_payments_df(business_id)
 
@@ -689,7 +689,7 @@ def page_debtor_statement(customer_name: str):
         st.warning(f"No debt records found for **{customer_name}**.")
         return
 
-    cphone = cust_debts.iloc[0].get("customer_phone", "") or ""
+    cphone     = cust_debts.iloc[0].get("customer_phone", "") or ""
     first_date = cust_debts["sale_date"].min()
     since_str  = first_date.strftime("%b %Y") if pd.notna(first_date) else "—"
 
@@ -757,18 +757,16 @@ def page_debtor_statement(customer_name: str):
         )
 
     # ── Build unified timeline ──
-    # Each event: type (sale|payment), date, debt_id, description, amount, running_balance
     events = []
 
     for _, debt in cust_debts.sort_values("sale_date").iterrows():
         debt_id   = debt["debt_id"]
         sale_date = debt["sale_date"]
         total     = safe_float(debt["total_amount"])
-        paid_now  = safe_float(debt.get("amount_paid", 0))
         status    = debt.get("status", "unpaid")
 
         # Build item description
-        sid = debt.get("sale_id")
+        sid  = debt.get("sale_id")
         desc = "Credit sale"
         if sid and not all_items_df.empty:
             items = all_items_df[all_items_df["sale_id"] == sid]
@@ -785,16 +783,14 @@ def page_debtor_statement(customer_name: str):
             "type":    "sale",
             "date":    sale_date,
             "debt_id": debt_id,
-            "sale_id": sid,
             "desc":    desc,
             "amount":  total,
-            "paid_at_sale": paid_now if status != "settled" or not debt_pays_df.empty else paid_now,
             "status":  status,
         })
 
     if not debt_pays_df.empty:
         cust_debt_ids = set(cust_debts["debt_id"].tolist())
-        cust_pays = debt_pays_df[debt_pays_df["debt_id"].isin(cust_debt_ids)].copy()
+        cust_pays     = debt_pays_df[debt_pays_df["debt_id"].isin(cust_debt_ids)].copy()
         for _, pay in cust_pays.iterrows():
             events.append({
                 "type":    "payment",
@@ -811,15 +807,6 @@ def page_debtor_statement(customer_name: str):
     for e in events:
         if e["type"] == "sale":
             running += e["amount"]
-            # Subtract any upfront partial payment recorded on the sale row itself
-            # (only count it here if there are no separate payment rows for this debt)
-            debt_id = e["debt_id"]
-            has_pay_rows = (
-                not debt_pays_df.empty
-                and debt_id in debt_pays_df["debt_id"].values
-            )
-            if not has_pay_rows:
-                running -= e.get("paid_at_sale", 0)
         else:
             running -= e["amount"]
         e["running_balance"] = round(running, 2)
@@ -828,12 +815,12 @@ def page_debtor_statement(customer_name: str):
     section_header("Full Transaction History")
 
     for e in reversed(events):   # newest first
-        etype   = e["type"]
-        date_s  = e["date"].strftime("%d %b %Y") if pd.notna(e["date"]) else "—"
-        rb      = e["running_balance"]
-        rb_col  = "#D63355" if rb > 0 else "var(--jade)"
-        rb_bg   = "rgba(255,77,109,0.08)" if rb > 0 else "rgba(0,200,150,0.08)"
-        rb_bdr  = "rgba(255,77,109,0.25)" if rb > 0 else "rgba(0,200,150,0.25)"
+        etype  = e["type"]
+        date_s = e["date"].strftime("%d %b %Y") if pd.notna(e["date"]) else "—"
+        rb     = e["running_balance"]
+        rb_col = "#D63355" if rb > 0 else "var(--jade)"
+        rb_bg  = "rgba(255,77,109,0.08)" if rb > 0 else "rgba(0,200,150,0.08)"
+        rb_bdr = "rgba(255,77,109,0.25)" if rb > 0 else "rgba(0,200,150,0.25)"
 
         if etype == "sale":
             dot_col  = "var(--gold)"
@@ -898,20 +885,18 @@ def page_debtor_statement(customer_name: str):
         section_header("Record a Payment")
 
         debt_options = {
-            f"{fmt_naira(safe_float(r['balance']))} owing — sale {r.get('sale_id','')[:8]}… ({r['sale_date'].strftime('%d %b %Y') if pd.notna(r['sale_date']) else '—'})": r["debt_id"]
+            f"{fmt_naira(safe_float(r['balance']))} owing — "
+            f"{r['sale_date'].strftime('%d %b %Y') if pd.notna(r['sale_date']) else '—'}": r["debt_id"]
             for _, r in open_debts.sort_values("sale_date").iterrows()
         }
 
         with st.form("stmt_pay_form"):
-            selected_label = st.selectbox(
-                "Apply payment to which sale?",
-                options=list(debt_options.keys()),
-            )
+            selected_label   = st.selectbox("Apply payment to which sale?",
+                                            options=list(debt_options.keys()))
             selected_debt_id = debt_options[selected_label]
             selected_balance = safe_float(
                 open_debts[open_debts["debt_id"] == selected_debt_id].iloc[0]["balance"]
             )
-
             pf1, pf2 = st.columns(2)
             pay_amount = pf1.number_input(
                 "Amount Received (₦)",
@@ -921,8 +906,7 @@ def page_debtor_statement(customer_name: str):
                 step=100.0,
             )
             pay_note = pf2.text_input("Note (optional)", placeholder="e.g. Cash at shop")
-
-            pay_btn = st.form_submit_button(
+            pay_btn  = st.form_submit_button(
                 f"💰 Record Payment — {fmt_naira(pay_amount)}",
                 type="primary", width="stretch",
             )
@@ -941,9 +925,6 @@ def page_debtor_statement(customer_name: str):
                 st.rerun()
 
 
-# DEBTORS LEDGER
-# ══════════════════════════════════════════════════════════════════════════════
-
 def page_debtors():
     """
     Debtors Ledger — tracks part payments and credit sales.
@@ -956,7 +937,6 @@ def page_debtors():
       • Mark debts as settled
     """
     apply_suite_css()
-    apply_theme_mode()
 
     # ── Route to customer statement if one is selected ──
     if st.session_state.get("debtor_statement_customer"):
@@ -1012,11 +992,8 @@ def page_debtors():
     all_customers = sorted(debts_df["customer_name"].dropna().unique().tolist())
     if all_customers:
         with st.expander("🔍 Jump to Customer Statement", expanded=False):
-            selected = st.selectbox(
-                "Select a customer",
-                options=all_customers,
-                key="quick_jump_customer",
-            )
+            selected = st.selectbox("Select a customer", options=all_customers,
+                                    key="quick_jump_customer")
             if st.button("📋 Open Statement", key="quick_jump_btn", type="primary"):
                 st.session_state["debtor_statement_customer"] = selected
                 st.rerun()
@@ -1103,6 +1080,8 @@ def page_debtors():
                         st.rerun()
 
                     st.markdown("---")
+
+                    dc1, dc2 = st.columns(2)
                     dc1.markdown(f"**Debt ID:** `{debt_id}`")
                     dc1.markdown(f"**Sale ID:** `{debt.get('sale_id', '—')}`")
                     dc1.markdown(f"**Customer:** {cname}")
@@ -1249,7 +1228,6 @@ def page_debtors():
 
 def page_admin():
     apply_suite_css()
-    apply_theme_mode()
     user = st.session_state.user
     if user.get("role") != "admin":
         st.error("⛔ Access denied.")
