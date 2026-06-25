@@ -58,6 +58,8 @@ SUITE_SESSION_KEYS = [
     # per-app transient state
     "cart", "sale_done", "pending_email", "pending_plan",
     "sale_feedback", "prod_page", "exp_page",
+    # UI preferences
+    "light_mode",
 ]
 
 
@@ -71,6 +73,7 @@ def init_session_state():
         "logged_in":    False,
         "current_page": "login",
         "user":         {},
+        "light_mode":   False,
     }
     for key, val in defaults.items():
         if key not in st.session_state:
