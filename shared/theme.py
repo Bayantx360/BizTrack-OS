@@ -31,15 +31,14 @@ from shared.db import safe_int, safe_float
 
 def apply_suite_css():
     """
-    Inject the unified BizTrack CSS (dark default + light mode override).
+    Inject the unified BizTrack dark-theme CSS.
     Idempotent — safe to call multiple times per session.
-    The light-mode class is toggled on <body> via apply_theme_mode().
     """
     st.html("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap');
 
-/* ── Dark mode CSS Variables (default) ── */
+/* ── CSS Variables ── */
 :root {
   --obsidian:    #080B0F;
   --deep:        #0D1117;
@@ -61,92 +60,6 @@ def apply_suite_css():
   --font-body:    'DM Sans', sans-serif;
   --font-mono:    'DM Mono', monospace;
 }
-
-/* ── Light mode CSS Variable overrides ── */
-body.light-mode,
-body.light-mode :root {
-  --obsidian:    #F8FAFC;
-  --deep:        #F1F5F9;
-  --surface:     #FFFFFF;
-  --surface2:    #EEF2F7;
-  --border:      #D1DCE8;
-  --border2:     #B0C4D8;
-  --gold:        #D4870A;
-  --gold-dim:    #B86D00;
-  --gold-glow:   rgba(212,135,10,0.12);
-  --jade:        #00956E;
-  --jade-dim:    rgba(0,149,110,0.10);
-  --ruby:        #D63355;
-  --ruby-dim:    rgba(214,51,85,0.10);
-  --text-primary:   #0F172A;
-  --text-secondary: #475569;
-  --text-muted:     #94A3B8;
-}
-
-/* Light mode — base overrides for Streamlit shells */
-body.light-mode,
-body.light-mode [class*="css"],
-body.light-mode .stApp {
-  background-color: var(--obsidian) !important;
-  color: var(--text-primary) !important;
-}
-
-body.light-mode [data-testid="stHeader"],
-body.light-mode [data-testid="stToolbar"],
-body.light-mode header,
-body.light-mode div[data-testid="stDecoration"] {
-  background: #F1F5F9 !important;
-}
-
-body.light-mode [data-testid="stToolbar"] button,
-body.light-mode [data-testid="stToolbar"] svg {
-  color: #0F172A !important;
-  fill: #0F172A !important;
-}
-
-body.light-mode [data-testid="stSidebar"] {
-  background-color: #F1F5F9 !important;
-  border-right: 1px solid #D1DCE8 !important;
-}
-
-body.light-mode [data-testid="stAppViewContainer"] > .main {
-  background: #F8FAFC !important;
-}
-
-body.light-mode [data-testid="stTextInput"] input,
-body.light-mode [data-testid="stNumberInput"] input,
-body.light-mode [data-testid="stSelectbox"] > div {
-  background: #FFFFFF !important;
-  color: #0F172A !important;
-  border-color: #D1DCE8 !important;
-}
-
-body.light-mode [data-testid="stDataFrame"] {
-  background: #FFFFFF;
-  border-color: #D1DCE8;
-}
-
-body.light-mode [data-testid="stExpander"],
-body.light-mode [data-testid="stExpander"] > details > summary,
-body.light-mode [data-testid="stExpander"] > details > summary *,
-body.light-mode [data-testid="stExpander"] .streamlit-expanderHeader,
-body.light-mode [data-testid="stExpander"] .streamlit-expanderHeader p {
-  background-color: #FFFFFF !important;
-  color: #0F172A !important;
-}
-
-body.light-mode [data-testid="stExpander"] details summary svg {
-  stroke: #0F172A !important;
-}
-
-body.light-mode .stock-ok       { background:#d1fae5; color:#065f46; border-color:#00956E; }
-body.light-mode .stock-low      { background:#fef3c7; color:#92400e; border-color:#D4870A; }
-body.light-mode .stock-critical { background:#ffe4e6; color:#9f1239; border-color:#D63355; }
-
-body.light-mode .alert-critical { background:rgba(214,51,85,0.08);  border-color:rgba(214,51,85,0.3);  color:#D63355; }
-body.light-mode .alert-low      { background:rgba(212,135,10,0.08); border-color:rgba(212,135,10,0.3); color:#D4870A; }
-body.light-mode .alert-success  { background:rgba(0,149,110,0.08);  border-color:rgba(0,149,110,0.3);  color:#00956E; }
-
 
 /* ─────────────────────────────────────────────
    Streamlit Header & Toolbar
@@ -377,40 +290,6 @@ div[data-testid="stExpander"] summary {
 }
 </style>
 """)
-
-
-def apply_theme_mode():
-    """
-    Inject a tiny JS snippet that adds/removes the 'light-mode' class on
-    <body> based on st.session_state.light_mode.  Call this on every page
-    render AFTER apply_suite_css().
-    """
-    is_light = st.session_state.get("light_mode", False)
-    cls = "light-mode" if is_light else ""
-    st.html(f"""
-<script>
-(function() {{
-  var body = window.parent.document.body;
-  if ("{cls}") {{
-    body.classList.add("light-mode");
-  }} else {{
-    body.classList.remove("light-mode");
-  }}
-}})();
-</script>
-""")
-
-
-def render_theme_toggle():
-    """
-    Render a sidebar toggle button: ☀️ Light / 🌙 Dark.
-    Flips st.session_state.light_mode and reruns.
-    """
-    is_light = st.session_state.get("light_mode", False)
-    label    = "☀️ Light Mode" if not is_light else "🌙 Dark Mode"
-    if st.button(label, key="theme_toggle", width="stretch"):
-        st.session_state.light_mode = not is_light
-        st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
