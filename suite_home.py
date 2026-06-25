@@ -140,11 +140,11 @@ def page_login():
 
     # ── Social proof — real user photo avatars + named businesses ──
     TRUSTED_BUSINESSES = [
-        {"name": "Babsam Pharmacy",                "photo": "assets/user1.jpeg"},
-        {"name": "Ammy's Gadgets",                 "photo": "assets/user2.jpeg"},
-        {"name": "Bularis C.E",                    "photo": "assets/user3.jpeg"},
-        {"name": "Tundsam Agromart Ltd",           "photo": "assets/user4.jpeg"},
-        {"name": "Omokorewa Kitchen Utensils",     "photo": "assets/user5.jpeg"},
+        {"name": "Babsam Pharmacy",                "photo": "assets/user1.jpg"},
+        {"name": "Ammy's Gadgets",                 "photo": "assets/user2.jpg"},
+        {"name": "Bularis C.E",                    "photo": "assets/user3.jpg"},
+        {"name": "Tundsam Agromart Ltd",           "photo": "assets/user4.jpg"},
+        {"name": "Omokorewa Kitchen Utensils",     "photo": "assets/user5.jpg"},
     ]
 
     import base64, os
