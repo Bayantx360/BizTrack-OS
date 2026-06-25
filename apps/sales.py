@@ -34,7 +34,7 @@ from shared.db import (
     TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS,
     gen_id, fmt_naira, safe_float, safe_int,
 )
-from shared.theme import apply_suite_css, kpi_card, section_header, page_header
+from shared.theme import apply_suite_css, apply_theme_mode, kpi_card, section_header, page_header
 from shared.auth import verify_void_pin, has_void_pin
 
 
@@ -44,6 +44,7 @@ from shared.auth import verify_void_pin, has_void_pin
 
 def page_dashboard():
     apply_suite_css()
+    apply_theme_mode()
     user        = st.session_state.user
     business_id = user["business_id"]
     now         = datetime.now()
@@ -303,6 +304,7 @@ def page_dashboard():
 
 def page_record_sale():
     apply_suite_css()
+    apply_theme_mode()
     user        = st.session_state.user
     business_id = user["business_id"]
 
@@ -1085,6 +1087,7 @@ def page_record_sale():
 
 def page_sales_history():
     apply_suite_css()
+    apply_theme_mode()
     user        = st.session_state.user
     business_id = user["business_id"]
 
