@@ -38,7 +38,7 @@ from shared.db import (
     PAYMENT_DETAILS, validate_email,
     gen_id, get_supabase,
 )
-from shared.theme import apply_suite_css, apply_theme_mode
+from shared.theme import apply_suite_css
 
 # ── Page module imports ────────────────────────────────────────────────────────
 from apps.sales     import page_dashboard, page_record_sale, page_sales_history
@@ -104,7 +104,6 @@ def get_business_social_proof():
 
 def page_login():
     apply_suite_css()
-    apply_theme_mode()
     st.markdown("""
 <div class="lp-hero">
   <div class="lp-logo-wrap">
@@ -345,7 +344,6 @@ def page_login():
 
 def page_signup():
     apply_suite_css()
-    apply_theme_mode()
     _, col, _ = st.columns([1, 1.6, 1])
     with col:
         st.markdown("""
@@ -412,7 +410,6 @@ def page_signup():
 
 def page_forgot_password():
     apply_suite_css()
-    apply_theme_mode()
     _, col, _ = st.columns([1, 1.4, 1])
     with col:
         st.markdown("""
@@ -454,7 +451,6 @@ def page_forgot_password():
 def page_force_password_change():
     """Shown when must_change_password == 'yes' (after an admin reset)."""
     apply_suite_css()
-    apply_theme_mode()
     user = st.session_state.get("force_pw_change_user", {})
     _, col, _ = st.columns([1, 1.4, 1])
     with col:
@@ -604,11 +600,6 @@ def render_sidebar():
         ):
             st.session_state.current_page = "settings"
             st.rerun()
-
-        # ── Theme toggle ──
-        from shared.theme import render_theme_toggle
-        render_theme_toggle()
-
         if st.button("⎋ Sign Out", width='stretch'):
             sign_out()
             st.rerun()
@@ -627,7 +618,6 @@ def page_settings():
     from shared.theme import page_header, section_header
     from shared.auth import set_void_pin, has_void_pin
     apply_suite_css()
-    apply_theme_mode()
     page_header("⚙️ Settings", "Manage your account and security preferences")
 
     user    = st.session_state.get("user", {})
