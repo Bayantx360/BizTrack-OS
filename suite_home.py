@@ -154,7 +154,7 @@ def page_login():
             with open(photo_path, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode()
             ext  = photo_path.rsplit(".", 1)[-1].lower()
-            mime = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+            mime = "image/jpg" if ext in ("jpg", "jpeg") else f"image/{ext}"
             src  = f"data:{mime};base64,{b64}"
         except Exception:
             # Fallback: initials circle if file missing
