@@ -182,6 +182,12 @@ def login_user(email: str, password: str):
     if saved_theme not in ("dark", "light"):
         saved_theme = "dark"
     st.session_state["theme"] = saved_theme
+    # Also rewrite config.toml so widget base theme matches on load
+    try:
+        from shared.theme import _write_config
+        _write_config(saved_theme)
+    except Exception:
+        pass
     # ──────────────────────────────────────────────────────────────────
 
     return True, user, "Login successful."
