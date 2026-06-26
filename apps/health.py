@@ -1665,7 +1665,7 @@ def page_admin():
                         st.markdown(f"**{row['Business']}** — {row['Email']}")
                         st.caption(
                             f"{row['Health']} · Last login: {row['Last Login']} · "
-                            f"Sales recorded: {row['Transactions']} · "
+                            f"Sales recorded: {row['Sales Today']} · "
                             f"Plan: {row['Plan']} · Status: {row['Status']}"
                         )
                     with c2:
