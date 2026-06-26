@@ -438,16 +438,48 @@ def chart_layout(height: int = 280, margin: dict | None = None, **kwargs) -> dic
     Return a Plotly layout dict with BizTrack brand styling.
     Respects current theme (dark / light).
 
+    Callers can override any key via kwargs, including xaxis/yaxis —
+    those are deep-merged so caller values win over the defaults.
+
     Usage:
         fig.update_layout(**chart_layout(height=320))
         fig.update_layout(**chart_layout(height=320, showlegend=False))
+        fig.update_layout(**chart_layout(height=320, xaxis=dict(tickprefix="₦")))
     """
     theme = get_theme()
     is_dark = theme == "dark"
 
-    grid_color  = "rgba(255,255,255,0.06)" if is_dark else "rgba(0,0,0,0.07)"
-    text_color  = "#8BA0B8"               if is_dark else "#4A5568"
-    font_color  = "#F0F4F8"               if is_dark else "#0D1117"
+    grid_color = "rgba(255,255,255,0.06)" if is_dark else "rgba(0,0,0,0.07)"
+    text_color = "#8BA0B8"               if is_dark else "#4A5568"
+    font_color = "#F0F4F8"               if is_dark else "#0D1117"
+
+    # Default axis styles — callers can extend/override via kwargs
+    default_xaxis = dict(
+        gridcolor = "rgba(0,0,0,0)",
+        tickfont  = dict(size=10, color=text_color),
+        linecolor = grid_color,
+        showline  = False,
+        zeroline  = False,
+    )
+    default_yaxis = dict(
+        gridcolor = grid_color,
+        tickfont  = dict(size=11, color=text_color),
+        linecolor = "rgba(0,0,0,0)",
+        showline  = False,
+        zeroline  = False,
+    )
+    default_legend = dict(
+        orientation = "h",
+        yanchor     = "bottom", y = -0.25,
+        xanchor     = "center", x = 0.5,
+        font        = dict(size=11, color=text_color),
+        bgcolor     = "rgba(0,0,0,0)",
+    )
+
+    # Deep-merge caller overrides for axis/legend dicts
+    caller_xaxis  = kwargs.pop("xaxis",  {})
+    caller_yaxis  = kwargs.pop("yaxis",  {})
+    caller_legend = kwargs.pop("legend", {})
 
     base = dict(
         plot_bgcolor  = "rgba(0,0,0,0)",
@@ -455,28 +487,10 @@ def chart_layout(height: int = 280, margin: dict | None = None, **kwargs) -> dic
         height        = height,
         margin        = margin or dict(l=0, r=10, t=10, b=0),
         font          = dict(family="DM Sans, sans-serif", color=font_color, size=12),
-        legend        = dict(
-            orientation = "h",
-            yanchor     = "bottom", y = -0.25,
-            xanchor     = "center", x = 0.5,
-            font        = dict(size=11, color=text_color),
-            bgcolor     = "rgba(0,0,0,0)",
-        ),
-        xaxis = dict(
-            gridcolor    = "rgba(0,0,0,0)",
-            tickfont     = dict(size=10, color=text_color),
-            linecolor    = grid_color,
-            showline     = False,
-            zeroline     = False,
-        ),
-        yaxis = dict(
-            gridcolor    = grid_color,
-            tickfont     = dict(size=11, color=text_color),
-            linecolor    = "rgba(0,0,0,0)",
-            showline     = False,
-            zeroline     = False,
-        ),
-        hoverlabel = dict(
+        legend        = {**default_legend, **caller_legend},
+        xaxis         = {**default_xaxis,  **caller_xaxis},
+        yaxis         = {**default_yaxis,  **caller_yaxis},
+        hoverlabel    = dict(
             bgcolor    = "#1A2332" if is_dark else "#FFFFFF",
             bordercolor= "#2D3F55" if is_dark else "#C5D5E4",
             font       = dict(size=12, color=font_color, family="DM Sans, sans-serif"),
