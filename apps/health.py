@@ -36,6 +36,8 @@ from shared.db import (
 )
 from shared.theme import (
     apply_suite_css, kpi_card, section_header, page_header,
+    chart_layout, chart_config,
+    CHART_GOLD, CHART_JADE, CHART_INDIGO, CHART_RUBY, CHART_PALETTE,
 )
 
 
@@ -96,7 +98,7 @@ def page_expenses():
                         fig = px.bar(
                             cat_breakdown, x="category", y="amount",
                             labels={"amount": "Amount (₦)", "category": "Category"},
-                            color_discrete_sequence=["#ef4444"],
+                            color_discrete_sequence=[CHART_RUBY],
                         )
                         fig.update_layout(
                             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
@@ -276,8 +278,8 @@ def page_insights():
     # ── Net Profit Banner ──
     net = kpis["net_profit"]
     banner_color = "#0a2a1e" if net >= 0 else "#2a0a11"
-    border_color = "#00C896" if net >= 0 else "#FF4D6D"
-    text_color   = "#00C896" if net >= 0 else "#FF4D6D"
+    border_color = CHART_JADE if net >= 0 else "#FF4D6D"
+    text_color   = CHART_JADE if net >= 0 else "#FF4D6D"
     st.markdown(f"""
 <div style="background:{banner_color};border:1px solid {border_color};
 border-radius:12px;padding:1rem 1.25rem;margin:1rem 0;
@@ -388,30 +390,27 @@ display:flex;align-items:center;justify-content:space-between;">
                 fig = go.Figure()
                 if metric_choice in ["Revenue & Profit","Revenue only","All (Revenue, Cost, Profit)"]:
                     fig.add_trace(go.Bar(name="Revenue", x=x_labels, y=monthly["revenue"],
-                                        marker_color="#6366f1",
+                                        marker_color=CHART_INDIGO,
                                         hovertemplate="%{x}<br>Revenue: ₦%{y:,.0f}<extra></extra>"))
                 if metric_choice == "All (Revenue, Cost, Profit)":
                     fig.add_trace(go.Bar(name="Cost", x=x_labels, y=monthly["cost"],
-                                        marker_color="#ef4444",
+                                        marker_color=CHART_RUBY,
                                         hovertemplate="%{x}<br>Cost: ₦%{y:,.0f}<extra></extra>"))
                 if metric_choice in ["Revenue & Profit","Profit only","All (Revenue, Cost, Profit)"]:
                     fig.add_trace(go.Bar(name="Net Profit", x=x_labels, y=monthly["net_profit"],
-                                        marker_color="#00C896",
+                                        marker_color=CHART_JADE,
                                         hovertemplate="%{x}<br>Net Profit: ₦%{y:,.0f}<extra></extra>"))
-                fig.update_layout(
-                    barmode="group",
-                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    margin=dict(l=0, r=0, t=20, b=0), height=320,
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                fig.update_layout(**chart_layout(
+                    height=320,
+                    margin=dict(l=0, r=10, t=20, b=0),
+                    barmode="group", bargap=0.2, bargroupgap=0.05,
+                    legend=dict(orientation="h", yanchor="top", y=1.12,
                                 xanchor="right", x=1, font=dict(size=11)),
-                    xaxis=dict(type="category", tickangle=-45, tickfont=dict(size=10),
-                               gridcolor="rgba(0,0,0,0)"),
-                    yaxis=dict(tickprefix="₦", tickformat=",.0f",
-                               gridcolor="rgba(255,255,255,0.06)", tickfont=dict(size=11)),
-                    bargap=0.2, bargroupgap=0.05,
-                )
+                    xaxis=dict(type="category", tickangle=-45, tickfont=dict(size=10)),
+                    yaxis=dict(tickprefix="₦", tickformat=",.0f"),
+                ))
                 with st.expander("📈 Monthly Performance Chart", expanded=True):
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, config=chart_config(), width='stretch')
 
                 with st.expander("📋 View monthly breakdown table"):
                     dm = monthly[["month_label","revenue","cost","profit",
@@ -431,16 +430,15 @@ display:flex;align-items:center;justify-content:space-between;">
                     insights["category_revenue"].sort_values("total_amount"),
                     x="total_amount", y="category", orientation="h",
                     labels={"total_amount":"Revenue (₦)","category":""},
-                    color_discrete_sequence=["#F5A623"],
+                    color_discrete_sequence=[CHART_GOLD],
                 )
-                cat_fig.update_layout(
-                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                    margin=dict(l=0, r=0, t=10, b=0),
-                    height=max(200, len(insights["category_revenue"]) * 45),
-                    xaxis=dict(tickprefix="₦", tickformat=",.0f",
-                               gridcolor="rgba(255,255,255,0.06)"),
-                )
-                st.plotly_chart(cat_fig, width='stretch')
+                cat_fig.update_traces(marker_line_width=0,
+                                      hovertemplate="<b>%{y}</b><br>₦%{x:,.0f}<extra></extra>")
+                cat_fig.update_layout(**chart_layout(
+                    height=max(200, len(insights["category_revenue"]) * 48),
+                    xaxis=dict(tickprefix="₦", tickformat=",.0f"),
+                ))
+                st.plotly_chart(cat_fig, config=chart_config(), width='stretch')
         else:
             st.info("No category data yet.")
 
@@ -457,14 +455,13 @@ display:flex;align-items:center;justify-content:space-between;">
                         insights["top_products_revenue"].sort_values("total_amount"),
                         x="total_amount", y="product_name", orientation="h",
                         labels={"total_amount":"Revenue (₦)","product_name":""},
-                        color_discrete_sequence=["#6366f1"],
+                        color_discrete_sequence=[CHART_INDIGO],
                     )
-                    fig.update_layout(
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        margin=dict(l=0, r=0, t=10, b=0), height=350,
-                        xaxis=dict(tickprefix="₦"),
-                    )
-                    st.plotly_chart(fig, width='stretch')
+                    fig.update_traces(marker_line_width=0,
+                                      hovertemplate="<b>%{y}</b><br>₦%{x:,.0f}<extra></extra>")
+                    fig.update_layout(**chart_layout(height=350,
+                        xaxis=dict(tickprefix="₦", tickformat=",.0f")))
+                    st.plotly_chart(fig, config=chart_config(), width='stretch')
 
             with col_r:
                 section_header("By Quantity Sold")
@@ -473,13 +470,12 @@ display:flex;align-items:center;justify-content:space-between;">
                         insights["top_products_qty"].sort_values("quantity"),
                         x="quantity", y="product_name", orientation="h",
                         labels={"quantity":"Units Sold","product_name":""},
-                        color_discrete_sequence=["#10b981"],
+                        color_discrete_sequence=[CHART_JADE],
                     )
-                    fig2.update_layout(
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        margin=dict(l=0, r=0, t=10, b=0), height=350,
-                    )
-                    st.plotly_chart(fig2, width='stretch')
+                    fig2.update_traces(marker_line_width=0,
+                                       hovertemplate="<b>%{y}</b><br>%{x} units<extra></extra>")
+                    fig2.update_layout(**chart_layout(height=350))
+                    st.plotly_chart(fig2, config=chart_config(), width='stretch')
 
         section_header("⚠️ Slow-Moving Products (Last 30 Days)")
         if not insights["slow_movers"].empty:
@@ -594,8 +590,8 @@ display:flex;align-items:center;justify-content:space-between;">
             with st.expander("📅 Weekday Revenue Chart", expanded=True):
                 wd     = insights["weekday_performance"]
                 colors = [
-                    "#ef4444" if r == wd["revenue"].min()
-                    else ("#10b981" if r == wd["revenue"].max() else "#6366f1")
+                    CHART_RUBY if r == wd["revenue"].min()
+                    else (CHART_JADE if r == wd["revenue"].max() else CHART_INDIGO)
                     for r in wd["revenue"]
                 ]
                 fig = go.Figure(go.Bar(
@@ -810,14 +806,14 @@ def page_debtor_statement(customer_name: str):
         etype  = e["type"]
         date_s = e["date"].strftime("%d %b %Y") if pd.notna(e["date"]) else "—"
         rb     = e["running_balance"]
-        rb_col = "#FF4D6D" if rb > 0 else "#00C896"
+        rb_col = "#FF4D6D" if rb > 0 else CHART_JADE
         rb_bg  = "rgba(255,77,109,0.08)" if rb > 0 else "rgba(0,200,150,0.08)"
         rb_bdr = "rgba(255,77,109,0.25)" if rb > 0 else "rgba(0,200,150,0.25)"
 
         if etype == "sale":
-            dot_col      = "#F5A623"
+            dot_col      = CHART_GOLD
             type_lbl     = "CREDIT SALE"
-            type_col     = "#F5A623"
+            type_col     = CHART_GOLD
             settled_badge = (
                 '<span style="background:#1A2332;border:0.5px solid #2D3F55;'
                 'border-radius:20px;padding:2px 8px;font-size:10px;'
@@ -829,9 +825,9 @@ def page_debtor_statement(customer_name: str):
                 f'<div style="font-weight:500;color:#F0F4F8;">{fmt_naira(e["amount"])}</div>'
             )
         else:
-            dot_col       = "#00C896"
+            dot_col       = CHART_JADE
             type_lbl      = "PAYMENT"
-            type_col      = "#00C896"
+            type_col      = CHART_JADE
             settled_badge = ""
             detail_html   = (
                 f'<div style="font-size:10px;color:#8BA0B8;margin-top:4px;">Amount paid</div>'
@@ -1387,7 +1383,7 @@ def page_admin():
                 mrr["month_label"] = mrr["month"].astype(str)
                 fig = go.Figure(go.Bar(
                     x=mrr["month_label"], y=mrr["amount"],
-                    marker_color="#F5A623",
+                    marker_color=CHART_GOLD,
                     hovertemplate="%{x}<br>₦%{y:,.0f}<extra></extra>",
                 ))
                 fig.update_layout(
