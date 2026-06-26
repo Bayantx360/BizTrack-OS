@@ -92,9 +92,9 @@ _LIGHT_VARS = """
   --obsidian:    #F5F7FA;
   --deep:        #EAEFF5;
   --surface:     #FFFFFF;
-  --surface2:    #EDF2F7;
-  --border:      #D1DCE8;
-  --border2:     #B0C4D8;
+  --surface2:    #DDE6F0;
+  --border:      #C5D5E4;
+  --border2:     #9BB4CA;
   --gold:        #D4820A;
   --gold-dim:    #B86D08;
   --gold-glow:   rgba(212,130,10,0.12);
@@ -324,8 +324,33 @@ html, body, [class*="css"], .stApp {{
 .lp-trust-item span {{ color:var(--jade); margin-right:0.3rem; }}
 
 /* ── Buttons ── */
-.stButton button[kind="primary"]  {{ background:var(--gold) !important; color:#080B0F !important; font-weight:700 !important; border:none !important; }}
-.stButton button[kind="primary"]:hover {{ background:var(--gold-dim) !important; }}
+.stButton button[kind="primary"],
+[data-testid="stBaseButton-primary"] {{
+  background: var(--gold) !important;
+  color: #080B0F !important;
+  font-weight: 700 !important;
+  border: none !important;
+}}
+.stButton button[kind="primary"]:hover,
+[data-testid="stBaseButton-primary"]:hover {{
+  background: var(--gold-dim) !important;
+}}
+
+/* ── Buttons — secondary (nav + generic) ── */
+.stButton button[kind="secondary"],
+[data-testid="stBaseButton-secondary"],
+[data-testid="stBaseButton-secondary"] p {{
+  background: var(--surface2) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  font-weight: 500 !important;
+}}
+.stButton button[kind="secondary"]:hover,
+[data-testid="stBaseButton-secondary"]:hover {{
+  background: var(--border) !important;
+  border-color: var(--border2) !important;
+  color: var(--text-primary) !important;
+}}
 
 /* ── Tabs ── */
 [data-testid="stTabs"] button[role="tab"]               {{ color:var(--text-muted) !important; font-size:0.875rem; }}
@@ -365,17 +390,38 @@ div[class*="stMarkdown"] p {{
   color: var(--text-primary) !important;
   border-color: var(--border) !important;
 }}
-[data-testid="stNumberInput"] button {{
+/* Stepper buttons — covers both old and new Streamlit testids */
+[data-testid="stNumberInput"] button,
+[data-testid="stNumberInputStepDown"],
+[data-testid="stNumberInputStepUp"] {{
   background: var(--surface2) !important;
   color: var(--text-primary) !important;
-  border-color: var(--border) !important;
+  border: 1px solid var(--border) !important;
 }}
-[data-testid="stNumberInput"] button:hover {{
+[data-testid="stNumberInput"] button:hover,
+[data-testid="stNumberInputStepDown"]:hover,
+[data-testid="stNumberInputStepUp"]:hover {{
   background: var(--border2) !important;
 }}
-[data-testid="stNumberInput"] button svg {{
+[data-testid="stNumberInput"] button svg,
+[data-testid="stNumberInputStepDown"] svg,
+[data-testid="stNumberInputStepUp"] svg {{
   stroke: var(--text-primary) !important;
   fill: var(--text-primary) !important;
+  color: var(--text-primary) !important;
+}}
+
+/* ── Help/info icons (the ⓘ circle next to widget labels) ── */
+[data-testid="stWidgetLabel"] button,
+[data-testid="stTooltipIcon"],
+[data-testid="stTooltipIcon"] svg,
+button[data-testid="stTooltipHoverTarget"],
+button[data-testid="stTooltipHoverTarget"] svg {{
+  color: var(--text-muted) !important;
+  stroke: var(--text-muted) !important;
+  fill: none !important;
+  background: transparent !important;
+  border: none !important;
 }}
 
 /* ── Selectbox ── */
