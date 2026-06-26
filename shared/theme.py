@@ -331,10 +331,125 @@ html, body, [class*="css"], .stApp {{
 [data-testid="stTabs"] button[role="tab"]               {{ color:var(--text-muted) !important; font-size:0.875rem; }}
 [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {{ color:var(--gold) !important; border-bottom-color:var(--gold) !important; }}
 
-/* ── Forms + inputs ── */
+/* ── Widget labels ── */
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] label,
+label[data-testid],
+.stTextInput label, .stNumberInput label,
+.stSelectbox label, .stTextarea label,
+.stRadio label, .stCheckbox label,
+.stSlider label, .stDateInput label,
+div[data-testid] > label,
+div[class*="stMarkdown"] p {{
+  color: var(--text-primary) !important;
+}}
+
+/* ── Text inputs ── */
 [data-testid="stTextInput"] input,
-[data-testid="stNumberInput"] input,
-[data-testid="stSelectbox"] > div {{ background:var(--surface) !important; color:var(--text-primary) !important; border-color:var(--border) !important; }}
+[data-testid="stTextInput"] input:focus {{
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}}
+
+/* ── Text area ── */
+[data-testid="stTextArea"] textarea {{
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}}
+
+/* ── Number input — field + stepper buttons ── */
+[data-testid="stNumberInput"] input {{
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}}
+[data-testid="stNumberInput"] button {{
+  background: var(--surface2) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}}
+[data-testid="stNumberInput"] button:hover {{
+  background: var(--border2) !important;
+}}
+[data-testid="stNumberInput"] button svg {{
+  stroke: var(--text-primary) !important;
+  fill: var(--text-primary) !important;
+}}
+
+/* ── Selectbox ── */
+[data-testid="stSelectbox"] > div,
+[data-testid="stSelectbox"] > div > div,
+[data-testid="stSelectbox"] > div > div > div {{
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}}
+[data-testid="stSelectbox"] svg {{
+  fill: var(--text-secondary) !important;
+  stroke: var(--text-secondary) !important;
+}}
+/* Dropdown menu popup */
+[data-testid="stSelectbox"] ul,
+[data-baseweb="popover"] ul,
+[data-baseweb="menu"],
+[data-baseweb="menu"] li {{
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+}}
+[data-baseweb="menu"] li:hover {{
+  background: var(--surface2) !important;
+}}
+
+/* ── Multiselect ── */
+[data-testid="stMultiSelect"] > div {{
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}}
+[data-testid="stMultiSelect"] span {{
+  color: var(--text-primary) !important;
+}}
+
+/* ── Radio buttons ── */
+[data-testid="stRadio"] > div {{
+  gap: 0.4rem;
+}}
+[data-testid="stRadio"] label {{
+  color: var(--text-primary) !important;
+}}
+[data-testid="stRadio"] [data-baseweb="radio"] div {{
+  border-color: var(--border2) !important;
+  background: var(--surface) !important;
+}}
+
+/* ── Checkboxes ── */
+[data-testid="stCheckbox"] label {{
+  color: var(--text-primary) !important;
+}}
+[data-testid="stCheckbox"] input + div {{
+  border-color: var(--border2) !important;
+  background: var(--surface) !important;
+}}
+
+/* ── Date input ── */
+[data-testid="stDateInput"] input {{
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}}
+
+/* ── General markdown / body text ── */
+p, span, div, h1, h2, h3, h4, h5, h6, li {{
+  color: var(--text-primary);
+}}
+
+/* ── Info / warning / error / success boxes ── */
+[data-testid="stAlert"] {{
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}}
 
 /* ── Dataframes ── */
 [data-testid="stDataFrame"] {{ background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }}
