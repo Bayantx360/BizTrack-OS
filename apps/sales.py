@@ -34,7 +34,7 @@ from shared.db import (
     TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS,
     gen_id, fmt_naira, safe_float, safe_int,
 )
-from shared.theme import apply_suite_css, kpi_card, section_header, page_header
+from shared.theme import apply_suite_css, kpi_card, section_header, page_header, chart_layout, chart_config, CHART_GOLD, CHART_JADE, CHART_INDIGO, CHART_RUBY, CHART_PALETTE
 from shared.auth import verify_void_pin, has_void_pin
 
 
@@ -170,38 +170,41 @@ def page_dashboard():
             fig = go.Figure()
             fig.add_trace(go.Bar(
                 x=daily["date_str"], y=daily["total_amount"],
-                marker_color=["#F5A623" if v >= avg_rev else "#6366f1" for v in daily["total_amount"]],
-                hovertemplate="%{x}<br>₦%{y:,.0f}<extra></extra>",
+                marker_color=[CHART_GOLD if v >= avg_rev else CHART_INDIGO for v in daily["total_amount"]],
+                marker_line_width=0,
+                hovertemplate="<b>%{x}</b><br>₦%{y:,.0f}<extra></extra>",
             ))
-            fig.add_hline(y=avg_rev, line_dash="dot", line_color="#00C896", line_width=1.5,
+            fig.add_hline(y=avg_rev, line_dash="dot", line_color=CHART_JADE, line_width=1.5,
                           annotation_text=f"Avg ₦{avg_rev:,.0f}",
                           annotation_position="top right",
-                          annotation_font_size=11, annotation_font_color="#00C896")
-            fig.update_layout(
-                margin=dict(l=0, r=0, t=20, b=0),
-                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                yaxis=dict(tickprefix="₦", gridcolor="rgba(255,255,255,0.06)",
-                           tickfont=dict(size=11), tickformat=",.0f"),
+                          annotation_font_size=11, annotation_font_color=CHART_JADE)
+            fig.update_layout(**chart_layout(
+                height=260,
+                margin=dict(l=0, r=10, t=20, b=0),
+                bargap=0.3, showlegend=False,
                 xaxis=dict(type="category", tickangle=-45, tickfont=dict(size=10),
                            gridcolor="rgba(0,0,0,0)", nticks=10),
-                height=240, bargap=0.25, showlegend=False,
-            )
-            st.plotly_chart(fig, width='stretch')
-            st.caption("■ Gold = above average  ■ Purple = below average")
+                yaxis=dict(tickprefix="₦", tickformat=",.0f"),
+            ))
+            st.plotly_chart(fig, config=chart_config(), width='stretch')
+            st.caption("■ Gold = above average  ■ Indigo = below average")
 
           with col_right:
             section_header("Sales by Payment Method")
             pm_df = sales_df.groupby("payment_method")["total_amount"].sum().reset_index()
             if not pm_df.empty:
                 fig2 = px.pie(pm_df, values="total_amount", names="payment_method",
-                              color_discrete_sequence=["#6366f1","#10b981","#f59e0b","#ef4444"],
-                              hole=0.55)
-                fig2.update_layout(
-                    margin=dict(l=0, r=0, t=10, b=0),
-                    paper_bgcolor="rgba(0,0,0,0)", height=280,
-                    legend=dict(orientation="h", y=-0.1),
+                              color_discrete_sequence=CHART_PALETTE,
+                              hole=0.6)
+                fig2.update_traces(
+                    textposition="outside",
+                    textinfo="percent",
+                    textfont=dict(size=12),
+                    pull=[0.03] * len(pm_df),
+                    hovertemplate="<b>%{label}</b><br>₦%{value:,.0f}<br>%{percent}<extra></extra>",
                 )
-                st.plotly_chart(fig2, width='stretch')
+                fig2.update_layout(**chart_layout(height=300, margin=dict(l=0,r=0,t=10,b=40)))
+                st.plotly_chart(fig2, config=chart_config(), width='stretch')
 
         with st.expander("🏆 Top Selling Products", expanded=True):
             # Load sale_items for accurate per-product breakdown
@@ -219,13 +222,12 @@ def page_dashboard():
                 if not top_rev_df.empty:
                     fig3 = px.bar(top_rev_df, x="line_total", y="product_name", orientation="h",
                                   labels={"line_total": "Revenue (₦)", "product_name": ""},
-                                  color_discrete_sequence=["#6366f1"])
-                    fig3.update_layout(
-                        margin=dict(l=0, r=0, t=10, b=0),
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        xaxis=dict(tickprefix="₦", gridcolor="#1F2D3D"), height=300,
-                    )
-                    st.plotly_chart(fig3, width='stretch')
+                                  color_discrete_sequence=[CHART_INDIGO])
+                    fig3.update_traces(marker_line_width=0,
+                                       hovertemplate="<b>%{y}</b><br>₦%{x:,.0f}<extra></extra>")
+                    fig3.update_layout(**chart_layout(height=300,
+                        xaxis=dict(tickprefix="₦", tickformat=",.0f")))
+                    st.plotly_chart(fig3, config=chart_config(), width='stretch')
 
                 section_header("By Quantity Sold")
                 qty_col = "quantity" if "quantity" in items_df.columns else None
@@ -238,13 +240,11 @@ def page_dashboard():
                     )
                     fig4 = px.bar(top_qty_df, x=qty_col, y="product_name", orientation="h",
                                   labels={qty_col: "Units Sold", "product_name": ""},
-                                  color_discrete_sequence=["#10b981"])
-                    fig4.update_layout(
-                        margin=dict(l=0, r=0, t=10, b=0),
-                        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-                        xaxis=dict(gridcolor="#1F2D3D"), height=300,
-                    )
-                    st.plotly_chart(fig4, width='stretch')
+                                  color_discrete_sequence=[CHART_JADE])
+                    fig4.update_traces(marker_line_width=0,
+                                       hovertemplate="<b>%{y}</b><br>%{x} units<extra></extra>")
+                    fig4.update_layout(**chart_layout(height=300))
+                    st.plotly_chart(fig4, config=chart_config(), width='stretch')
             else:
                 st.info("No sales data yet for product breakdown.")
     else:
