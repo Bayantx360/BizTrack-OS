@@ -418,6 +418,86 @@ def apply_suite_css():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# CHART STYLE HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Brand palette for charts
+CHART_GOLD   = "#F5A623"
+CHART_JADE   = "#00C896"
+CHART_INDIGO = "#818CF8"
+CHART_RUBY   = "#FF4D6D"
+CHART_TEAL   = "#22D3EE"
+CHART_AMBER  = "#FBBF24"
+
+# Ordered palette for multi-series charts
+CHART_PALETTE = [CHART_INDIGO, CHART_JADE, CHART_GOLD, CHART_RUBY, CHART_TEAL, CHART_AMBER]
+
+
+def chart_layout(height: int = 280, margin: dict | None = None, **kwargs) -> dict:
+    """
+    Return a Plotly layout dict with BizTrack brand styling.
+    Respects current theme (dark / light).
+
+    Usage:
+        fig.update_layout(**chart_layout(height=320))
+        fig.update_layout(**chart_layout(height=320, showlegend=False))
+    """
+    theme = get_theme()
+    is_dark = theme == "dark"
+
+    grid_color  = "rgba(255,255,255,0.06)" if is_dark else "rgba(0,0,0,0.07)"
+    text_color  = "#8BA0B8"               if is_dark else "#4A5568"
+    font_color  = "#F0F4F8"               if is_dark else "#0D1117"
+
+    base = dict(
+        plot_bgcolor  = "rgba(0,0,0,0)",
+        paper_bgcolor = "rgba(0,0,0,0)",
+        height        = height,
+        margin        = margin or dict(l=0, r=10, t=10, b=0),
+        font          = dict(family="DM Sans, sans-serif", color=font_color, size=12),
+        legend        = dict(
+            orientation = "h",
+            yanchor     = "bottom", y = -0.25,
+            xanchor     = "center", x = 0.5,
+            font        = dict(size=11, color=text_color),
+            bgcolor     = "rgba(0,0,0,0)",
+        ),
+        xaxis = dict(
+            gridcolor    = "rgba(0,0,0,0)",
+            tickfont     = dict(size=10, color=text_color),
+            linecolor    = grid_color,
+            showline     = False,
+            zeroline     = False,
+        ),
+        yaxis = dict(
+            gridcolor    = grid_color,
+            tickfont     = dict(size=11, color=text_color),
+            linecolor    = "rgba(0,0,0,0)",
+            showline     = False,
+            zeroline     = False,
+        ),
+        hoverlabel = dict(
+            bgcolor    = "#1A2332" if is_dark else "#FFFFFF",
+            bordercolor= "#2D3F55" if is_dark else "#C5D5E4",
+            font       = dict(size=12, color=font_color, family="DM Sans, sans-serif"),
+        ),
+        **kwargs,
+    )
+    return base
+
+
+def chart_config() -> dict:
+    """
+    Plotly config dict — hides the modebar toolbar for a cleaner look.
+    Pass as: st.plotly_chart(fig, config=chart_config())
+    """
+    return {
+        "displayModeBar": False,
+        "responsive":     True,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # UI COMPONENT HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 
