@@ -659,17 +659,273 @@ display:flex;align-items:center;justify-content:space-between;">
 # DEBTORS LEDGER
 # ══════════════════════════════════════════════════════════════════════════════
 
+# DEBTORS LEDGER — CUSTOMER STATEMENT
+# ══════════════════════════════════════════════════════════════════════════════
+
+def page_debtor_statement(customer_name: str):
+    """
+    Full statement of account for a single customer — all debts and payments
+    merged into one chronological timeline with running balance.
+    """
+    apply_suite_css()
+    import urllib.parse
+
+    user        = st.session_state.user
+    business_id = user["business_id"]
+
+    if st.button("← Back to Debtors Ledger", key="back_to_ledger"):
+        st.session_state.pop("debtor_statement_customer", None)
+        st.rerun()
+
+    debts_df     = get_debts_df(business_id)
+    all_items_df = get_sale_items_df(business_id)
+    debt_pays_df = get_debt_payments_df(business_id)
+
+    cust_debts = debts_df[
+        debts_df["customer_name"].str.strip().str.lower() == customer_name.strip().lower()
+    ].copy() if not debts_df.empty else pd.DataFrame()
+
+    if cust_debts.empty:
+        st.warning(f"No debt records found for **{customer_name}**.")
+        return
+
+    cphone     = cust_debts.iloc[0].get("customer_phone", "") or ""
+    first_date = cust_debts["sale_date"].min()
+    since_str  = first_date.strftime("%b %Y") if pd.notna(first_date) else "—"
+
+    total_purchased = cust_debts["total_amount"].sum()
+    total_paid      = cust_debts["amount_paid"].sum()
+    still_owing     = cust_debts["balance"].sum()
+
+    initials = "".join(p[0].upper() for p in customer_name.split()[:2])
+
+    # ── Header ──
+    st.markdown(f"""
+    <div style="display:flex;align-items:center;gap:14px;
+                padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px;">
+      <div style="width:52px;height:52px;border-radius:50%;
+                  background:var(--gold-glow);border:1.5px solid var(--gold-dim);
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:18px;font-weight:500;color:var(--gold);flex-shrink:0;">
+        {initials}
+      </div>
+      <div>
+        <div style="font-size:22px;font-weight:600;color:var(--text-primary);
+                    letter-spacing:-0.03em;">{customer_name}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">
+          {"📞 " + cphone + "  ·  " if cphone else ""}Customer since {since_str}
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Summary KPIs (plain st.metric to avoid HTML rendering issues in columns) ──
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Purchased", fmt_naira(total_purchased), "across all sales")
+    c2.metric("Total Paid", fmt_naira(total_paid), "all instalments")
+    owing_delta = "✅ Settled" if still_owing <= 0 else f"Owes {fmt_naira(still_owing)}"
+    c3.metric("Still Owing", fmt_naira(still_owing), owing_delta)
+
+    st.markdown("---")
+
+    # ── WhatsApp reminder ──
+    if cphone and still_owing > 0:
+        reminder_text = (
+            f"Hello {customer_name}, this is a reminder from "
+            f"{user.get('business_name', 'our business')}.\n"
+            f"You have an outstanding balance of {fmt_naira(still_owing)}.\n"
+            f"Kindly make payment at your earliest convenience.\n\n"
+            f"Thank you \U0001f64f\nPowered by BizTrack-OS"
+        )
+        wa_url = (
+            f"https://wa.me/{cphone.replace('+','').replace(' ','')}?"
+            f"text={urllib.parse.quote(reminder_text)}"
+        )
+        st.markdown(
+            f'<a href="{wa_url}" target="_blank" style="display:block;text-align:center;'
+            f'background:#25D366;color:white;padding:0.5rem;border-radius:8px;'
+            f'font-weight:600;text-decoration:none;margin-bottom:1rem;">'
+            f'💬 Send WhatsApp Reminder · {fmt_naira(still_owing)} outstanding</a>',
+            unsafe_allow_html=True,
+        )
+
+    # ── Build unified timeline ──
+    events = []
+
+    for _, debt in cust_debts.sort_values("sale_date").iterrows():
+        debt_id   = debt["debt_id"]
+        sale_date = debt["sale_date"]
+        total     = safe_float(debt["total_amount"])
+        status    = debt.get("status", "unpaid")
+
+        sid  = debt.get("sale_id")
+        desc = "Credit sale"
+        if sid and not all_items_df.empty:
+            items = all_items_df[all_items_df["sale_id"] == sid]
+            if not items.empty:
+                parts = [
+                    f"{r['product_name']} \u00d7{int(r['quantity'])}"
+                    for _, r in items.head(3).iterrows()
+                ]
+                if len(items) > 3:
+                    parts.append(f"+{len(items)-3} more")
+                desc = ", ".join(parts)
+
+        events.append({
+            "type":    "sale",
+            "date":    sale_date,
+            "debt_id": debt_id,
+            "desc":    desc,
+            "amount":  total,
+            "status":  status,
+        })
+
+    if not debt_pays_df.empty:
+        cust_debt_ids = set(cust_debts["debt_id"].tolist())
+        cust_pays     = debt_pays_df[debt_pays_df["debt_id"].isin(cust_debt_ids)].copy()
+        for _, pay in cust_pays.iterrows():
+            events.append({
+                "type":    "payment",
+                "date":    pay["payment_date"],
+                "debt_id": pay["debt_id"],
+                "desc":    pay.get("note") or "Payment received",
+                "amount":  safe_float(pay["amount"]),
+            })
+
+    events.sort(key=lambda e: e["date"] if pd.notna(e["date"]) else pd.Timestamp.min)
+
+    # Compute running balance
+    running = 0.0
+    for e in events:
+        if e["type"] == "sale":
+            running += e["amount"]
+        else:
+            running -= e["amount"]
+        e["running_balance"] = round(running, 2)
+
+    # ── Render timeline ──
+    section_header("Full Transaction History")
+
+    for e in reversed(events):
+        etype  = e["type"]
+        date_s = e["date"].strftime("%d %b %Y") if pd.notna(e["date"]) else "—"
+        rb     = e["running_balance"]
+        rb_col = "#FF4D6D" if rb > 0 else "#00C896"
+        rb_bg  = "rgba(255,77,109,0.08)" if rb > 0 else "rgba(0,200,150,0.08)"
+        rb_bdr = "rgba(255,77,109,0.25)" if rb > 0 else "rgba(0,200,150,0.25)"
+
+        if etype == "sale":
+            dot_col      = "#F5A623"
+            type_lbl     = "CREDIT SALE"
+            type_col     = "#F5A623"
+            settled_badge = (
+                '<span style="background:#1A2332;border:0.5px solid #2D3F55;'
+                'border-radius:20px;padding:2px 8px;font-size:10px;'
+                'color:#8BA0B8;margin-left:6px;">Settled</span>'
+                if e.get("status") == "settled" else ""
+            )
+            detail_html = (
+                f'<div style="font-size:10px;color:#8BA0B8;margin-top:4px;">Billed</div>'
+                f'<div style="font-weight:500;color:#F0F4F8;">{fmt_naira(e["amount"])}</div>'
+            )
+        else:
+            dot_col       = "#00C896"
+            type_lbl      = "PAYMENT"
+            type_col      = "#00C896"
+            settled_badge = ""
+            detail_html   = (
+                f'<div style="font-size:10px;color:#8BA0B8;margin-top:4px;">Amount paid</div>'
+                f'<div style="font-weight:500;color:#00C896;">{fmt_naira(e["amount"])}</div>'
+            )
+
+        st.markdown(f"""
+<div style="display:flex;gap:14px;margin-bottom:10px;">
+  <div style="display:flex;flex-direction:column;align-items:center;width:18px;flex-shrink:0;">
+    <div style="width:10px;height:10px;border-radius:50%;background:{dot_col};margin-top:14px;flex-shrink:0;"></div>
+    <div style="width:1.5px;flex:1;background:#1F2D3D;margin:3px 0;min-height:20px;"></div>
+  </div>
+  <div style="flex:1;background:#111827;border:0.5px solid #1F2D3D;border-radius:10px;padding:10px 14px;margin-bottom:2px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:11px;font-weight:500;letter-spacing:0.07em;color:{type_col};">{type_lbl}{settled_badge}</span>
+      <span style="font-size:11px;color:#8BA0B8;">{date_s}</span>
+    </div>
+    <div style="font-size:12px;color:#8BA0B8;margin-top:4px;">{e["desc"]}</div>
+    <div style="margin-top:8px;padding-top:8px;border-top:0.5px solid #1F2D3D;">{detail_html}</div>
+    <div style="text-align:right;margin-top:6px;">
+      <span style="font-size:11px;font-weight:500;padding:2px 10px;border-radius:20px;
+                   background:{rb_bg};border:0.5px solid {rb_bdr};color:{rb_col};">
+        Balance: {fmt_naira(rb)}
+      </span>
+    </div>
+  </div>
+</div>
+        """, unsafe_allow_html=True)
+
+    # ── Record payment form ──
+    open_debts = cust_debts[cust_debts["status"] != "settled"]
+    if not open_debts.empty:
+        st.markdown("---")
+        section_header("Record a Payment")
+
+        debt_options = {
+            f"{fmt_naira(safe_float(r['balance']))} owing — "
+            f"{r['sale_date'].strftime('%d %b %Y') if pd.notna(r['sale_date']) else '—'}": r["debt_id"]
+            for _, r in open_debts.sort_values("sale_date").iterrows()
+        }
+
+        with st.form("stmt_pay_form"):
+            selected_label   = st.selectbox("Apply payment to which sale?",
+                                            options=list(debt_options.keys()))
+            selected_debt_id = debt_options[selected_label]
+            selected_balance = safe_float(
+                open_debts[open_debts["debt_id"] == selected_debt_id].iloc[0]["balance"]
+            )
+            pf1, pf2 = st.columns(2)
+            pay_amount = pf1.number_input(
+                "Amount Received (₦)",
+                min_value=100.0,
+                max_value=float(selected_balance),
+                value=float(selected_balance),
+                step=100.0,
+            )
+            pay_note = pf2.text_input("Note (optional)", placeholder="e.g. Cash at shop")
+            pay_btn  = st.form_submit_button(
+                f"💰 Record Payment — {fmt_naira(pay_amount)}",
+                type="primary", width="stretch",
+            )
+
+        if pay_btn:
+            ok = record_debt_payment(selected_debt_id, business_id, pay_amount, pay_note)
+            if ok:
+                remaining = round(selected_balance - pay_amount, 2)
+                if remaining <= 0:
+                    st.success(f"✅ Debt fully settled for {customer_name}!")
+                else:
+                    st.success(
+                        f"✅ Payment of {fmt_naira(pay_amount)} recorded. "
+                        f"Remaining balance: {fmt_naira(remaining)}"
+                    )
+                st.rerun()
+
+
 def page_debtors():
     """
     Debtors Ledger — tracks part payments and credit sales.
     Lets the business owner:
       • View all outstanding debts sorted by oldest first
+      • Click a customer name to open their full statement
       • Record instalment payments against any open debt
       • Send a WhatsApp reminder to the debtor in one tap
       • See full payment history per debt
       • Mark debts as settled
     """
     apply_suite_css()
+
+    # ── Route to customer statement if one is selected ──
+    if st.session_state.get("debtor_statement_customer"):
+        page_debtor_statement(st.session_state["debtor_statement_customer"])
+        return
+
     user        = st.session_state.user
     business_id = user["business_id"]
 
@@ -712,6 +968,18 @@ def page_debtors():
     else:
         st.info("📭 No credit sales recorded yet. When you record a Part Payment or Credit sale, it will appear here.")
         return
+
+    st.markdown("---")
+
+    # ── Quick jump to customer statement ──
+    all_customers = sorted(debts_df["customer_name"].dropna().unique().tolist())
+    if all_customers:
+        with st.expander("🔍 Jump to Customer Statement", expanded=False):
+            selected = st.selectbox("Select a customer", options=all_customers,
+                                    key="quick_jump_customer")
+            if st.button("📋 Open Statement", key="quick_jump_btn", type="primary"):
+                st.session_state["debtor_statement_customer"] = selected
+                st.rerun()
 
     st.markdown("---")
 
@@ -785,6 +1053,16 @@ def page_debtors():
                 )
 
                 with st.expander(expander_label, expanded=False):
+                    if st.button(
+                        f"📋 View Full Statement for {cname}",
+                        key=f"stmt_btn_{debt_id}_{label}",
+                        type="primary",
+                    ):
+                        st.session_state["debtor_statement_customer"] = cname
+                        st.rerun()
+
+                    st.markdown("---")
+
                     dc1, dc2 = st.columns(2)
                     dc1.markdown(f"**Debt ID:** `{debt_id}`")
                     dc1.markdown(f"**Sale ID:** `{debt.get('sale_id', '—')}`")

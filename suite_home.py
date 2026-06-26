@@ -138,88 +138,51 @@ def page_login():
 </div>
     """, unsafe_allow_html=True)
 
-    # ── Social proof — unique industry silhouette avatars + named businesses ──
+    # ── Social proof — real user photo avatars + named businesses ──
     TRUSTED_BUSINESSES = [
-        {"name": "Babsam Pharmacy",                "color": "E8F4FD", "fg": "1A6FA8"},
-        {"name": "Ammy's Gadgets",             "color": "CFFAFE", "fg": "0E7490"},
-        {"name": "Bularis C.E",              "color": "FEF3C7", "fg": "A07A10"},
-        {"name": "Tundsam Agromart Ltd",       "color": "D1FAE5", "fg": "065F46"},
-        {"name": "Omokorewa Kitchen Utensils", "color": "FFF7ED", "fg": "C2410C"},
+        {"name": "Babsam Pharmacy",                "photo": "assets/user1.jpg"},
+        {"name": "Ammy's Gadgets",                 "photo": "assets/user2.jpg"},
+        {"name": "Bularis C.E",                    "photo": "assets/user3.jpg"},
+        {"name": "Tundsam Agromart Ltd",           "photo": "assets/user4.jpg"},
+        {"name": "Omokorewa Kitchen Utensils",     "photo": "assets/user5.jpg"},
     ]
 
-    def _svg_icon(name: str, fg: str) -> str:
-        """Return a unique SVG icon path based on business name."""
-        c = fg
-        if "pharmacy" in name.lower():
-            # pill capsule + medical cross
-            return (
-                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
-                f'<rect x="3" y="10" width="18" height="4" rx="2" stroke="#{c}" stroke-width="1.7"/>'
-                f'<line x1="12" y1="10" x2="12" y2="14" stroke="#{c}" stroke-width="1.4"/>'
-                f'<line x1="12" y1="3" x2="12" y2="8" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
-                f'<line x1="9.5" y1="5.5" x2="14.5" y2="5.5" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
-                f'</svg>'
-            )
-        elif "gadget" in name.lower():
-            # smartphone
-            return (
-                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
-                f'<rect x="7" y="2" width="10" height="17" rx="2" stroke="#{c}" stroke-width="1.7"/>'
-                f'<line x1="10" y1="17.5" x2="14" y2="17.5" stroke="#{c}" stroke-width="1.4" stroke-linecap="round"/>'
-                f'<line x1="10.5" y1="5" x2="13.5" y2="5" stroke="#{c}" stroke-width="1.2" stroke-linecap="round"/>'
-                f'</svg>'
-            )
-        elif "bularis" in name.lower():
-            # briefcase
-            return (
-                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
-                f'<rect x="3" y="8" width="18" height="11" rx="2" stroke="#{c}" stroke-width="1.7"/>'
-                f'<path d="M9 8V6a1 1 0 011-1h4a1 1 0 011 1v2" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
-                f'<line x1="3" y1="13" x2="21" y2="13" stroke="#{c}" stroke-width="1.3"/>'
-                f'<line x1="12" y1="11" x2="12" y2="15" stroke="#{c}" stroke-width="1.3" stroke-linecap="round"/>'
-                f'</svg>'
-            )
-        
-        elif "agro" in name.lower():
-            # wheat leaf
-            return (
-                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
-                f'<path d="M12 20V10" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
-                f'<path d="M12 15 C14 13 18 13 18 9 C14 9 12 11 12 15Z" stroke="#{c}" stroke-width="1.5" fill="none" stroke-linejoin="round"/>'
-                f'<path d="M12 12 C10 10 6 10 6 6 C10 6 12 8 12 12Z" stroke="#{c}" stroke-width="1.5" fill="none" stroke-linejoin="round"/>'
-                f'</svg>'
-            )
-        else:
-            # cooking pot (kitchen / default)
-            return (
-                f'<svg width="20" height="20" viewBox="0 0 24 24" fill="none">'
-                f'<path d="M6 10h12l-1.5 8H7.5L6 10z" stroke="#{c}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>'
-                f'<line x1="5" y1="10" x2="19" y2="10" stroke="#{c}" stroke-width="1.7" stroke-linecap="round"/>'
-                f'<path d="M6 10 C5 10 4 9 4 8 C4 7 5 6 6 7" stroke="#{c}" stroke-width="1.5" stroke-linecap="round" fill="none"/>'
-                f'<path d="M18 10 C19 10 20 9 20 8 C20 7 19 6 18 7" stroke="#{c}" stroke-width="1.5" stroke-linecap="round" fill="none"/>'
-                f'<path d="M10 8 C10 7 11 6.5 10 5.5" stroke="#{c}" stroke-width="1.2" stroke-linecap="round" fill="none"/>'
-                f'<path d="M14 8 C14 7 15 6.5 14 5.5" stroke="#{c}" stroke-width="1.2" stroke-linecap="round" fill="none"/>'
-                f'</svg>'
-            )
+    import base64, os
 
-    def shop_avatar(bg, fg, name):
+    def photo_avatar(photo_path, name):
+        try:
+            with open(photo_path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode()
+            ext  = photo_path.rsplit(".", 1)[-1].lower()
+            mime = "image/jpg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+            src  = f"data:{mime};base64,{b64}"
+        except Exception:
+            # Fallback: initials circle if file missing
+            initials = "".join(p[0].upper() for p in name.split()[:2])
+            return (
+                f'<div style="width:46px;height:46px;border-radius:50%;'
+                f'background:#1A2332;border:2.5px solid #0D1117;flex-shrink:0;'
+                f'display:flex;align-items:center;justify-content:center;'
+                f'font-size:13px;font-weight:600;color:#F5A623;'
+                f'margin-right:-12px;position:relative;" title="{name}">'
+                f'{initials}</div>'
+            )
         return (
-            f'<div style="width:42px;height:42px;border-radius:50%;'
-            f'background:#{bg};border:2.5px solid #1a1a2e;flex-shrink:0;'
-            f'display:flex;align-items:center;justify-content:center;'
-            f'margin-right:-11px;position:relative;" title="{name}">'
-            + _svg_icon(name, fg)
-            + '</div>'
+            f'<div style="width:46px;height:46px;border-radius:50%;'
+            f'border:2.5px solid #0D1117;flex-shrink:0;overflow:hidden;'
+            f'margin-right:-12px;position:relative;" title="{name}">'
+            f'<img src="{src}" style="width:100%;height:100%;object-fit:cover;display:block;"/>'
+            f'</div>'
         )
 
     avatars_html = "".join(
-        shop_avatar(b["color"], b["fg"], b["name"]) for b in TRUSTED_BUSINESSES
+        photo_avatar(b["photo"], b["name"]) for b in TRUSTED_BUSINESSES
     )
-    names_str = ", ".join(b["name"] for b in TRUSTED_BUSINESSES[:-1])
-    names_str += f", {TRUSTED_BUSINESSES[-1]['name']}"
+    names_str  = ", ".join(b["name"] for b in TRUSTED_BUSINESSES[:-1])
+    names_str += f" and {TRUSTED_BUSINESSES[-1]['name']}"
 
     biz_count, _ = get_business_social_proof()
-    label = "Business" if biz_count == 1 else "Businesses"
+    label         = "Business" if biz_count == 1 else "Businesses"
     count_display = biz_count if biz_count > 0 else len(TRUSTED_BUSINESSES)
 
     st.markdown(f"""
@@ -227,10 +190,10 @@ def page_login():
             gap:10px;padding:18px 0 8px;">
   <div style="display:flex;align-items:center;justify-content:center;">
     {avatars_html}
-    <div style="width:36px;height:36px;border-radius:50%;
-                background:#2A2A3E;border:2px solid #1a1a2e;flex-shrink:0;
+    <div style="width:38px;height:38px;border-radius:50%;
+                background:#1A2332;border:2.5px solid #0D1117;flex-shrink:0;
                 display:flex;align-items:center;justify-content:center;
-                font-size:11px;font-weight:600;color:#A0A8C0;margin-right:10px;">
+                font-size:11px;font-weight:600;color:#8BA0B8;margin-right:10px;">
       +{max(0, count_display - len(TRUSTED_BUSINESSES))}
     </div>
     <div style="font-size:13px;color:#10B981;line-height:1.4;">
