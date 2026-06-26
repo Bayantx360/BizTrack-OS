@@ -1519,16 +1519,41 @@ def page_admin():
         st.markdown("#### 👁️ User Activity Monitor")
         st.caption("Live view of who is active, at-risk, or ghost across trial and paid users.")
 
-        now_dt = datetime.now()
-        rows = []
+        now_dt   = datetime.now()
+        today    = now_dt.date()
+        rows     = []
+
+        # ── Pull today's sale events from user_activity once ──
+        try:
+            sb = get_supabase()
+            activity_res = (
+                sb.table(TBL_ACTIVITY)
+                .select("business_id, event_type, created_at")
+                .eq("event_type", "sale_recorded")
+                .gte("created_at", today.isoformat())
+                .execute()
+            )
+            activity_records = activity_res.data or []
+        except Exception:
+            activity_records = []
+
+        # Map business_id → count of sales today
+        today_sales_map: dict = {}
+        for rec in activity_records:
+            bid = rec.get("business_id", "")
+            today_sales_map[bid] = today_sales_map.get(bid, 0) + 1
+
         for _, u in users_df.iterrows():
             biz_name    = u.get("business_name", "—")
             email       = u.get("email", "—")
             status      = u.get("plan_status", "—")
             plan        = u.get("plan_type", "—")
             last_login  = u.get("last_login")
-            total_txns  = int(u.get("total_transactions") or 0)
+            biz_id      = u.get("business_id", "")
             trial_start = u.get("subscription_start")
+
+            # Today's sales — from activity log, not cumulative counter
+            today_txns = today_sales_map.get(biz_id, 0)
 
             # Trial day
             if status == "active" and trial_start:
@@ -1540,13 +1565,18 @@ def page_admin():
             else:
                 trial_label = "—"
 
-            # Last login label + days since
+            # Last login label — compare DATES not 24hr timedelta
             if last_login:
                 try:
-                    ll   = datetime.fromisoformat(str(last_login)[:19])
-                    diff = (now_dt - ll).days
-                    login_label = "Today" if diff == 0 else ("Yesterday" if diff == 1 else f"{diff}d ago")
-                    login_days  = diff
+                    ll_date     = datetime.fromisoformat(str(last_login)[:19]).date()
+                    delta_days  = (today - ll_date).days
+                    if delta_days == 0:
+                        login_label = "Today"
+                    elif delta_days == 1:
+                        login_label = "Yesterday"
+                    else:
+                        login_label = f"{delta_days}d ago"
+                    login_days = delta_days
                 except Exception:
                     login_label = "—"; login_days = 999
             else:
@@ -1555,7 +1585,7 @@ def page_admin():
             # Health signal
             if login_days == 999:
                 health = "👻 Ghost"
-            elif login_days <= 1:
+            elif login_days == 0:
                 health = "🟢 Active"
             elif login_days <= 3:
                 health = "🟡 Quiet"
@@ -1563,15 +1593,15 @@ def page_admin():
                 health = "🔴 At Risk"
 
             rows.append({
-                "Business":     biz_name,
-                "Email":        email,
-                "Status":       status,
-                "Plan":         plan,
-                "Trial Day":    trial_label,
-                "Last Login":   login_label,
-                "Transactions": total_txns,
-                "Health":       health,
-                "_login_days":  login_days,
+                "Business":       biz_name,
+                "Email":          email,
+                "Status":         status,
+                "Plan":           plan,
+                "Trial Day":      trial_label,
+                "Last Login":     login_label,
+                "Sales Today":    today_txns,
+                "Health":         health,
+                "_login_days":    login_days,
             })
 
         activity_df = pd.DataFrame(rows)
@@ -1607,14 +1637,14 @@ def page_admin():
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Business":     st.column_config.TextColumn("Business",  width="medium"),
-                    "Email":        st.column_config.TextColumn("Email",     width="medium"),
-                    "Status":       st.column_config.TextColumn("Status",    width="small"),
-                    "Plan":         st.column_config.TextColumn("Plan",      width="small"),
-                    "Trial Day":    st.column_config.TextColumn("Trial Day", width="small"),
-                    "Last Login":   st.column_config.TextColumn("Last Login",width="small"),
-                    "Transactions": st.column_config.NumberColumn("Sales",   width="small"),
-                    "Health":       st.column_config.TextColumn("Health",    width="small"),
+                    "Business":     st.column_config.TextColumn("Business",   width="medium"),
+                    "Email":        st.column_config.TextColumn("Email",      width="medium"),
+                    "Status":       st.column_config.TextColumn("Status",     width="small"),
+                    "Plan":         st.column_config.TextColumn("Plan",       width="small"),
+                    "Trial Day":    st.column_config.TextColumn("Trial Day",  width="small"),
+                    "Last Login":   st.column_config.TextColumn("Last Login", width="small"),
+                    "Sales Today":  st.column_config.NumberColumn("Sales Today", width="small"),
+                    "Health":       st.column_config.TextColumn("Health",     width="small"),
                 }
             )
 
