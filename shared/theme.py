@@ -115,6 +115,150 @@ _DARK_HEADER_BG  = "#080B0F"
 _LIGHT_HEADER_BG = "#EAEFF5"
 
 
+_LIGHT_NUKE = '''
+/* ══════════════════════════════════════════════════════════
+   LIGHT MODE NUCLEAR OVERRIDES
+   Streamlit renders widgets dark via config.toml base="dark".
+   These defeat that at every known DOM node.
+   ══════════════════════════════════════════════════════════ */
+
+/* Global text reset */
+*, *::before, *::after {
+  color: #1a202c !important;
+}
+
+/* App backgrounds */
+html, body, .stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewContainer"] > .main,
+[data-testid="block-container"] {
+  background-color: #F5F7FA !important;
+  color: #1a202c !important;
+}
+
+[data-testid="stSidebar"],
+section[data-testid="stSidebar"],
+[data-testid="stSidebarContent"] {
+  background-color: #EAEFF5 !important;
+}
+
+/* All input fields */
+input, textarea,
+[data-baseweb="input"] input,
+[data-baseweb="textarea"] textarea,
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea,
+[data-testid="stNumberInput"] input {
+  background-color: #FFFFFF !important;
+  color: #1a202c !important;
+  border-color: #C5D5E4 !important;
+  -webkit-text-fill-color: #1a202c !important;
+}
+input::placeholder, textarea::placeholder {
+  color: #8096B0 !important;
+  -webkit-text-fill-color: #8096B0 !important;
+  opacity: 1 !important;
+}
+
+/* Selectbox */
+[data-baseweb="select"] > div,
+[data-testid="stSelectbox"] > div,
+[data-testid="stSelectbox"] > div > div,
+[data-testid="stSelectbox"] > div > div > div {
+  background-color: #FFFFFF !important;
+  color: #1a202c !important;
+  border-color: #C5D5E4 !important;
+}
+[data-baseweb="popover"], [data-baseweb="popover"] *,
+[data-baseweb="menu"], [data-baseweb="menu"] li,
+[role="listbox"], [role="option"] {
+  background-color: #FFFFFF !important;
+  color: #1a202c !important;
+}
+
+/* Stepper buttons */
+[data-testid="stNumberInput"] button,
+[data-testid="stNumberInputStepDown"],
+[data-testid="stNumberInputStepUp"] {
+  background-color: #DDE6F0 !important;
+  color: #1a202c !important;
+  border-color: #C5D5E4 !important;
+}
+[data-testid="stNumberInput"] button svg,
+[data-testid="stNumberInputStepDown"] svg,
+[data-testid="stNumberInputStepUp"] svg {
+  stroke: #1a202c !important;
+  fill: #1a202c !important;
+}
+
+/* Secondary buttons */
+button,
+[data-testid="stBaseButton-secondary"],
+.stButton button,
+.stButton button[kind="secondary"] {
+  background-color: #DDE6F0 !important;
+  color: #1a202c !important;
+  border-color: #C5D5E4 !important;
+}
+button:hover,
+[data-testid="stBaseButton-secondary"]:hover,
+.stButton button:hover {
+  background-color: #C5D5E4 !important;
+}
+
+/* Primary gold buttons */
+[data-testid="stBaseButton-primary"],
+.stButton button[kind="primary"] {
+  background-color: #D4820A !important;
+  color: #FFFFFF !important;
+  border: none !important;
+}
+[data-testid="stBaseButton-primary"]:hover,
+.stButton button[kind="primary"]:hover {
+  background-color: #B86D08 !important;
+}
+
+/* Help icons */
+[data-testid="stTooltipIcon"] svg,
+[data-testid="stWidgetLabel"] button svg {
+  stroke: #8096B0 !important;
+  fill: none !important;
+}
+
+/* Tabs */
+[data-testid="stTabs"] button[role="tab"] { color: #8096B0 !important; }
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+  color: #D4820A !important; border-bottom-color: #D4820A !important;
+}
+
+/* Expanders */
+[data-testid="stExpander"],
+[data-testid="stExpander"] > details > summary,
+[data-testid="stExpander"] > details > summary * {
+  background-color: #FFFFFF !important;
+  border-color: #C5D5E4 !important;
+  color: #1a202c !important;
+}
+[data-testid="stExpander"] details summary svg { stroke: #1a202c !important; }
+
+/* Dataframes */
+[data-testid="stDataFrame"] {
+  background: #FFFFFF !important; border-color: #C5D5E4 !important;
+}
+
+/* Header */
+[data-testid="stHeader"], [data-testid="stToolbar"],
+header, div[data-testid="stDecoration"] {
+  background: #EAEFF5 !important;
+}
+[data-testid="stToolbar"] button,
+[data-testid="stToolbar"] button svg {
+  color: #1a202c !important; fill: #1a202c !important;
+  background: transparent !important;
+}
+'''
+
+
 def _build_css(theme: str) -> str:
     vars_block  = _DARK_VARS  if theme == "dark" else _LIGHT_VARS
     header_bg   = _DARK_HEADER_BG if theme == "dark" else _LIGHT_HEADER_BG
@@ -129,7 +273,7 @@ def _build_css(theme: str) -> str:
         stock_low_bg = "#fdf0d4"
         stock_crit_bg= "#fde0e5"
 
-    return f"""
+    base_css = f"""
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap');
 
 /* ── CSS Variables ── */
@@ -526,6 +670,9 @@ div[data-testid="stExpander"] summary {{
   fill: none !important;
 }}
 """
+    if theme == "light":
+        return base_css + _LIGHT_NUKE
+    return base_css
 
 
 # ══════════════════════════════════════════════════════════════════════════════
