@@ -475,8 +475,8 @@ def render_sidebar():
   ">📒</div>
   <div>
     <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;
-      color:#F0F4F8;letter-spacing:-0.03em;line-height:1;">BizTrack-OS</div>
-    <div style="font-size:0.65rem;color:#4A6080;font-family:'DM Mono',monospace;
+      color:var(--text-primary);letter-spacing:-0.03em;line-height:1;">BizTrack-OS</div>
+    <div style="font-size:0.65rem;color:var(--text-muted);font-family:'DM Mono',monospace;
       letter-spacing:0.05em;">SUITE</div>
   </div>
 </div>
@@ -496,12 +496,12 @@ def render_sidebar():
             expiry_str = ""
 
         st.markdown(f"""
-<div style="background:#111827;border:1px solid #1F2D3D;border-radius:10px;
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;
   padding:0.75rem 0.875rem;margin-bottom:1rem;">
-  <div style="font-size:0.78rem;font-weight:700;color:#F0F4F8;
+  <div style="font-size:0.78rem;font-weight:700;color:var(--text-primary);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     margin-bottom:0.2rem;">{biz_name}</div>
-  <div style="font-size:0.68rem;color:#4A6080;font-family:'DM Mono',monospace;">
+  <div style="font-size:0.68rem;color:var(--text-muted);font-family:'DM Mono',monospace;">
     {plan_type} {'· ' + expiry_str if expiry_str else ''}</div>
 </div>
         """, unsafe_allow_html=True)
@@ -516,9 +516,9 @@ def render_sidebar():
             st.markdown(f"""
 <div style="display:flex;align-items:center;gap:0.4rem;
   margin:0.875rem 0 0.375rem;
-  padding-bottom:0.35rem;border-bottom:1px solid #1F2D3D;">
+  padding-bottom:0.35rem;border-bottom:1px solid var(--border);">
   <span style="font-size:0.9rem;">{meta['icon']}</span>
-  <span style="font-size:0.65rem;font-weight:700;color:#4A6080;
+  <span style="font-size:0.65rem;font-weight:700;color:var(--text-muted);
     text-transform:uppercase;letter-spacing:0.12em;
     font-family:'DM Mono',monospace;">{meta['label']}</span>
 </div>
@@ -565,6 +565,17 @@ def render_sidebar():
         ):
             st.session_state.current_page = "settings"
             st.rerun()
+
+        # ── Theme Toggle ──────────────────────────────────────────────
+        from shared.theme import get_theme, set_theme
+        current_theme = get_theme()
+        toggle_label  = "☀️ Light Mode" if current_theme == "dark" else "🌙 Dark Mode"
+        if st.button(toggle_label, key="theme_toggle", width="stretch"):
+            new_theme = "light" if current_theme == "dark" else "dark"
+            set_theme(new_theme)
+            st.rerun()
+        # ─────────────────────────────────────────────────────────────
+
         if st.button("⎋ Sign Out", width='stretch'):
             sign_out()
             st.rerun()

@@ -55,6 +55,7 @@ def _admin_biz_id() -> str:
 # ── All session keys the suite uses — for clean logout / page reset ────────────
 SUITE_SESSION_KEYS = [
     "logged_in", "user", "current_page",
+    "theme",
     # per-app transient state
     "cart", "sale_done", "pending_email", "pending_plan",
     "sale_feedback", "prod_page", "exp_page",
@@ -71,6 +72,7 @@ def init_session_state():
         "logged_in":    False,
         "current_page": "login",
         "user":         {},
+        "theme":        "dark",   # default theme; overwritten on login
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -84,6 +86,7 @@ def sign_out():
     st.session_state.logged_in    = False
     st.session_state.current_page = "login"
     st.session_state.user         = {}
+    st.session_state.theme        = "dark"   # reset to default until next login
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -173,6 +176,12 @@ def login_user(email: str, password: str):
         "total_logins":  (user.get("total_logins") or 0) + 1,
     })
     log_activity(biz_id, "login", sub_status)
+
+    # ── Restore saved theme preference ────────────────────────────────
+    saved_theme = user.get("theme", "dark")
+    if saved_theme not in ("dark", "light"):
+        saved_theme = "dark"
+    st.session_state["theme"] = saved_theme
     # ──────────────────────────────────────────────────────────────────
 
     return True, user, "Login successful."
