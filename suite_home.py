@@ -441,8 +441,10 @@ def page_force_password_change():
                 st.session_state.current_page = "login"; st.rerun()
             else:
                 db_update(TBL_USERS, "user_id", user["user_id"], {
-                    "password_hash":        hash_password(new_pw),
-                    "must_change_password": "no",
+                    "password_hash":             hash_password(new_pw),
+                    "must_change_password":      "no",
+                    "password_reset_requested":  "no",
+                    "reset_requested_at":        None,
                 })
                 st.session_state.logged_in    = True
                 st.session_state.user         = {**user, "must_change_password": "no"}

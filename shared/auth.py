@@ -156,6 +156,14 @@ def login_user(email: str, password: str):
     if not check_password(password, str(user.get("password_hash", ""))):
         return False, None, "Incorrect password."
 
+    # ── Block login if a password reset is pending ─────────────────────
+    if user.get("password_reset_requested") == "yes":
+        return False, None, (
+            "⏳ A password reset is pending on your account. "
+            "Your admin will provide a temporary password shortly. "
+            "Please use that to log in."
+        )
+
     # ── Activity logging ───────────────────────────────────────────────
     biz_id  = user.get("business_id", "")
     sub_status = user.get("plan_status", "active")
