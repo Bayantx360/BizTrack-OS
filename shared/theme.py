@@ -36,10 +36,48 @@ def get_theme() -> str:
     return st.session_state.get("theme", "dark")
 
 
+# ── Config templates — Streamlit reads this file at startup and on change ──
+_CONFIG_DARK = """[theme]
+base                     = "dark"
+backgroundColor          = "#080B0F"
+secondaryBackgroundColor = "#111827"
+textColor                = "#F0F4F8"
+primaryColor             = "#F5A623"
+
+[client]
+toolbarMode = "minimal"
+"""
+
+_CONFIG_LIGHT = """[theme]
+base                     = "light"
+backgroundColor          = "#F5F7FA"
+secondaryBackgroundColor = "#EAEFF5"
+textColor                = "#0D1117"
+primaryColor             = "#D4820A"
+
+[client]
+toolbarMode = "minimal"
+"""
+
+
+def _write_config(mode: str) -> None:
+    """
+    Overwrite .streamlit/config.toml with the correct base theme.
+    Streamlit hot-reloads when it detects this file change.
+    """
+    import pathlib
+    # Walk up from this file to find .streamlit/config.toml
+    config_path = pathlib.Path(__file__).parent.parent / ".streamlit" / "config.toml"
+    try:
+        config_path.write_text(_CONFIG_LIGHT if mode == "light" else _CONFIG_DARK)
+    except Exception:
+        pass  # non-fatal if file is read-only in some deploy environments
+
+
 def set_theme(mode: str) -> None:
     """
-    Set theme in session state and persist to Supabase for the
-    logged-in user. Falls back silently if user is not logged in.
+    Set theme in session state, rewrite config.toml so Streamlit's
+    base theme flips, and persist preference to Supabase.
 
     Args:
         mode: "dark" or "light"
@@ -48,6 +86,10 @@ def set_theme(mode: str) -> None:
         mode = "dark"
 
     st.session_state["theme"] = mode
+
+    # Rewrite config.toml — Streamlit detects the file change and
+    # hot-reloads with the correct base theme for all widgets
+    _write_config(mode)
 
     # Persist to DB so the preference survives logout / re-login
     user = st.session_state.get("user", {})
@@ -92,9 +134,9 @@ _LIGHT_VARS = """
   --obsidian:    #F5F7FA;
   --deep:        #EAEFF5;
   --surface:     #FFFFFF;
-  --surface2:    #EDF2F7;
-  --border:      #D1DCE8;
-  --border2:     #B0C4D8;
+  --surface2:    #DDE6F0;
+  --border:      #C5D5E4;
+  --border2:     #9BB4CA;
   --gold:        #D4820A;
   --gold-dim:    #B86D08;
   --gold-glow:   rgba(212,130,10,0.12);
@@ -113,6 +155,8 @@ _LIGHT_VARS = """
 # Header bg follows the theme
 _DARK_HEADER_BG  = "#080B0F"
 _LIGHT_HEADER_BG = "#EAEFF5"
+
+
 
 
 def _build_css(theme: str) -> str:
@@ -324,47 +368,40 @@ html, body, [class*="css"], .stApp {{
 .lp-trust-item span {{ color:var(--jade); margin-right:0.3rem; }}
 
 /* ── Buttons ── */
-.stButton button[kind="primary"]  {{ background:var(--gold) !important; color:#080B0F !important; font-weight:700 !important; border:none !important; }}
-.stButton button[kind="primary"]:hover {{ background:var(--gold-dim) !important; }}
+.stButton button[kind="primary"],
+[data-testid="stBaseButton-primary"] {{
+  background: var(--gold) !important;
+  color: #080B0F !important;
+  font-weight: 700 !important;
+  border: none !important;
+}}
+.stButton button[kind="primary"]:hover,
+[data-testid="stBaseButton-primary"]:hover {{
+  background: var(--gold-dim) !important;
+}}
+
+/* ── Buttons — secondary (nav + generic) ── */
+.stButton button[kind="secondary"],
+[data-testid="stBaseButton-secondary"],
+[data-testid="stBaseButton-secondary"] p {{
+  background: var(--surface2) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  font-weight: 500 !important;
+}}
+.stButton button[kind="secondary"]:hover,
+[data-testid="stBaseButton-secondary"]:hover {{
+  background: var(--border) !important;
+  border-color: var(--border2) !important;
+  color: var(--text-primary) !important;
+}}
 
 /* ── Tabs ── */
 [data-testid="stTabs"] button[role="tab"]               {{ color:var(--text-muted) !important; font-size:0.875rem; }}
 [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {{ color:var(--gold) !important; border-bottom-color:var(--gold) !important; }}
 
-/* ── Forms + inputs ── */
-[data-testid="stTextInput"] input,
-[data-testid="stNumberInput"] input,
-[data-testid="stSelectbox"] > div {{ background:var(--surface) !important; color:var(--text-primary) !important; border-color:var(--border) !important; }}
-
-/* ── Dataframes ── */
-[data-testid="stDataFrame"] {{ background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }}
-
-/* ── Expanders ── */
-[data-testid="stExpander"] {{ background:var(--surface); border:1px solid var(--border); border-radius:10px; }}
-[data-testid="stExpander"]:hover {{ border-color:var(--border2); }}
-
-/* Fix expander header text — targets every known Streamlit structure */
-[data-testid="stExpander"] > details > summary,
-[data-testid="stExpander"] > details > summary *,
-[data-testid="stExpander"] details summary,
-[data-testid="stExpander"] details summary p,
-[data-testid="stExpander"] details summary span,
-[data-testid="stExpander"] details summary div,
-[data-testid="stExpander"] details > summary > span,
-[data-testid="stExpander"] .streamlit-expanderHeader,
-[data-testid="stExpander"] .streamlit-expanderHeader p,
-[data-testid="stExpanderToggleIcon"],
-div[data-testid="stExpander"] summary {{
-  color: var(--text-primary) !important;
-  background-color: var(--surface) !important;
-}}
-
-/* Expander chevron icon */
-[data-testid="stExpander"] details summary svg {{
-  stroke: var(--text-primary) !important;
-  fill: none !important;
-}}
 """
+    return base_css
 
 
 # ══════════════════════════════════════════════════════════════════════════════
