@@ -105,6 +105,34 @@ def get_business_social_proof():
 def page_login():
     apply_suite_css()
     st.markdown("""
+<style>
+.lp-feature-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 10px;
+  margin-bottom: 1.25rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.lp-feature-strip::-webkit-scrollbar { display: none; }
+.lp-feature-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 7px 14px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.lp-feature-chip span { font-size: 1rem; }
+</style>
+
 <div class="lp-hero">
   <div class="lp-logo-wrap">
     <div class="lp-logo-icon">📒</div>
@@ -113,27 +141,15 @@ def page_login():
   <div class="lp-badge"><span>●</span> All-in-one business suite</div>
   <div class="lp-headline">Run & Monitor your <span>Business</span><br>Smarter</div>
   <div class="lp-sub">
-    💰Record your Daily Sales & Revenue ● 📦Track your Inventory Stock Level ● ⚠️Track Debtors ● 📈Monitor your Business Growth—  All in one place on BizTrack-OS
+    Everything your business needs — sales, stock, debtors and growth insights — in one place.
   </div>
-  <div class="lp-value-grid">
-    <div class="lp-value-card">
-      <div class="lp-value-icon">💰</div>
-      <div class="lp-value-title">Sales Management</div>
-      <div class="lp-value-desc">Record sales with multi-item carts,
-        instantly generate PDF receipts and share on WhatsApp.</div>
-    </div>
-    <div class="lp-value-card">
-      <div class="lp-value-icon">📦</div>
-      <div class="lp-value-title">Inventory Control</div>
-      <div class="lp-value-desc">Live stock levels, reorder alerts and
-        automatic stockout projections.</div>
-    </div>
-    <div class="lp-value-card">
-      <div class="lp-value-icon">🧠</div>
-      <div class="lp-value-title">Business Health</div>
-      <div class="lp-value-desc">Profit/loss, expenses, trend charts and
-        Data-driven insights — all in one view.</div>
-    </div>
+
+  <div class="lp-feature-strip">
+    <div class="lp-feature-chip"><span>💰</span> Sales & Revenue</div>
+    <div class="lp-feature-chip"><span>📦</span> Inventory Control</div>
+    <div class="lp-feature-chip"><span>⚠️</span> Debtor Tracking</div>
+    <div class="lp-feature-chip"><span>📈</span> Business Insights</div>
+    <div class="lp-feature-chip"><span>🧾</span> PDF Receipts</div>
   </div>
 </div>
     """, unsafe_allow_html=True)
