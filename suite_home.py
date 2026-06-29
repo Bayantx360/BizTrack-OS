@@ -377,15 +377,17 @@ def page_signup():
                     if plan_type == "trial":
                         user_obj = get_user_by_email(email.strip().lower())
                         if user_obj:
-                            st.session_state.logged_in    = True
-                            st.session_state.user         = user_obj
-                            st.session_state.current_page = "dashboard"
+                            st.session_state.logged_in        = True
+                            st.session_state.user             = user_obj
+                            st.session_state.currency_symbol  = user_obj.get("currency_symbol") or "₦"
+                            st.session_state.current_page     = "dashboard"
                             st.rerun()
                     else:
                         user_obj = get_user_by_email(email.strip().lower())
                         if user_obj:
-                            st.session_state.logged_in    = True
-                            st.session_state.user         = user_obj
+                            st.session_state.logged_in        = True
+                            st.session_state.user             = user_obj
+                            st.session_state.currency_symbol  = user_obj.get("currency_symbol") or "₦"
                         st.session_state.pending_email = email.strip().lower()
                         st.session_state.pending_plan  = plan_type
                         st.session_state.current_page  = "pending_payment"
