@@ -37,6 +37,7 @@ from shared.db import (
     db_update, TBL_USERS,
     PAYMENT_DETAILS, validate_email,
     gen_id, get_supabase,
+    SUPPORTED_COUNTRIES,
 )
 from shared.theme import apply_suite_css
 
@@ -337,7 +338,17 @@ def page_signup():
         with st.form("signup_form"):
             biz_name  = st.text_input("Business Name *",  placeholder="e.g. BigBay Gadget")
             full_name = st.text_input("Your Full Name *",  placeholder="e.g. Emeka Atanda Salisu")
-            phone     = st.text_input("Phone Number *",    placeholder="e.g. 08012345678")
+            country_options = list(SUPPORTED_COUNTRIES.keys())
+            country   = st.selectbox(
+                "Country *",
+                options=country_options,
+                index=country_options.index("Nigeria"),
+                help="Select your country — determines your currency and phone format",
+            )
+            _dial     = SUPPORTED_COUNTRIES[country]["dial_code"]
+            _symbol   = SUPPORTED_COUNTRIES[country]["currency_symbol"]
+            st.caption(f"📞 Dial code: {_dial} &nbsp;|&nbsp; 💱 Currency: {_symbol} ({SUPPORTED_COUNTRIES[country]['currency_code']})")
+            phone     = st.text_input("Phone Number *", placeholder=f"e.g. {_dial} 801 234 5678")
             email     = st.text_input("Email Address *",   placeholder="you@example.com")
             password  = st.text_input("Password *",        type="password",
                                       placeholder="At least 6 characters")
@@ -361,7 +372,7 @@ def page_signup():
             else:
                 with st.spinner("Creating your account…"):
                     ok, msg = signup_user(biz_name.strip(), full_name.strip(),
-                                          email.strip().lower(), phone.strip(), password, plan_type)
+                                          email.strip().lower(), phone.strip(), password, plan_type, country)
                 if ok:
                     if plan_type == "trial":
                         user_obj = get_user_by_email(email.strip().lower())

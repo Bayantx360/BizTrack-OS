@@ -97,7 +97,7 @@ def page_expenses():
                     with st.expander("📊 Expenses by Category", expanded=True):
                         fig = px.bar(
                             cat_breakdown, x="category", y="amount",
-                            labels={"amount": "Amount (₦)", "category": "Category"},
+                            labels={"amount": "Amount (" + st.session_state.get("currency_symbol","₦") + ")", "category": "Category"},
                             color_discrete_sequence=[CHART_RUBY],
                         )
                         fig.update_layout(
@@ -141,7 +141,7 @@ def page_expenses():
                             new_name   = ef1.text_input("Description", value=r["description"])
                             cat_idx    = _EXP_CATS.index(r["category"]) if r["category"] in _EXP_CATS else 0
                             new_cat    = ef2.selectbox("Category", _EXP_CATS, index=cat_idx)
-                            new_amt    = ef1.number_input("Amount (₦)", value=safe_float(r["amount"]),
+                            new_amt    = ef1.number_input("Amount (" + st.session_state.get("currency_symbol","₦") + ")", value=safe_float(r["amount"]),
                                                           min_value=0.0, step=100.0)
                             new_date   = ef2.date_input(
                                 "Date",
@@ -212,7 +212,7 @@ def page_expenses():
                 "Rent","Utilities","Salaries","Supplies","Transport",
                 "Marketing","Maintenance","Taxes","Miscellaneous",
             ])
-            amount       = col1.number_input("Amount (₦) *", min_value=0.0, step=100.0)
+            amount       = col1.number_input("Amount (" + st.session_state.get("currency_symbol","₦") + ") *", min_value=0.0, step=100.0)
             expense_date = col2.date_input("Date", value=datetime.now().date())
             submitted    = st.form_submit_button("Log Expense", width='stretch', type="primary")
 
@@ -391,15 +391,15 @@ display:flex;align-items:center;justify-content:space-between;">
                 if metric_choice in ["Revenue & Profit","Revenue only","All (Revenue, Cost, Profit)"]:
                     fig.add_trace(go.Bar(name="Revenue", x=x_labels, y=monthly["revenue"],
                                         marker_color=CHART_INDIGO,
-                                        hovertemplate="%{x}<br>Revenue: ₦%{y:,.0f}<extra></extra>"))
+                                        hovertemplate="%{x}<br>Revenue: " + st.session_state.get("currency_symbol","₦") + "%{y:,.0f}<extra></extra>"))
                 if metric_choice == "All (Revenue, Cost, Profit)":
                     fig.add_trace(go.Bar(name="Cost", x=x_labels, y=monthly["cost"],
                                         marker_color=CHART_RUBY,
-                                        hovertemplate="%{x}<br>Cost: ₦%{y:,.0f}<extra></extra>"))
+                                        hovertemplate="%{x}<br>Cost: " + st.session_state.get("currency_symbol","₦") + "%{y:,.0f}<extra></extra>"))
                 if metric_choice in ["Revenue & Profit","Profit only","All (Revenue, Cost, Profit)"]:
                     fig.add_trace(go.Bar(name="Net Profit", x=x_labels, y=monthly["net_profit"],
                                         marker_color=CHART_JADE,
-                                        hovertemplate="%{x}<br>Net Profit: ₦%{y:,.0f}<extra></extra>"))
+                                        hovertemplate="%{x}<br>Net Profit: " + st.session_state.get("currency_symbol","₦") + "%{y:,.0f}<extra></extra>"))
                 fig.update_layout(**chart_layout(
                     height=320,
                     margin=dict(l=0, r=10, t=20, b=0),
@@ -407,7 +407,7 @@ display:flex;align-items:center;justify-content:space-between;">
                     legend=dict(orientation="h", yanchor="top", y=1.12,
                                 xanchor="right", x=1, font=dict(size=11)),
                     xaxis=dict(type="category", tickangle=-45, tickfont=dict(size=10)),
-                    yaxis=dict(tickprefix="₦", tickformat=",.0f"),
+                    yaxis=dict(tickprefix=st.session_state.get("currency_symbol","₦"), tickformat=",.0f"),
                 ))
                 with st.expander("📈 Monthly Performance Chart", expanded=True):
                     st.plotly_chart(fig, config=chart_config(), width='stretch')
@@ -429,14 +429,14 @@ display:flex;align-items:center;justify-content:space-between;">
                 cat_fig = px.bar(
                     insights["category_revenue"].sort_values("total_amount"),
                     x="total_amount", y="category", orientation="h",
-                    labels={"total_amount":"Revenue (₦)","category":""},
+                    labels={"total_amount":"Revenue (" + st.session_state.get("currency_symbol","₦") + ")","category":""},
                     color_discrete_sequence=[CHART_GOLD],
                 )
                 cat_fig.update_traces(marker_line_width=0,
-                                      hovertemplate="<b>%{y}</b><br>₦%{x:,.0f}<extra></extra>")
+                                      hovertemplate="<b>%{y}</b><br>" + st.session_state.get("currency_symbol","₦") + "%{x:,.0f}<extra></extra>")
                 cat_fig.update_layout(**chart_layout(
                     height=max(200, len(insights["category_revenue"]) * 48),
-                    xaxis=dict(tickprefix="₦", tickformat=",.0f"),
+                    xaxis=dict(tickprefix=st.session_state.get("currency_symbol","₦"), tickformat=",.0f"),
                 ))
                 st.plotly_chart(cat_fig, config=chart_config(), width='stretch')
         else:
@@ -454,13 +454,13 @@ display:flex;align-items:center;justify-content:space-between;">
                     fig = px.bar(
                         insights["top_products_revenue"].sort_values("total_amount"),
                         x="total_amount", y="product_name", orientation="h",
-                        labels={"total_amount":"Revenue (₦)","product_name":""},
+                        labels={"total_amount":"Revenue (" + st.session_state.get("currency_symbol","₦") + ")","product_name":""},
                         color_discrete_sequence=[CHART_INDIGO],
                     )
                     fig.update_traces(marker_line_width=0,
-                                      hovertemplate="<b>%{y}</b><br>₦%{x:,.0f}<extra></extra>")
+                                      hovertemplate="<b>%{y}</b><br>" + st.session_state.get("currency_symbol","₦") + "%{x:,.0f}<extra></extra>")
                     fig.update_layout(**chart_layout(height=350,
-                        xaxis=dict(tickprefix="₦", tickformat=",.0f")))
+                        xaxis=dict(tickprefix=st.session_state.get("currency_symbol","₦"), tickformat=",.0f")))
                     st.plotly_chart(fig, config=chart_config(), width='stretch')
 
             with col_r:
@@ -603,7 +603,7 @@ display:flex;align-items:center;justify-content:space-between;">
                 fig.update_layout(
                     plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                     margin=dict(l=0, r=0, t=10, b=0),
-                    yaxis=dict(tickprefix="₦", gridcolor="rgba(255,255,255,0.06)"),
+                    yaxis=dict(tickprefix=st.session_state.get("currency_symbol","₦"), gridcolor="rgba(255,255,255,0.06)"),
                     height=350,
                 )
                 st.plotly_chart(fig, width='stretch')
@@ -878,7 +878,7 @@ def page_debtor_statement(customer_name: str):
             )
             pf1, pf2 = st.columns(2)
             pay_amount = pf1.number_input(
-                "Amount Received (₦)",
+                "Amount Received (" + st.session_state.get("currency_symbol","₦") + ")",
                 min_value=100.0,
                 max_value=float(selected_balance),
                 value=float(selected_balance),
@@ -1112,7 +1112,7 @@ def page_debtors():
                         with st.form(f"pay_debt_{debt_id}_{label}"):
                             pf1, pf2 = st.columns(2)
                             pay_amount = pf1.number_input(
-                                "Amount Received (₦)",
+                                "Amount Received (" + st.session_state.get("currency_symbol","₦") + ")",
                                 min_value=100.0,
                                 max_value=float(balance),
                                 value=float(balance),
@@ -1384,12 +1384,12 @@ def page_admin():
                 fig = go.Figure(go.Bar(
                     x=mrr["month_label"], y=mrr["amount"],
                     marker_color=CHART_GOLD,
-                    hovertemplate="%{x}<br>₦%{y:,.0f}<extra></extra>",
+                    hovertemplate="%{x}<br>" + st.session_state.get("currency_symbol","₦") + "%{y:,.0f}<extra></extra>",
                 ))
                 fig.update_layout(
                     plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                     margin=dict(l=0, r=0, t=20, b=0),
-                    yaxis=dict(tickprefix="₦", gridcolor="rgba(255,255,255,0.06)"),
+                    yaxis=dict(tickprefix=st.session_state.get("currency_symbol","₦"), gridcolor="rgba(255,255,255,0.06)"),
                     xaxis=dict(type="category", tickangle=-45),
                     height=300,
                 )
