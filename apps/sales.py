@@ -135,7 +135,7 @@ def page_dashboard():
     c3, c4 = st.columns(2)
     with c3:
         kpi_card("Net Profit (Month)", fmt_naira(kpis["net_profit"]),
-                 f"After ₦{kpis['month_expenses']:,.0f} expenses",
+                 f"After {st.session_state.get("currency_symbol","₦")}{kpis['month_expenses']:,.0f} expenses",
                  positive=(kpis["net_profit"] >= 0), icon="📊")
     with c4:
         kpi_card("Low Stock Alerts", str(low_count),
@@ -172,10 +172,10 @@ def page_dashboard():
                 x=daily["date_str"], y=daily["total_amount"],
                 marker_color=[CHART_GOLD if v >= avg_rev else CHART_INDIGO for v in daily["total_amount"]],
                 marker_line_width=0,
-                hovertemplate="<b>%{x}</b><br>₦%{y:,.0f}<extra></extra>",
+                hovertemplate="<b>%{x}</b><br>" + st.session_state.get("currency_symbol","₦") + "%{y:,.0f}<extra></extra>",
             ))
             fig.add_hline(y=avg_rev, line_dash="dot", line_color=CHART_JADE, line_width=1.5,
-                          annotation_text=f"Avg ₦{avg_rev:,.0f}",
+                          annotation_text=f"Avg {st.session_state.get("currency_symbol","₦")}{avg_rev:,.0f}",
                           annotation_position="top right",
                           annotation_font_size=11, annotation_font_color=CHART_JADE)
             fig.update_layout(**chart_layout(
@@ -184,7 +184,7 @@ def page_dashboard():
                 bargap=0.3, showlegend=False,
                 xaxis=dict(type="category", tickangle=-45, tickfont=dict(size=10),
                            gridcolor="rgba(0,0,0,0)", nticks=10),
-                yaxis=dict(tickprefix="₦", tickformat=",.0f"),
+                yaxis=dict(tickprefix=st.session_state.get("currency_symbol","₦"), tickformat=",.0f"),
             ))
             st.plotly_chart(fig, config=chart_config(), width='stretch')
             st.caption("■ Gold = above average  ■ Indigo = below average")
@@ -201,7 +201,7 @@ def page_dashboard():
                     textinfo="percent",
                     textfont=dict(size=12),
                     pull=[0.03] * len(pm_df),
-                    hovertemplate="<b>%{label}</b><br>₦%{value:,.0f}<br>%{percent}<extra></extra>",
+                    hovertemplate="<b>%{label}</b><br>" + st.session_state.get("currency_symbol","₦") + "%{value:,.0f}<br>%{percent}<extra></extra>",
                 )
                 fig2.update_layout(**chart_layout(height=300, margin=dict(l=0,r=0,t=10,b=40)))
                 st.plotly_chart(fig2, config=chart_config(), width='stretch')
@@ -221,12 +221,12 @@ def page_dashboard():
                 )
                 if not top_rev_df.empty:
                     fig3 = px.bar(top_rev_df, x="line_total", y="product_name", orientation="h",
-                                  labels={"line_total": "Revenue (₦)", "product_name": ""},
+                                  labels={"line_total": "Revenue (" + st.session_state.get("currency_symbol","₦") + ")", "product_name": ""},
                                   color_discrete_sequence=[CHART_INDIGO])
                     fig3.update_traces(marker_line_width=0,
-                                       hovertemplate="<b>%{y}</b><br>₦%{x:,.0f}<extra></extra>")
+                                       hovertemplate="<b>%{y}</b><br>" + st.session_state.get("currency_symbol","₦") + "%{x:,.0f}<extra></extra>")
                     fig3.update_layout(**chart_layout(height=300,
-                        xaxis=dict(tickprefix="₦", tickformat=",.0f")))
+                        xaxis=dict(tickprefix=st.session_state.get("currency_symbol","₦"), tickformat=",.0f")))
                     st.plotly_chart(fig3, config=chart_config(), width='stretch')
 
                 section_header("By Quantity Sold")
@@ -413,7 +413,7 @@ def page_record_sale():
                     min_value=1, max_value=max(1, int(avail_display)), value=1, step=1,
                 )
                 sel_price = ac2.number_input(
-                    f"Price per {unit_label} (₦)",
+                    f"Price per " + unit_label + " (" + st.session_state.get("currency_symbol","₦") + ")",
                     min_value=0.0, value=float(default_price), step=100.0,
                     help="Change to override listed price",
                 )
@@ -559,7 +559,7 @@ def page_record_sale():
             # Amount paid input — only shown for part payment, also outside the form
             if payment_status == "part":
                 amount_paid_now = st.number_input(
-                    "Amount Paid Now (₦)",
+                    "Amount Paid Now (" + st.session_state.get("currency_symbol","₦") + ")",
                     min_value=0.0,
                     max_value=float(grand_total_preview),
                     value=0.0,
@@ -898,6 +898,9 @@ def page_record_sale():
                 ]))
                 story.append(hdr_tbl)
 
+                # ── Currency symbol for this receipt ────────────────────────────────
+                _cs = st.session_state.get("currency_symbol", "₦")
+
                 # ── Sale ID row ─────────────────────────────────────────────────────
                 id_tbl = Table(
                     [[Paragraph("Sale ID", S_ID_L), Paragraph(rd["sale_id"], S_ID_V)]],
@@ -926,8 +929,8 @@ def page_record_sale():
                     tdata.append([
                         Paragraph(item["product_name"][:20], S_TD),
                         Paragraph(str(item["quantity"]),     S_TD_R),
-                        Paragraph(f"₦{neg:,.0f}",           S_TD_R),
-                        Paragraph(f"₦{item['line_total']:,.0f}", S_TD_R),
+                        Paragraph(f"{_cs}{neg:,.0f}",           S_TD_R),
+                        Paragraph(f"{_cs}{item['line_total']:,.0f}", S_TD_R),
                     ])
                 items_tbl = Table(tdata, colWidths=[42*mm, 10*mm, 17*mm, 17*mm])
                 items_tbl.setStyle(TableStyle([
@@ -948,7 +951,7 @@ def page_record_sale():
                               Paragraph(rd["payment"], S_VAL)]]
                 if rd.get("discount", 0) > 0:
                     tot_rows.append([Paragraph("Discount", S_LBL),
-                                     Paragraph(f"–₦{rd['discount']:,.0f}", S_VAL)])
+                                     Paragraph(f"–{_cs}{rd['discount']:,.0f}", S_VAL)])
                 tot_tbl = Table(tot_rows, colWidths=[50*mm, 36*mm])
                 tot_tbl.setStyle(TableStyle([
                     ("TOPPADDING",    (0,0), (-1,-1), 3),
@@ -959,7 +962,7 @@ def page_record_sale():
                 story.append(tot_tbl)
                 story.append(HRFlowable(width="100%", thickness=0.5, color=RULE))
                 story.append(Spacer(1, 2*mm))
-                story.append(Paragraph(f"Total  ₦{rd['grand_total']:,.0f}", S_TOTAL))
+                story.append(Paragraph(f"Total  {_cs}{rd['grand_total']:,.0f}", S_TOTAL))
                 story.append(Spacer(1, 3*mm))
 
                 # ── Part payment / credit block ─────────────────────────────────────
@@ -970,12 +973,12 @@ def page_record_sale():
                 if _ps_pdf in ("part", "credit"):
                     if _ps_pdf == "part":
                         _label     = "PART PAYMENT"
-                        _paid_line = f"Paid Today:   ₦{_paid_pdf:,.0f}"
-                        _bal_line  = f"Balance Owed: ₦{_bal_pdf:,.0f}"
+                        _paid_line = f"Paid Today:   {_cs}{_paid_pdf:,.0f}"
+                        _bal_line  = f"Balance Owed: {_cs}{_bal_pdf:,.0f}"
                     else:
                         _label     = "CREDIT SALE"
-                        _paid_line = "Paid Today:   ₦0"
-                        _bal_line  = f"Balance Owed: ₦{rd['grand_total']:,.0f}"
+                        _paid_line = f"Paid Today:   {_cs}0"
+                        _bal_line  = f"Balance Owed: {_cs}{rd['grand_total']:,.0f}"
                     _note_line = "Please settle the balance as soon as possible."
 
                     debt_rows = [
@@ -1174,7 +1177,7 @@ def page_sales_history():
                                          ["Cash","Bank Transfer","POS","Mobile Money"],
                                          index=["Cash","Bank Transfer","POS","Mobile Money"].index(r["payment_method"])
                                          if r["payment_method"] in ["Cash","Bank Transfer","POS","Mobile Money"] else 0)
-                new_amt  = ef2.number_input("Total Amount (₦)", value=safe_float(r["total_amount"]),
+                new_amt  = ef2.number_input("Total Amount (" + st.session_state.get("currency_symbol","₦") + ")", value=safe_float(r["total_amount"]),
                                              min_value=0.0, step=100.0)
                 save = st.form_submit_button("💾 Save Changes", type="primary")
 

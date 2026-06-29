@@ -141,7 +141,7 @@ def page_products():
                         new_name    = ef1.text_input("Product Name", value=row["product_name"])
                         new_cat     = ef2.text_input("Category",     value=row["category"])
                         ef3, ef4    = st.columns(2)
-                        new_cost    = ef3.number_input("Cost Price (₦)", value=safe_float(row["cost_price"]),
+                        new_cost    = ef3.number_input("Cost Price (" + st.session_state.get("currency_symbol","₦") + ")", value=safe_float(row["cost_price"]),
                                                        min_value=0.0, step=50.0)
                         new_reorder = ef4.number_input("Reorder Level",  value=safe_int(row["reorder_level"]),
                                                        min_value=0, step=1)
@@ -158,7 +158,7 @@ def page_products():
                                                        value=safe_int(row.get("units_per_pack",1)) or 1,
                                                        min_value=1, step=1)
                         new_sell    = st.number_input(
-                            f"Selling Price per Pack — {row.get('base_unit','unit')} (₦)",
+                            f"Selling Price per Pack — {row.get('base_unit','unit')} ({st.session_state.get('currency_symbol','₦')})",
                             value=safe_float(row["selling_price"]), min_value=0.0, step=50.0,
                         )
                         if new_cost > 0 and new_sell > 0:
@@ -174,7 +174,7 @@ def page_products():
                                                     help="e.g. piece, bottle, kg, sachet")
                         suggested   = round(new_sell / new_upp, 2) if new_upp > 1 and new_sell > 0 else new_sell
                         new_sub_price = st.number_input(
-                            f"Selling Price per Unit — {row.get('sub_unit','unit')} (₦)",
+                            f"Selling Price per Unit — {row.get('sub_unit','unit')} ({st.session_state.get('currency_symbol','₦')})",
                             value=safe_float(row.get("selling_price_sub", suggested)),
                             min_value=0.0, step=50.0,
                             help=f"Suggested: {fmt_naira(suggested)} (pack ÷ {new_upp})" if new_upp > 1 else "",
@@ -307,7 +307,7 @@ def page_products():
             prod_name   = f1.text_input("Product Name *", placeholder="e.g. Coca-Cola")
             category    = f2.text_input("Category *",     placeholder="e.g. Beverages")
             f3, f4      = st.columns(2)
-            cost_price  = f3.number_input("Cost Price (₦) *", min_value=0.0, step=50.0,
+            cost_price  = f3.number_input("Cost Price (" + st.session_state.get("currency_symbol","₦") + ") *", min_value=0.0, step=50.0,
                                           help="What you paid per pack/unit when buying")
             reorder_lvl = f4.number_input("Reorder Level *",  min_value=0, step=1,
                                           help="Alert me when stock falls to this level")
@@ -325,7 +325,7 @@ def page_products():
             stock_qty      = p3.number_input("Opening Stock *", min_value=0, step=1,
                                              help="How many packs you currently have")
             sell_price     = st.number_input(
-                "Selling Price per Pack (₦) *",
+                "Selling Price per Pack (" + st.session_state.get("currency_symbol","₦") + ") *",
                 min_value=0.0, step=50.0,
                 help="Price charged when selling a full pack/carton/bag",
             )
@@ -354,7 +354,7 @@ def page_products():
                 units_per_pack > 1 and sell_price > 0
             ) else sell_price
             sell_price_sub = st.number_input(
-                "Selling Price per Unit (₦) *",
+                "Selling Price per Unit (" + st.session_state.get("currency_symbol","₦") + ") *",
                 min_value=0.0, step=50.0,
                 value=float(suggested_unit_price),
                 help=(
@@ -590,7 +590,7 @@ def page_products():
                 st.caption("Pre-filled with current prices. Edit only what changed.")
 
                 new_cost = st.number_input(
-                    f"New Cost Price per {base_unit} (₦)",
+                    f"New Cost Price per {base_unit} ({st.session_state.get('currency_symbol','₦')})",
                     min_value=0.0, step=50.0, value=float(cur_cost),
                     key="restock_new_cost",
                 )
@@ -602,7 +602,7 @@ def page_products():
 
                 st.markdown("**Pack Selling Price**")
                 new_sell_pack = st.number_input(
-                    f"New Selling Price per {base_unit} (₦)",
+                    f"New Selling Price per {base_unit} ({st.session_state.get('currency_symbol','₦')})",
                     min_value=0.0, step=50.0, value=float(cur_sell_pack),
                     key="restock_new_sell_pack",
                 )
@@ -615,7 +615,7 @@ def page_products():
                 st.markdown("**Unit Selling Price**")
                 suggested_unit = round(new_sell_pack / upp, 2) if upp > 1 else new_sell_pack
                 new_sell_unit  = st.number_input(
-                    f"New Selling Price per {sub_unit} (₦)",
+                    f"New Selling Price per {sub_unit} ({st.session_state.get('currency_symbol','₦')})",
                     min_value=0.0, step=50.0,
                     value=float(cur_sell_unit) if cur_sell_unit > 0 else float(suggested_unit),
                     key="restock_new_sell_unit",
