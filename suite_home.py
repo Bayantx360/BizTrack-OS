@@ -151,6 +151,8 @@ def page_login():
     <div class="lp-feature-chip"><span>⚠️</span> Debtor Tracking</div>
     <div class="lp-feature-chip"><span>📈</span> Business Insights</div>
     <div class="lp-feature-chip"><span>🧾</span> PDF Receipts</div>
+    <div class="lp-feature-chip"><span>⛔️</span> Product Expiry Alert</div>
+    <div class="lp-feature-chip"><span>🛎</span> Low Stock Alert/div>
   </div>
 </div>
     """, unsafe_allow_html=True)
