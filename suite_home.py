@@ -144,13 +144,17 @@ def page_login():
   <div class="lp-sub">
     Everything your business needs — sales, stock, debtors and growth insights — in one place.
   </div>
-
+  <div class="lp-sub" style="color: gold;">
+    Key Features that support your Business
+  </div>
   <div class="lp-feature-strip">
     <div class="lp-feature-chip"><span>💰</span> Sales & Revenue</div>
     <div class="lp-feature-chip"><span>📦</span> Inventory Control</div>
     <div class="lp-feature-chip"><span>⚠️</span> Debtor Tracking</div>
     <div class="lp-feature-chip"><span>📈</span> Business Insights</div>
     <div class="lp-feature-chip"><span>🧾</span> PDF Receipts</div>
+    <div class="lp-feature-chip"><span>⛔️</span> Product Expiry Alert</div>
+    <div class="lp-feature-chip"><span>🛎</span> Low Stock Alert</div>
   </div>
 </div>
     """, unsafe_allow_html=True)
@@ -220,7 +224,7 @@ def page_login():
   </div>
   <div style="font-size:11.5px;color:#6B7280;text-align:center;
               line-height:1.6;max-width:340px;">
-    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses 🇳🇬.
+    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses 🌏.
   </div>
 </div>
     """, unsafe_allow_html=True)
