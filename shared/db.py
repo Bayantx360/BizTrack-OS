@@ -50,6 +50,39 @@ TBL_DEBT_PAYMENTS = "debt_payments"
 TBL_SUPPLIERS     = "suppliers"
 TBL_ACTIVITY      = "user_activity"
 
+# ── Supported countries config ────────────────────────────────────────────────
+# Each entry: country_name → { code, currency_code, currency_symbol, dial_code }
+SUPPORTED_COUNTRIES: dict[str, dict] = {
+    # ── Tier 1: Africa ────────────────────────────────────────────────────────
+    "Nigeria":          {"code": "NG", "currency_code": "NGN", "currency_symbol": "₦",    "dial_code": "+234"},
+    "Ghana":            {"code": "GH", "currency_code": "GHS", "currency_symbol": "GH₵",  "dial_code": "+233"},
+    "Kenya":            {"code": "KE", "currency_code": "KES", "currency_symbol": "KSh",  "dial_code": "+254"},
+    "South Africa":     {"code": "ZA", "currency_code": "ZAR", "currency_symbol": "R",    "dial_code": "+27"},
+    "Tanzania":         {"code": "TZ", "currency_code": "TZS", "currency_symbol": "TSh",  "dial_code": "+255"},
+    "Uganda":           {"code": "UG", "currency_code": "UGX", "currency_symbol": "USh",  "dial_code": "+256"},
+    "Rwanda":           {"code": "RW", "currency_code": "RWF", "currency_symbol": "FRw",  "dial_code": "+250"},
+    "Zambia":           {"code": "ZM", "currency_code": "ZMW", "currency_symbol": "ZK",   "dial_code": "+260"},
+    "Cameroon":         {"code": "CM", "currency_code": "XAF", "currency_symbol": "FCFA", "dial_code": "+237"},
+    "Senegal":          {"code": "SN", "currency_code": "XOF", "currency_symbol": "CFA",  "dial_code": "+221"},
+    "Ethiopia":         {"code": "ET", "currency_code": "ETB", "currency_symbol": "Br",   "dial_code": "+251"},
+    "Egypt":            {"code": "EG", "currency_code": "EGP", "currency_symbol": "E£",   "dial_code": "+20"},
+    # ── Tier 2: English-speaking west ─────────────────────────────────────────
+    "United Kingdom":   {"code": "GB", "currency_code": "GBP", "currency_symbol": "£",    "dial_code": "+44"},
+    "United States":    {"code": "US", "currency_code": "USD", "currency_symbol": "$",    "dial_code": "+1"},
+    "Canada":           {"code": "CA", "currency_code": "CAD", "currency_symbol": "CA$",  "dial_code": "+1"},
+    "Australia":        {"code": "AU", "currency_code": "AUD", "currency_symbol": "A$",   "dial_code": "+61"},
+    "Ireland":          {"code": "IE", "currency_code": "EUR", "currency_symbol": "€",    "dial_code": "+353"},
+    # ── Tier 3: Opportunistic ─────────────────────────────────────────────────
+    "UAE":              {"code": "AE", "currency_code": "AED", "currency_symbol": "AED",  "dial_code": "+971"},
+    "India":            {"code": "IN", "currency_code": "INR", "currency_symbol": "₹",    "dial_code": "+91"},
+    "Germany":          {"code": "DE", "currency_code": "EUR", "currency_symbol": "€",    "dial_code": "+49"},
+    "France":           {"code": "FR", "currency_code": "EUR", "currency_symbol": "€",    "dial_code": "+33"},
+    "Netherlands":      {"code": "NL", "currency_code": "EUR", "currency_symbol": "€",    "dial_code": "+31"},
+    "Saudi Arabia":     {"code": "SA", "currency_code": "SAR", "currency_symbol": "SAR",  "dial_code": "+966"},
+    "Pakistan":         {"code": "PK", "currency_code": "PKR", "currency_symbol": "₨",    "dial_code": "+92"},
+    "Brazil":           {"code": "BR", "currency_code": "BRL", "currency_symbol": "R$",   "dial_code": "+55"},
+}
+
 # ── Plan / payment config ──────────────────────────────────────────────────────
 PAYMENT_DETAILS = {
     "monthly_price":       1500,
@@ -653,12 +686,18 @@ def gen_id(prefix: str = "") -> str:
     return f"{prefix}{uuid.uuid4().hex[:10].upper()}"
 
 
-def fmt_naira(amount) -> str:
-    """Format a number as Nigerian Naira."""
+def fmt_currency(amount) -> str:
+    """Format a number using the current user's currency symbol from session state."""
     try:
-        return f"₦{float(amount):,.2f}"
+        symbol = st.session_state.get("currency_symbol", "₦")
+        return f"{symbol}{float(amount):,.2f}"
     except Exception:
-        return "₦0.00"
+        symbol = st.session_state.get("currency_symbol", "₦")
+        return f"{symbol}0.00"
+
+
+# Backward-compatible alias — safe for any existing imports of fmt_naira
+fmt_naira = fmt_currency
 
 
 def safe_float(val, default: float = 0.0) -> float:

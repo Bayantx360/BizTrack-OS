@@ -38,7 +38,7 @@ from shared.db import (
     TBL_USERS,
     PAYMENT_DETAILS,
     gen_id, validate_email, parse_date, fmt_naira,
-    log_activity,
+    SUPPORTED_COUNTRIES, log_activity,
 )
 
 # ── Admin credentials (from secrets) ──────────────────────────────────────────
@@ -188,6 +188,11 @@ def login_user(email: str, password: str):
         _write_config(saved_theme)
     except Exception:
         pass
+
+    # ── Load currency symbol into session state ────────────────────────
+    # Falls back to ₦ for existing users who predate the country field
+    saved_symbol = user.get("currency_symbol") or "₦"
+    st.session_state["currency_symbol"] = saved_symbol
     # ──────────────────────────────────────────────────────────────────
 
     return True, user, "Login successful."
@@ -197,7 +202,7 @@ def login_user(email: str, password: str):
 # SIGNUP
 # ══════════════════════════════════════════════════════════════════════════════
 
-def signup_user(business_name, full_name, email, phone, password, plan_type):
+def signup_user(business_name, full_name, email, phone, password, plan_type, country="Nigeria"):
     """
     Create a new user account. Returns (success, message).
     Trial → active immediately. Paid plans → pending_payment.
@@ -212,6 +217,13 @@ def signup_user(business_name, full_name, email, phone, password, plan_type):
     user_id     = gen_id("USR")
     business_id = gen_id("BIZ")
     now         = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Derive currency + dial code from selected country
+    country_data     = SUPPORTED_COUNTRIES.get(country, SUPPORTED_COUNTRIES["Nigeria"])
+    currency_symbol  = country_data["currency_symbol"]
+    currency_code    = country_data["currency_code"]
+    country_code     = country_data["code"]
+    dial_code        = country_data["dial_code"]
 
     if plan_type == "trial":
         status = "active"
@@ -229,6 +241,11 @@ def signup_user(business_name, full_name, email, phone, password, plan_type):
         "full_name":                full_name,
         "email":                    email,
         "phone":                    phone,
+        "country":                  country,
+        "country_code":             country_code,
+        "currency_symbol":          currency_symbol,
+        "currency_code":            currency_code,
+        "dial_code":                dial_code,
         "password_hash":            hash_password(password),
         "role":                     "owner",
         "plan_type":                plan_type,
