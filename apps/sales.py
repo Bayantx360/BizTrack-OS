@@ -1029,24 +1029,25 @@ def page_record_sale():
                 _wa_paid = rd.get("amount_paid_now", rd["grand_total"])
                 _wa_bal  = rd.get("balance_owed", 0)
 
+                _wa_cs  = st.session_state.get("currency_symbol", "₦")
                 wa_text = (
                     f"Receipt from {rd['business_name']}\n"
                     f"Date: {datetime.fromisoformat(rd['sale_time']).strftime('%d %b %Y %H:%M')}\n"
                     f"Items: {item_lines}\n"
-                    f"Total: \u20a6{rd['grand_total']:,.0f}\n"
+                    f"Total: {_wa_cs}{rd['grand_total']:,.0f}\n"
                     f"Payment: {rd['payment']}\n"
                 )
                 if _wa_ps == "part":
                     wa_text += (
                         f"--- PART PAYMENT ---\n"
-                        f"Paid Today: \u20a6{_wa_paid:,.0f}\n"
-                        f"Balance Owed: \u20a6{_wa_bal:,.0f}\n"
+                        f"Paid Today: {_wa_cs}{_wa_paid:,.0f}\n"
+                        f"Balance Owed: {_wa_cs}{_wa_bal:,.0f}\n"
                         f"Please settle the balance as soon as possible.\n"
                     )
                 elif _wa_ps == "credit":
                     wa_text += (
                         f"--- CREDIT SALE ---\n"
-                        f"Balance Owed: \u20a6{rd['grand_total']:,.0f}\n"
+                        f"Balance Owed: {_wa_cs}{rd['grand_total']:,.0f}\n"
                         f"Full amount is owed. Please settle the balance as soon as possible.\n"
                     )
                 wa_text += "Thank you!"
