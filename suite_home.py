@@ -144,6 +144,7 @@ def page_login():
   <div class="lp-sub">
     Everything your business needs — sales, stock, debtors and growth insights — in one place.
   </div>
+
   <div class="lp-sub" style="color: gold;">
     Key Features that support your Business
   </div>
@@ -339,23 +340,31 @@ def page_signup():
 </div>
         """, unsafe_allow_html=True)
 
+        # Country selector lives OUTSIDE the form so it can trigger st.rerun() on change
+        country_options = list(SUPPORTED_COUNTRIES.keys())
+        _saved_country  = st.session_state.get("signup_country", "Nigeria")
+        selected_country = st.selectbox(
+            "Country *",
+            options=country_options,
+            index=country_options.index(_saved_country),
+            key="signup_country_select",
+            help="Select your country — determines your currency and phone format",
+        )
+        if selected_country != _saved_country:
+            st.session_state["signup_country"] = selected_country
+            st.rerun()
+
+        _country = st.session_state.get("signup_country", "Nigeria")
+        _dial    = SUPPORTED_COUNTRIES[_country]["dial_code"]
+        _symbol  = SUPPORTED_COUNTRIES[_country]["currency_symbol"]
+        _ccode   = SUPPORTED_COUNTRIES[_country]["currency_code"]
+
         with st.form("signup_form"):
             biz_name  = st.text_input("Business Name *",  placeholder="e.g. BigBay Gadget")
             full_name = st.text_input("Your Full Name *",  placeholder="e.g. Emeka Atanda Salisu")
-            country_options = list(SUPPORTED_COUNTRIES.keys())
-            country   = st.selectbox(
-                "Country *",
-                options=country_options,
-                index=country_options.index("Nigeria"),
-                help="Select your country — determines your currency and phone format",
-            )
-            _dial     = SUPPORTED_COUNTRIES[country]["dial_code"]
-            _symbol   = SUPPORTED_COUNTRIES[country]["currency_symbol"]
-            _ccode    = SUPPORTED_COUNTRIES[country]["currency_code"]
             phone     = st.text_input(
                 f"Phone Number * ({_dial})",
                 placeholder=f"e.g. {_dial} 801 234 5678",
-                key=f"phone_{country}",
             )
             st.caption(f"💱 Currency for your account: {_symbol} ({_ccode})")
             email     = st.text_input("Email Address *",   placeholder="you@example.com")
@@ -381,7 +390,7 @@ def page_signup():
             else:
                 with st.spinner("Creating your account…"):
                     ok, msg = signup_user(biz_name.strip(), full_name.strip(),
-                                          email.strip().lower(), phone.strip(), password, plan_type, country)
+                                          email.strip().lower(), phone.strip(), password, plan_type, _country)
                 if ok:
                     if plan_type == "trial":
                         user_obj = get_user_by_email(email.strip().lower())
