@@ -144,6 +144,7 @@ def page_login():
   <div class="lp-sub">
     Everything your business needs — sales, stock, debtors and growth insights — in one place.
   </div>
+
   <div class="lp-sub" style="color: gold;">
     Key Features that support your Business
   </div>
@@ -351,8 +352,21 @@ def page_signup():
             )
             _dial     = SUPPORTED_COUNTRIES[country]["dial_code"]
             _symbol   = SUPPORTED_COUNTRIES[country]["currency_symbol"]
-            st.caption(f"📞 Dial code: {_dial} &nbsp;|&nbsp; 💱 Currency: {_symbol} ({SUPPORTED_COUNTRIES[country]['currency_code']})")
-            phone     = st.text_input("Phone Number *", placeholder=f"e.g. {_dial} 801 234 5678")
+            _code     = SUPPORTED_COUNTRIES[country]["currency_code"]
+
+            col_dial, col_phone = st.columns([1, 3])
+            col_dial.markdown(
+                f"""<div style="margin-top:28px;padding:0.45rem 0.6rem;
+                    border:1px solid #444;border-radius:6px;font-size:0.95rem;
+                    text-align:center;background:transparent;">{_dial}</div>""",
+                unsafe_allow_html=True,
+            )
+            phone = col_phone.text_input(
+                "Phone Number *",
+                placeholder=f"e.g. 801 234 5678",
+                key=f"phone_input_{country}",
+            )
+            st.caption(f"💱 Currency: {_symbol} ({_code})")
             email     = st.text_input("Email Address *",   placeholder="you@example.com")
             password  = st.text_input("Password *",        type="password",
                                       placeholder="At least 6 characters")
