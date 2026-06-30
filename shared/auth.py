@@ -309,6 +309,7 @@ def _page_pending_payment(user: dict):
     country_code = user.get("country_code") or "NG"
     _plan        = get_payment_plan(country_code)
     cl           = _plan["currency_label"]
+    cl_safe      = cl.replace("$", "\\$")  # escape for st.markdown LaTeX mode
     amount       = _plan["yearly_price"] if plan == "yearly" else _plan["monthly_price"]
     fw_link      = _plan["flutterwave_yearly"] if plan == "yearly" else _plan["flutterwave_monthly"]
     yearly_savings = (_plan["monthly_price"] * 12) - _plan["yearly_price"]
@@ -339,8 +340,8 @@ def _page_pending_payment(user: dict):
                 st.markdown("Monthly")
                 st.markdown("Yearly")
             with c2:
-                st.markdown(f"**{cl}{_plan['monthly_price']:,}/month**")
-                st.markdown(f"**{cl}{_plan['yearly_price']:,}/year** — save {cl}{yearly_savings:,}")
+                st.markdown(f"**{cl_safe}{_plan['monthly_price']:,}/month**")
+                st.markdown(f"**{cl_safe}{_plan['yearly_price']:,}/year** — save {cl_safe}{yearly_savings:,}")
 
         st.markdown(f"Signed up as: `{email}`")
         st.caption("🔒 Safe & secure payment. Your account activates immediately after confirmation.")
@@ -365,6 +366,7 @@ def _page_expired(user: dict):
     country_code = user.get("country_code") or "NG"
     _plan        = get_payment_plan(country_code)
     cl           = _plan["currency_label"]
+    cl_safe      = cl.replace("$", "\\$")  # escape for st.markdown LaTeX mode
     yearly_savings = (_plan["monthly_price"] * 12) - _plan["yearly_price"]
 
     _, col, _ = st.columns([1, 2, 1])
@@ -384,8 +386,8 @@ Your access period has ended⚠️. Please renew to continue using BizTrack-OS.<
                 st.markdown("Monthly")
                 st.markdown("Yearly")
             with c2:
-                st.markdown(f"**{cl}{_plan['monthly_price']:,}/month**")
-                st.markdown(f"**{cl}{_plan['yearly_price']:,}/year** — save {cl}{yearly_savings:,}")
+                st.markdown(f"**{cl_safe}{_plan['monthly_price']:,}/month**")
+                st.markdown(f"**{cl_safe}{_plan['yearly_price']:,}/year** — save {cl_safe}{yearly_savings:,}")
         st.link_button(
             f"💳 Renew Monthly — {cl}{_plan['monthly_price']:,}",
             url=_plan["flutterwave_monthly"],
