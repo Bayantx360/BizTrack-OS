@@ -85,7 +85,7 @@ SUPPORTED_COUNTRIES: dict[str, dict] = {
 
 # ── Plan / payment config ──────────────────────────────────────────────────────
 PAYMENT_DETAILS = {
-    "trial_days": 7,
+    "trial_days": 14,
     "NG": {
         "monthly_price":       1500,
         "yearly_price":        15000,
