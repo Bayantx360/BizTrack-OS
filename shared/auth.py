@@ -36,7 +36,7 @@ from shared.db import (
     db_fetch, db_insert, db_update,
     get_supabase,
     TBL_USERS,
-    PAYMENT_DETAILS,
+    PAYMENT_DETAILS, SUPPORTED_COUNTRIES, get_payment_plan,
     gen_id, validate_email, parse_date, fmt_naira,
     SUPPORTED_COUNTRIES, log_activity,
 )
@@ -304,13 +304,15 @@ def check_access() -> bool:
 # ── Inline guard screens ───────────────────────────────────────────────────────
 
 def _page_pending_payment(user: dict):
-    plan   = user.get("plan_type") or st.session_state.get("pending_plan", "monthly")
-    email  = user.get("email")    or st.session_state.get("pending_email", "")
-    amount = (PAYMENT_DETAILS["yearly_price"]
-              if plan == "yearly" else PAYMENT_DETAILS["monthly_price"])
-    fw_link = (PAYMENT_DETAILS["flutterwave_yearly"]
-               if plan == "yearly" else PAYMENT_DETAILS["flutterwave_monthly"])
-    savings_note = " — save ₦3,000!" if plan == "yearly" else ""
+    plan         = user.get("plan_type") or st.session_state.get("pending_plan", "monthly")
+    email        = user.get("email")    or st.session_state.get("pending_email", "")
+    country_code = user.get("country_code") or "NG"
+    _plan        = get_payment_plan(country_code)
+    cl           = _plan["currency_label"]
+    amount       = _plan["yearly_price"] if plan == "yearly" else _plan["monthly_price"]
+    fw_link      = _plan["flutterwave_yearly"] if plan == "yearly" else _plan["flutterwave_monthly"]
+    yearly_savings = (_plan["monthly_price"] * 12) - _plan["yearly_price"]
+    savings_note = f" — save {cl}{yearly_savings:,}!" if plan == "yearly" else ""
 
     _, col, _ = st.columns([1, 2, 1])
     with col:
@@ -337,19 +339,19 @@ def _page_pending_payment(user: dict):
                 st.markdown("Monthly")
                 st.markdown("Yearly")
             with c2:
-                st.markdown(f"**₦{PAYMENT_DETAILS['monthly_price']:,}/month**")
-                st.markdown(f"**₦{PAYMENT_DETAILS['yearly_price']:,}/year** — save ₦3,000")
+                st.markdown(f"**{cl}{_plan['monthly_price']:,}/month**")
+                st.markdown(f"**{cl}{_plan['yearly_price']:,}/year** — save {cl}{yearly_savings:,}")
 
         st.markdown(f"Signed up as: `{email}`")
         st.caption("🔒 Safe & secure payment. Your account activates immediately after confirmation.")
         st.link_button(
-            f"💳 Pay Monthly — ₦{PAYMENT_DETAILS['monthly_price']:,}",
-            url=PAYMENT_DETAILS["flutterwave_monthly"],
+            f"💳 Pay Monthly — {cl}{_plan['monthly_price']:,}",
+            url=_plan["flutterwave_monthly"],
             width='stretch', type="primary",
         )
         st.link_button(
-            f"🏆 Pay Yearly — ₦{PAYMENT_DETAILS['yearly_price']:,} (best value, save ₦3,000)",
-            url=PAYMENT_DETAILS["flutterwave_yearly"],
+            f"🏆 Pay Yearly — {cl}{_plan['yearly_price']:,} (best value, save {cl}{yearly_savings:,})",
+            url=_plan["flutterwave_yearly"],
             width='stretch',
         )
         st.caption("Already paid? Your account will be activated shortly.")
@@ -360,6 +362,11 @@ def _page_pending_payment(user: dict):
 
 
 def _page_expired(user: dict):
+    country_code = user.get("country_code") or "NG"
+    _plan        = get_payment_plan(country_code)
+    cl           = _plan["currency_label"]
+    yearly_savings = (_plan["monthly_price"] * 12) - _plan["yearly_price"]
+
     _, col, _ = st.columns([1, 2, 1])
     with col:
         st.markdown("""
@@ -377,16 +384,16 @@ Your access period has ended⚠️. Please renew to continue using BizTrack-OS.<
                 st.markdown("Monthly")
                 st.markdown("Yearly")
             with c2:
-                st.markdown(f"**₦{PAYMENT_DETAILS['monthly_price']:,}/month**")
-                st.markdown(f"**₦{PAYMENT_DETAILS['yearly_price']:,}/year** — save ₦3,000")
+                st.markdown(f"**{cl}{_plan['monthly_price']:,}/month**")
+                st.markdown(f"**{cl}{_plan['yearly_price']:,}/year** — save {cl}{yearly_savings:,}")
         st.link_button(
-            f"💳 Renew Monthly — ₦{PAYMENT_DETAILS['monthly_price']:,}",
-            url=PAYMENT_DETAILS["flutterwave_monthly"],
+            f"💳 Renew Monthly — {cl}{_plan['monthly_price']:,}",
+            url=_plan["flutterwave_monthly"],
             width='stretch', type="primary",
         )
         st.link_button(
-            f"🏆 Renew Yearly — ₦{PAYMENT_DETAILS['yearly_price']:,} (best value)",
-            url=PAYMENT_DETAILS["flutterwave_yearly"],
+            f"🏆 Renew Yearly — {cl}{_plan['yearly_price']:,} (best value)",
+            url=_plan["flutterwave_yearly"],
             width='stretch',
         )
         if st.button("Sign Out", width='stretch'):
