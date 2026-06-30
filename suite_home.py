@@ -223,7 +223,7 @@ def page_login():
   </div>
   <div style="font-size:11.5px;color:#6B7280;text-align:center;
               line-height:1.6;max-width:340px;">
-    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses 🇳🇬🇬🇧🇺🇲.
+    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses 🇳🇬🇺🇲🇬🇧.
   </div>
 </div>
     """, unsafe_allow_html=True)
@@ -374,13 +374,15 @@ def page_signup():
             _m_price   = _plan["monthly_price"]
             _y_price   = _plan["yearly_price"]
             _savings   = (_m_price * 12) - _y_price
+            # Escape $ so Streamlit's markdown renderer doesn't treat it as LaTeX math mode
+            _cl_safe = _cl.replace("$", "\\$")
             plan_type = st.radio(
                 "Plan",
                 options=["trial", "monthly", "yearly"],
                 format_func=lambda p: {
                     "trial":   f"🎁 Free Trial — 7 Days, no payment needed",
-                    "monthly": f"📅 Monthly — {_cl}{_m_price:,}/month",
-                    "yearly":  f"🏆 Yearly — {_cl}{_y_price:,}/year (save {_cl}{_savings:,})",
+                    "monthly": f"📅 Monthly — {_cl_safe}{_m_price:,}/month",
+                    "yearly":  f"🏆 Yearly — {_cl_safe}{_y_price:,}/year (save {_cl_safe}{_savings:,})",
                 }[p],
                 horizontal=False,
             )
