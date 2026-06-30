@@ -145,6 +145,10 @@ def page_login():
     Everything your business needs — sales, stock, debtors and growth insights — in one place.
   </div>
 
+  <div class="lp-sub" style="color: gold;">
+    Key Features that support your Business
+  </div>
+
   <div class="lp-feature-strip">
     <div class="lp-feature-chip"><span>💰</span> Sales & Revenue</div>
     <div class="lp-feature-chip"><span>📦</span> Inventory Control</div>
