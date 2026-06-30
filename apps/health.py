@@ -30,7 +30,7 @@ from shared.db import (
     get_sale_items_df,
     TBL_USERS, TBL_EXPENSES, TBL_PAYMENTS, TBL_SALE_ITEMS,
     TBL_DEBTS, TBL_ACTIVITY,
-    PAYMENT_DETAILS,
+    PAYMENT_DETAILS, get_payment_plan, SUPPORTED_COUNTRIES,
     gen_id, fmt_naira, safe_float, safe_int, parse_date,
     get_supabase,
 )
@@ -1238,7 +1238,7 @@ def page_admin():
     # ──────────────────────────────────────────────────────────────────────────
 
     # Platform stats
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         kpi_card("Total Businesses", str(len(users_df)), "Registered accounts", icon="🏢")
     with c2:
@@ -1248,36 +1248,66 @@ def page_admin():
         pending = len(users_df[users_df["plan_status"] == "pending_payment"])
         kpi_card("Pending Payment", str(pending), "Awaiting manual activation", icon="⏳")
     with c4:
-        monthly_rev = (len(users_df[(users_df["plan_type"] == "monthly") &
-                                    (users_df["plan_status"] == "active")]) *
-                       PAYMENT_DETAILS["monthly_price"])
-        yearly_rev  = (len(users_df[(users_df["plan_type"] == "yearly") &
-                                    (users_df["plan_status"] == "active")]) *
-                       (PAYMENT_DETAILS["yearly_price"] / 12))
-        kpi_card("Est. MRR", fmt_naira(monthly_rev + yearly_rev),
-                 "From active paid plans", icon="📈")
+        active_paid = users_df[(users_df["plan_status"] == "active") &
+                                (users_df["plan_type"].isin(["monthly", "yearly"]))]
+        mrr_ngn = 0.0
+        mrr_usd = 0.0
+        for _, _u in active_paid.iterrows():
+            _plan = get_payment_plan(_u.get("country_code") or "NG")
+            _monthly_equiv = (_plan["monthly_price"] if _u["plan_type"] == "monthly"
+                              else _plan["yearly_price"] / 12)
+            if _plan["currency_label"] == "₦":
+                mrr_ngn += _monthly_equiv
+            else:
+                mrr_usd += _monthly_equiv
+        kpi_card("Est. MRR (NGN)", f"₦{mrr_ngn:,.0f}",
+                 "From active Nigerian plans", icon="📈")
+    with c5:
+        kpi_card("Est. MRR (USD)", f"${mrr_usd:,.0f}",
+                 "From active global plans", icon="🌍")
 
-    # Revenue ledger KPIs
+    # Revenue ledger KPIs — split by currency, never blended
     payments_df = get_payments_df()
     if not payments_df.empty:
         now_dt      = datetime.now()
         month_start = datetime(now_dt.year, now_dt.month, 1)
         year_start  = datetime(now_dt.year, 1, 1)
 
-        total_collected = payments_df["amount"].sum()
-        month_collected = payments_df[payments_df["payment_date"] >= month_start]["amount"].sum()
-        year_collected  = payments_df[payments_df["payment_date"] >= year_start]["amount"].sum()
-        total_txns      = len(payments_df)
+        if "currency_code" not in payments_df.columns:
+            payments_df["currency_code"] = "NGN"
+        payments_df["currency_code"] = payments_df["currency_code"].fillna("NGN")
+
+        ngn_df = payments_df[payments_df["currency_code"] == "NGN"]
+        usd_df = payments_df[payments_df["currency_code"] != "NGN"]
 
         st.markdown("---")
         st.markdown("#### 💰 Platform Revenue — Actual Collected")
+
+        st.markdown("##### 🇳🇬 Nigeria (NGN)")
         r1, r2, r3, r4 = st.columns(4)
-        with r1: kpi_card("All-Time Revenue",  fmt_naira(total_collected), f"{total_txns} payments", icon="💰")
-        with r2: kpi_card("This Month",        fmt_naira(month_collected), now_dt.strftime("%B %Y"), icon="📅")
-        with r3: kpi_card("This Year",         fmt_naira(year_collected),  str(now_dt.year),         icon="🗓️")
+        ngn_total   = ngn_df["amount"].sum()
+        ngn_month   = ngn_df[ngn_df["payment_date"] >= month_start]["amount"].sum()
+        ngn_year    = ngn_df[ngn_df["payment_date"] >= year_start]["amount"].sum()
+        ngn_txns    = len(ngn_df)
+        with r1: kpi_card("All-Time Revenue", f"₦{ngn_total:,.0f}", f"{ngn_txns} payments", icon="💰")
+        with r2: kpi_card("This Month",       f"₦{ngn_month:,.0f}", now_dt.strftime("%B %Y"), icon="📅")
+        with r3: kpi_card("This Year",        f"₦{ngn_year:,.0f}",  str(now_dt.year),         icon="🗓️")
         with r4:
-            avg = total_collected / total_txns if total_txns else 0
-            kpi_card("Avg. per Payment", fmt_naira(avg), "Across all activations", icon="🧾")
+            ngn_avg = ngn_total / ngn_txns if ngn_txns else 0
+            kpi_card("Avg. per Payment", f"₦{ngn_avg:,.0f}", "Across NGN activations", icon="🧾")
+
+        st.markdown("##### 🌍 Global (USD)")
+        g1, g2, g3, g4 = st.columns(4)
+        usd_total   = usd_df["amount"].sum()
+        usd_month   = usd_df[usd_df["payment_date"] >= month_start]["amount"].sum()
+        usd_year    = usd_df[usd_df["payment_date"] >= year_start]["amount"].sum()
+        usd_txns    = len(usd_df)
+        with g1: kpi_card("All-Time Revenue", f"${usd_total:,.0f}", f"{usd_txns} payments", icon="💰")
+        with g2: kpi_card("This Month",       f"${usd_month:,.0f}", now_dt.strftime("%B %Y"), icon="📅")
+        with g3: kpi_card("This Year",        f"${usd_year:,.0f}",  str(now_dt.year),         icon="🗓️")
+        with g4:
+            usd_avg = usd_total / usd_txns if usd_txns else 0
+            kpi_card("Avg. per Payment", f"${usd_avg:,.0f}", "Across USD activations", icon="🧾")
     else:
         st.info("💡 No payment records yet.")
 
@@ -1311,11 +1341,13 @@ def page_admin():
                                 "subscription_end":   end_dt,
                             })
                             if ok:
-                                pay_amount = (PAYMENT_DETAILS["yearly_price"]
+                                _u_plan = get_payment_plan(u.get("country_code") or "NG")
+                                pay_amount = (_u_plan["yearly_price"]
                                               if plan == "yearly"
-                                              else PAYMENT_DETAILS["monthly_price"])
+                                              else _u_plan["monthly_price"])
                                 log_payment(u["user_id"], u["business_name"],
-                                            u["email"], plan, pay_amount, "Initial activation")
+                                            u["email"], plan, pay_amount, "Initial activation",
+                                            currency_code=u.get("currency_code") or "NGN")
                                 st.success(f"✅ {u['business_name']} activated until {end_dt}")
                                 st.rerun()
                     with col3:
@@ -1352,8 +1384,9 @@ def page_admin():
                     )
                     ext_days   = 365 if new_plan == "yearly" else 30
                     ext_label  = "1 year" if ext_days == 365 else "30 days"
-                    pay_amount = (PAYMENT_DETAILS["yearly_price"] if new_plan == "yearly"
-                                  else PAYMENT_DETAILS["monthly_price"])
+                    _u_plan2   = get_payment_plan(u.get("country_code") or "NG")
+                    pay_amount = (_u_plan2["yearly_price"] if new_plan == "yearly"
+                                  else _u_plan2["monthly_price"])
                     if st.button(f"🔁 Renew ({ext_label})", key=f"ext_{u['user_id']}"):
                         curr_end = parse_date(u.get("subscription_end",""))
                         base     = curr_end if (curr_end and curr_end > datetime.now()) else datetime.now()
@@ -1363,7 +1396,8 @@ def page_admin():
                             "plan_type":        new_plan,
                         })
                         log_payment(u["user_id"], u["business_name"], u["email"],
-                                    new_plan, pay_amount, "Renewal")
+                                    new_plan, pay_amount, "Renewal",
+                                    currency_code=u.get("currency_code") or "NGN")
                         st.success(f"✅ Renewed ({new_plan}) to {new_end}"); st.rerun()
                 with col3:
                     if st.button("⛔ Deactivate", key=f"deact_{u['user_id']}"):
@@ -1494,8 +1528,9 @@ def page_admin():
                     )
                     days       = 365 if react_plan == "yearly" else 30
                     end_dt     = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-                    pay_amount = (PAYMENT_DETAILS["yearly_price"] if react_plan == "yearly"
-                                  else PAYMENT_DETAILS["monthly_price"])
+                    _u_plan3   = get_payment_plan(u.get("country_code") or "NG")
+                    pay_amount = (_u_plan3["yearly_price"] if react_plan == "yearly"
+                                  else _u_plan3["monthly_price"])
                     react_label = "1 Year" if react_plan == "yearly" else "30 Days"
                     if st.button(f"🔁 Reactivate ({react_label})", key=f"react_{u['user_id']}"):
                         db_update(TBL_USERS, "user_id", u["user_id"], {
@@ -1505,7 +1540,8 @@ def page_admin():
                             "subscription_end":   end_dt,
                         })
                         log_payment(u["user_id"], u["business_name"], u["email"],
-                                    react_plan, pay_amount, "Reactivation")
+                                    react_plan, pay_amount, "Reactivation",
+                                    currency_code=u.get("currency_code") or "NGN")
                         st.success(f"✅ {u['business_name']} reactivated ({react_plan}) until {end_dt}")
                         st.rerun()
                 st.markdown("---")
