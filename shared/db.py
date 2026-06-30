@@ -97,8 +97,8 @@ PAYMENT_DETAILS = {
         "monthly_price":       3,
         "yearly_price":        25,
         "currency_label":      "$",
-        "flutterwave_monthly": "PASTE_YOUR_USD_MONTHLY_LINK_HERE",
-        "flutterwave_yearly":  "PASTE_YOUR_USD_YEARLY_LINK_HERE",
+        "flutterwave_monthly": "https://flutterwave.com/pay/trp1jdz0emrg",
+        "flutterwave_yearly":  "https://flutterwave.com/pay/l8gbytdsx359",
     },
 }
 
