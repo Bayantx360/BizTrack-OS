@@ -85,12 +85,34 @@ SUPPORTED_COUNTRIES: dict[str, dict] = {
 
 # ── Plan / payment config ──────────────────────────────────────────────────────
 PAYMENT_DETAILS = {
-    "monthly_price":       1500,
-    "yearly_price":        15000,
-    "trial_days":          7,
-    "flutterwave_monthly": "https://flutterwave.com/pay/e2jsc3ckyfya",
-    "flutterwave_yearly":  "https://flutterwave.com/pay/ztzprecyyhg2",
+    "trial_days": 7,
+    "NG": {
+        "monthly_price":       1500,
+        "yearly_price":        15000,
+        "currency_label":      "₦",
+        "flutterwave_monthly": "https://flutterwave.com/pay/e2jsc3ckyfya",
+        "flutterwave_yearly":  "https://flutterwave.com/pay/ztzprecyyhg2",
+    },
+    "GLOBAL": {
+        "monthly_price":       3,
+        "yearly_price":        25,
+        "currency_label":      "$",
+        "flutterwave_monthly": "PASTE_YOUR_USD_MONTHLY_LINK_HERE",
+        "flutterwave_yearly":  "PASTE_YOUR_USD_YEARLY_LINK_HERE",
+    },
 }
+
+
+def get_payment_plan(country_code: str) -> dict:
+    """
+    Return the correct pricing/payment dict for a given country code.
+    Nigeria (NG) gets the legacy Naira plan; everyone else gets the
+    global USD plan. Safe fallback to GLOBAL if country_code is missing
+    or unrecognized — never raises.
+    """
+    if not country_code:
+        return PAYMENT_DETAILS["GLOBAL"]
+    return PAYMENT_DETAILS.get(country_code.upper(), PAYMENT_DETAILS["GLOBAL"])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -216,7 +238,8 @@ def db_delete(table: str, id_col: str, id_val: str) -> bool:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def log_payment(user_id: str, business_name: str, email: str,
-                plan_type: str, amount: float, note: str = "") -> bool:
+                plan_type: str, amount: float, note: str = "",
+                currency_code: str = "NGN") -> bool:
     """Insert a payment record into the platform revenue ledger."""
     try:
         return db_insert(TBL_PAYMENTS, {
@@ -226,6 +249,7 @@ def log_payment(user_id: str, business_name: str, email: str,
             "email":         email,
             "plan_type":     plan_type,
             "amount":        amount,
+            "currency_code": currency_code,
             "payment_date":  datetime.now().isoformat(),
             "note":          note,
         })
