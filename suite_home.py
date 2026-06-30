@@ -35,7 +35,7 @@ from shared.auth import (
 )
 from shared.db import (
     db_update, TBL_USERS,
-    PAYMENT_DETAILS, validate_email,
+    PAYMENT_DETAILS, get_payment_plan, validate_email,
     gen_id, get_supabase,
     SUPPORTED_COUNTRIES,
 )
@@ -145,9 +145,6 @@ def page_login():
     Everything your business needs — sales, stock, debtors and growth insights — in one place.
   </div>
 
-  <div class="lp-sub" style="color: gold;">
-    Key Features that support your Business
-  </div>
   <div class="lp-feature-strip">
     <div class="lp-feature-chip"><span>💰</span> Sales & Revenue</div>
     <div class="lp-feature-chip"><span>📦</span> Inventory Control</div>
@@ -226,7 +223,7 @@ def page_login():
   </div>
   <div style="font-size:11.5px;color:#6B7280;text-align:center;
               line-height:1.6;max-width:340px;">
-    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses 🌏.
+    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses 🇳🇬🇬🇧🇺🇲.
   </div>
 </div>
     """, unsafe_allow_html=True)
@@ -372,13 +369,18 @@ def page_signup():
             password  = st.text_input("Password *",        type="password",
                                       placeholder="At least 6 characters")
             st.markdown("##### Choose a plan")
+            _plan      = get_payment_plan(SUPPORTED_COUNTRIES[_country]["code"])
+            _cl        = _plan["currency_label"]
+            _m_price   = _plan["monthly_price"]
+            _y_price   = _plan["yearly_price"]
+            _savings   = (_m_price * 12) - _y_price
             plan_type = st.radio(
                 "Plan",
                 options=["trial", "monthly", "yearly"],
                 format_func=lambda p: {
                     "trial":   f"🎁 Free Trial — 7 Days, no payment needed",
-                    "monthly": f"📅 Monthly — ₦{PAYMENT_DETAILS['monthly_price']:,}/month",
-                    "yearly":  f"🏆 Yearly — ₦{PAYMENT_DETAILS['yearly_price']:,}/year (save ₦3,000)",
+                    "monthly": f"📅 Monthly — {_cl}{_m_price:,}/month",
+                    "yearly":  f"🏆 Yearly — {_cl}{_y_price:,}/year (save {_cl}{_savings:,})",
                 }[p],
                 horizontal=False,
             )
