@@ -1312,8 +1312,8 @@ def page_admin():
         st.info("💡 No payment records yet.")
 
     st.markdown("---")
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-        "⏳ Pending Activation", "✅ Active Users", "📈 MRR & Growth",
+    tab1, tab1b, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+        "⏳ Pending Activation", "🔁 Renewal Requests", "✅ Active Users", "📈 MRR & Growth",
         "🚨 Churn Alerts", "🔑 Password Resets", "👥 All Users", "⛔ Deactivated",
         "👁️ User Activity",
     ])
@@ -1363,6 +1363,59 @@ def page_admin():
                             if st.button("❌ Cancel", key=f"no_del_u_{u['user_id']}"):
                                 st.session_state.pop(cdk, None); st.rerun()
                     st.markdown("---")
+
+    # ── Renewal Requests (self-service, awaiting confirmation) ──
+    with tab1b:
+        if "renewal_requested" not in users_df.columns:
+            st.info("No renewal requests column found yet — nothing to show.")
+        else:
+            renewal_df = users_df[users_df["renewal_requested"] == True]  # noqa: E712
+            if renewal_df.empty:
+                st.success("No pending renewal requests.")
+            else:
+                for _, u in renewal_df.iterrows():
+                    with st.container():
+                        col1, col2, col3 = st.columns([3, 2, 2])
+                        req_plan = u.get("renewal_requested_plan") or u.get("plan_type", "monthly")
+                        with col1:
+                            st.markdown(f"**{u['business_name']}** — {u['full_name']}")
+                            st.caption(
+                                f"📧 {u['email']} | 📱 {u.get('phone','—')} | "
+                                f"Current: {u['plan_type']} (exp. {u.get('subscription_end','?')}) | "
+                                f"Requested: {req_plan} | At: {u.get('renewal_requested_at','?')}"
+                            )
+                        with col2:
+                            _u_plan   = get_payment_plan(u.get("country_code") or "NG")
+                            ext_days  = 365 if req_plan == "yearly" else 30
+                            pay_amount = (_u_plan["yearly_price"] if req_plan == "yearly"
+                                          else _u_plan["monthly_price"])
+                            if st.button("✅ Confirm Renewal", key=f"confirm_renew_{u['user_id']}"):
+                                curr_end = parse_date(u.get("subscription_end", ""))
+                                base     = curr_end if (curr_end and curr_end > datetime.now()) else datetime.now()
+                                new_end  = (base + timedelta(days=ext_days)).strftime("%Y-%m-%d")
+                                db_update(TBL_USERS, "user_id", u["user_id"], {
+                                    "subscription_end":       new_end,
+                                    "plan_type":              req_plan,
+                                    "plan_status":            "active",
+                                    "renewal_requested":      False,
+                                    "renewal_requested_plan": None,
+                                    "renewal_requested_at":   None,
+                                })
+                                log_payment(u["user_id"], u["business_name"], u["email"],
+                                            req_plan, pay_amount, "Renewal",
+                                            currency_code=u.get("currency_code") or "NGN")
+                                st.success(f"✅ {u['business_name']} renewed ({req_plan}) to {new_end}")
+                                st.rerun()
+                        with col3:
+                            if st.button("❌ Dismiss", key=f"dismiss_renew_{u['user_id']}"):
+                                db_update(TBL_USERS, "user_id", u["user_id"], {
+                                    "renewal_requested":      False,
+                                    "renewal_requested_plan": None,
+                                    "renewal_requested_at":   None,
+                                })
+                                st.info(f"Dismissed renewal request for {u['business_name']}.")
+                                st.rerun()
+                        st.markdown("---")
 
     # ── Active ──
     with tab2:
