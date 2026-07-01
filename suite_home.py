@@ -684,11 +684,36 @@ def page_settings():
                 st.markdown(f"**Expires:** {sub_end_raw} (expired)")
 
     if user.get("renewal_requested"):
-        req_plan = user.get("renewal_requested_plan", plan_type)
+        req_plan   = user.get("renewal_requested_plan") or plan_type
+        req_amount = _plan["yearly_price"] if req_plan == "yearly" else _plan["monthly_price"]
+        req_link   = _plan["flutterwave_yearly"] if req_plan == "yearly" else _plan["flutterwave_monthly"]
+
         st.info(
-            f"⏳ Your renewal request ({req_plan}) is awaiting admin confirmation. "
-            "You'll be upgraded as soon as it's confirmed."
+            f"⏳ Your renewal request ({req_plan}) is awaiting admin confirmation."
         )
+        st.markdown("**Haven't paid yet?** Use the button below — it'll always be here until your renewal is confirmed.")
+        st.link_button(
+            f"💳 Pay {req_plan.title()} — {cl}{req_amount:,}",
+            url=req_link,
+            width='stretch', type="primary",
+        )
+        st.caption("Already paid? No action needed — your admin will confirm it shortly.")
+
+        with st.expander("Made a mistake or picked the wrong plan?"):
+            if st.button("↩️ Cancel this renewal request", key="settings_renew_cancel"):
+                ok = db_update(TBL_USERS, "user_id", user_id, {
+                    "renewal_requested":      False,
+                    "renewal_requested_plan": None,
+                    "renewal_requested_at":   None,
+                })
+                if ok:
+                    updated = get_user_by_email(user.get("email", ""))
+                    if updated:
+                        st.session_state.user = updated
+                    st.success("Renewal request cancelled. You can start a new one anytime.")
+                    st.rerun()
+                else:
+                    st.error("Could not cancel the request. Please try again.")
     else:
         renew_plan = st.selectbox(
             "Plan to renew",
