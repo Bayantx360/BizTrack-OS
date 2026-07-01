@@ -655,6 +655,93 @@ def page_settings():
     user    = st.session_state.get("user", {})
     user_id = user.get("user_id", "")
 
+    # ── Plan & Renewal ──────────────────────────────────────────────────────
+    section_header("💳 Plan & Renewal")
+
+    plan_status  = user.get("plan_status", "")
+    plan_type    = user.get("plan_type", "monthly")
+    sub_end_raw  = user.get("subscription_end", "")
+    country_code = user.get("country_code") or "NG"
+    _plan        = get_payment_plan(country_code)
+    cl           = _plan["currency_label"]
+
+    days_left = None
+    if sub_end_raw:
+        try:
+            end_dt = datetime.strptime(str(sub_end_raw)[:10], "%Y-%m-%d")
+            days_left = (end_dt - datetime.now()).days
+        except Exception:
+            pass
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f"**Current plan:** {plan_type.title()} ({plan_status.replace('_',' ').title()})")
+    with c2:
+        if days_left is not None:
+            if days_left >= 0:
+                st.markdown(f"**Expires:** {sub_end_raw} ({days_left} day{'s' if days_left != 1 else ''} left)")
+            else:
+                st.markdown(f"**Expires:** {sub_end_raw} (expired)")
+
+    if user.get("renewal_requested"):
+        req_plan = user.get("renewal_requested_plan", plan_type)
+        st.info(
+            f"⏳ Your renewal request ({req_plan}) is awaiting admin confirmation. "
+            "You'll be upgraded as soon as it's confirmed."
+        )
+    else:
+        renew_plan = st.selectbox(
+            "Plan to renew",
+            ["monthly", "yearly"],
+            index=0 if plan_type != "yearly" else 1,
+            key="settings_renew_plan_choice",
+        )
+        renew_amount = _plan["yearly_price"] if renew_plan == "yearly" else _plan["monthly_price"]
+
+        confirm_key = "settings_renew_confirm_pending"
+
+        if not st.session_state.get(confirm_key, False):
+            if st.button(f"🔁 Renew Plan — {cl}{renew_amount:,}", key="settings_renew_btn"):
+                st.session_state[confirm_key] = renew_plan
+                st.rerun()
+        else:
+            pending_plan   = st.session_state[confirm_key]
+            pending_amount = _plan["yearly_price"] if pending_plan == "yearly" else _plan["monthly_price"]
+            pending_link   = _plan["flutterwave_yearly"] if pending_plan == "yearly" else _plan["flutterwave_monthly"]
+            st.warning(
+                f"You're about to request a **{pending_plan}** renewal for **{cl}{pending_amount:,}**. "
+                "This will take you to the payment page. Are you sure?"
+            )
+            cc1, cc2 = st.columns(2)
+            with cc1:
+                if st.button("✅ Yes, continue to payment", key="settings_renew_yes", type="primary"):
+                    ok = db_update(TBL_USERS, "user_id", user_id, {
+                        "renewal_requested":       True,
+                        "renewal_requested_plan":  pending_plan,
+                        "renewal_requested_at":    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    })
+                    if ok:
+                        updated = get_user_by_email(user.get("email", ""))
+                        if updated:
+                            st.session_state.user = updated
+                        st.session_state.pop(confirm_key, None)
+                        st.success("Renewal request recorded. Complete your payment below.")
+                        st.link_button(
+                            f"💳 Pay {pending_plan.title()} — {cl}{pending_amount:,}",
+                            url=pending_link,
+                            width='stretch', type="primary",
+                        )
+                        st.caption(
+                            "Once your payment is confirmed by the admin, your plan will be extended automatically."
+                        )
+                    else:
+                        st.error("Could not record your renewal request. Please try again.")
+            with cc2:
+                if st.button("❌ Cancel", key="settings_renew_no"):
+                    st.session_state.pop(confirm_key, None)
+                    st.rerun()
+
+    st.markdown("---")
     section_header("🔐 Void PIN")
     st.markdown(
         "The Void PIN protects sale records from being deleted. "
