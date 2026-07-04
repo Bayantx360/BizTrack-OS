@@ -557,13 +557,43 @@ def page_products():
 
             # ── Delivery fields (outside form for reactivity) ──
             st.markdown("**📥 New Delivery**")
+
+            if upp > 1:
+                restock_mode = st.radio(
+                    "Received as",
+                    options=["base", "sub"],
+                    format_func=lambda x: (
+                        f"Full {base_unit}s" if x == "base"
+                        else f"Individual {sub_unit}s"
+                    ),
+                    horizontal=True,
+                    key="restock_mode",
+                    help=f"Use '{sub_unit}s' if you received a partial "
+                         f"{base_unit} (e.g. only 3 out of {upp}).",
+                )
+            else:
+                restock_mode = "base"
+
             rd1, rd2 = st.columns(2)
-            add_qty      = rd1.number_input(
-                f"Packs Received ({base_unit}s) *",
-                min_value=1, step=1, value=10,
-                key="restock_add_qty",
-                help=f"Number of {base_unit}s received from supplier",
-            )
+
+            if restock_mode == "sub":
+                add_qty_raw = rd1.number_input(
+                    f"{sub_unit.capitalize()}s Received *",
+                    min_value=1, step=1, value=upp,
+                    key="restock_add_qty_sub",
+                    help=f"Number of individual {sub_unit}s received "
+                         f"({upp} {sub_unit}s = 1 {base_unit})",
+                )
+                add_qty = add_qty_raw / upp  # fractional base units
+                rd1.caption(f"= **{add_qty:.2f} {base_unit}s**")
+            else:
+                add_qty = rd1.number_input(
+                    f"Packs Received ({base_unit}s) *",
+                    min_value=1, step=1, value=10,
+                    key="restock_add_qty",
+                    help=f"Number of {base_unit}s received from supplier",
+                )
+
             restock_note = rd2.text_input(
                 "Batch Note (optional)",
                 placeholder="e.g. 3 cartons were dented",
@@ -685,7 +715,10 @@ def page_products():
                         resolved_supplier_id   = selected_supplier_id   or ""
                         resolved_supplier_name = selected_supplier_name or ""
 
-                    new_qty = int(round(cur_stock + add_qty))
+                    if upp > 1:
+                        new_qty = round(cur_stock + add_qty, 4)
+                    else:
+                        new_qty = int(round(cur_stock + add_qty))
                     updates = {"stock_quantity": new_qty}
                     if update_prices:
                         updates["cost_price"]        = new_cost
@@ -694,6 +727,15 @@ def page_products():
                     # Always write dates (None clears them, a value updates them)
                     updates["mfg_date"]    = restock_mfg_date.isoformat()    if restock_mfg_date    else None
                     updates["expiry_date"] = restock_expiry_date.isoformat()  if restock_expiry_date else None
+
+                    _auto_note = (
+                        f"Received {add_qty_raw} {sub_unit}(s) "
+                        f"(= {add_qty:.2f} {base_unit}s)"
+                        if restock_mode == "sub" else ""
+                    )
+                    _final_note = " | ".join(
+                        n for n in [restock_note.strip() if restock_note else "", _auto_note] if n
+                    )
 
                     ok = db_update(TBL_PRODUCTS, "product_id",
                                    selected_product["product_id"], updates)
@@ -708,7 +750,7 @@ def page_products():
                             "qty_after":     new_qty if upp > 1 else int(new_qty),
                             "supplier_id":   resolved_supplier_id,
                             "supplier_name": resolved_supplier_name,
-                            "note":          restock_note.strip() if restock_note else "",
+                            "note":          _final_note,
                             "recorded_by":   user.get("full_name", user.get("email", "")),
                             "restock_date":  datetime.now().isoformat(),
                         })
