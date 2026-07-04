@@ -146,7 +146,7 @@ def page_login():
   </div>
 
   <div class="lp-sub" style="color: gold;">
-    Key Features that support your Business
+    Key Features that you can use on BizTrack-OS
   </div>
 
   <div class="lp-feature-strip">
