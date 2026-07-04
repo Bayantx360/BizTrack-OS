@@ -38,6 +38,46 @@ from shared.theme import apply_suite_css, kpi_card, section_header, page_header,
 from shared.auth import verify_void_pin, has_void_pin
 
 
+def _restore_stock_amount(product_row, sale_item):
+    """
+    Compute the correct stock_quantity after voiding a sale line.
+
+    Bug this fixes: sale_items.quantity is recorded in whatever unit the
+    sale was made in (e.g. 6 pieces, when the product is sold by sub-unit),
+    while products.stock_quantity is always tracked in BASE units and can be
+    fractional (e.g. 6.5 bags left after selling 6 of 12 pieces-per-bag).
+    The old code did `int(stock_quantity) + int(quantity)` — mixing units
+    and truncating the fraction — so voiding a 6-piece sale against 6.5
+    bags on hand produced 6 + 6 = 12 bags instead of the correct 7 bags.
+
+    Fix: prefer the base-unit amount that was actually deducted at sale
+    time (sale_items.stock_deduct, persisted going forward). For older
+    sales recorded before this fix (no stock_deduct column populated),
+    fall back to converting the sold quantity into base units using the
+    product's current units_per_pack and recorded sell_mode.
+    """
+    current_stock = safe_float(product_row["stock_quantity"])
+    upp = safe_int(product_row.get("units_per_pack", 1)) or 1
+
+    stock_deduct = sale_item.get("stock_deduct", None)
+    if stock_deduct is not None and str(stock_deduct) != "" and not pd.isna(stock_deduct):
+        restore_amt = safe_float(stock_deduct)
+    else:
+        # Legacy fallback for sales recorded before stock_deduct existed.
+        qty = safe_float(sale_item.get("quantity", 0))
+        sell_mode = sale_item.get("sell_mode", "base")
+        restore_amt = (qty / upp) if sell_mode == "sub" else qty
+
+    new_stock = current_stock + restore_amt
+
+    # Keep fractional stock for sub-unit products, whole numbers only
+    # for products sold strictly in full packs — mirrors the same rule
+    # used when stock is originally deducted during a sale.
+    if upp > 1:
+        return round(max(0.0, new_stock), 4)
+    return int(max(0, round(new_stock)))
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
@@ -403,7 +443,7 @@ def page_record_sale():
             st.caption(
                 f"📦 Listed price: **{fmt_naira(default_price)} per {unit_label}** "
                 f"&nbsp;|&nbsp; 🏷️ Available: **{avail_display:.0f} {unit_label}s**"
-                + (f" ({remaining_base:.0f} {base_unit}s)" if sell_mode == "sub" else "")
+                + (f" ({remaining_base:.2f} {base_unit}s)" if sell_mode == "sub" else "")
             )
 
             with st.form("add_to_cart", clear_on_submit=True):
@@ -634,6 +674,13 @@ def page_record_sale():
                             "line_total":   item["line_total"],
                             "cost_total":   item["cost_total"],
                             "gross_profit": item["gross_profit"],
+                            # Stock was deducted in BASE units (may be fractional,
+                            # e.g. 0.5 of a 12-pack bag). We must persist this so a
+                            # future void restores the exact same base-unit amount
+                            # instead of guessing from the sold quantity (which is
+                            # in whatever unit — base or sub — the sale was made in).
+                            "stock_deduct": item["stock_deduct"],
+                            "sell_mode":    item["sell_mode"],
                         })
                     # Deduct stock — business_id filter satisfies RLS.
                     # stock_quantity is float8 in Supabase to support sub-unit sales
@@ -1220,7 +1267,7 @@ def page_sales_history():
                             for _, item in items_df.iterrows():
                                 pr = live[live["product_id"] == item["product_id"]]
                                 if not pr.empty:
-                                    restored = int(pr.iloc[0]["stock_quantity"]) + int(item["quantity"])
+                                    restored = _restore_stock_amount(pr.iloc[0], item)
                                     db_update(TBL_PRODUCTS, "product_id", item["product_id"],
                                               {"stock_quantity": restored})
                         ok = db_delete(TBL_SALES, "sale_id", sale_id)
@@ -1261,7 +1308,7 @@ def page_sales_history():
                                 for _, item in items_df.iterrows():
                                     pr = live[live["product_id"] == item["product_id"]]
                                     if not pr.empty:
-                                        restored = int(pr.iloc[0]["stock_quantity"]) + int(item["quantity"])
+                                        restored = _restore_stock_amount(pr.iloc[0], item)
                                         db_update(TBL_PRODUCTS, "product_id", item["product_id"],
                                                   {"stock_quantity": restored})
                             ok = db_delete(TBL_SALES, "sale_id", sale_id)

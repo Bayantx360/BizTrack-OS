@@ -472,8 +472,8 @@ def page_products():
             # Current stock — compact single line, no truncation
             if upp > 1:
                 stock_str = (
-                    f"{cur_stock:.0f} {base_unit}s "
-                    f"({int(cur_stock * upp)} {sub_unit}s)"
+                    f"{cur_stock:.2f} {base_unit}s "
+                    f"({int(round(cur_stock * upp))} {sub_unit}s)"
                 )
             else:
                 stock_str = f"{cur_stock:.0f} {base_unit}s"
@@ -703,18 +703,19 @@ def page_products():
                             "business_id":   business_id,
                             "product_id":    selected_product["product_id"],
                             "product_name":  selected_product["product_name"],
-                            "qty_added":     int(add_qty),
-                            "qty_before":    int(cur_stock),
-                            "qty_after":     int(new_qty),
+                            "qty_added":     add_qty if upp > 1 else int(add_qty),
+                            "qty_before":    cur_stock if upp > 1 else int(cur_stock),
+                            "qty_after":     new_qty if upp > 1 else int(new_qty),
                             "supplier_id":   resolved_supplier_id,
                             "supplier_name": resolved_supplier_name,
                             "note":          restock_note.strip() if restock_note else "",
                             "recorded_by":   user.get("full_name", user.get("email", "")),
                             "restock_date":  datetime.now().isoformat(),
                         })
+                        _fmt = ".2f" if upp > 1 else ".0f"
                         msg = (
                             f"✅ Restocked! {selected_product['product_name']}: "
-                            f"{cur_stock:.0f} → {new_qty:.0f} {base_unit}s"
+                            f"{cur_stock:{_fmt}} → {new_qty:{_fmt}} {base_unit}s"
                         )
                         if resolved_supplier_name:
                             msg += f" | Supplier: {resolved_supplier_name}"
