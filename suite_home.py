@@ -338,7 +338,7 @@ def page_signup():
   <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;
     color:#F0F4F8;letter-spacing:-0.04em;">👤Create your account</div>
   <div style="font-size:0.85rem;color:#22C55E;margin-top:0.3rem;">
-    ✨️Start with a 14-day free trial. No credit card required<br><br>Start tracking sales💰, inventory📦, debtors📕, expenses💸, profit📈 in real time.</div>
+    ✨️Start with a 7 days free trial. No credit card required<br><br>Start tracking sales💰, inventory📦, debtors📕, expenses💸, profit📈 in real time.</div>
 </div>
         """, unsafe_allow_html=True)
 
@@ -384,7 +384,7 @@ def page_signup():
                 "Plan",
                 options=["trial", "monthly", "yearly"],
                 format_func=lambda p: {
-                    "trial":   f"🎁 Free Trial — 14 Days, no payment needed",
+                    "trial":   f"🎁 Free Trial — 7 Days, no payment needed",
                     "monthly": f"📅 Monthly — {_cl_safe}{_m_price:,}/month",
                     "yearly":  f"🏆 Yearly — {_cl_safe}{_y_price:,}/year (save {_cl_safe}{_savings:,})",
                 }[p],
