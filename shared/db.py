@@ -738,6 +738,23 @@ def safe_int(val, default: int = 0) -> int:
         return default
 
 
+def fmt_qty(val, decimals: int = 2) -> str:
+    """
+    Format a stock/quantity number for display, trimming trailing zeros so
+    it reads naturally for non-technical users: 18.0 -> "18", 17.50 -> "17.5",
+    18.20 -> "18.2" — instead of always showing a fixed "17.50" / "18.00",
+    which can look like a typo or confuse users unfamiliar with decimals.
+    """
+    try:
+        num = round(float(val), decimals)
+    except Exception:
+        return str(val)
+    if num == int(num):
+        return f"{int(num)}"
+    text = f"{num:.{decimals}f}".rstrip("0").rstrip(".")
+    return text
+
+
 def parse_date(val):
     """Parse a date string to datetime. Returns None on failure."""
     try:

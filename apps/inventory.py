@@ -27,7 +27,7 @@ from shared.db import (
     db_fetch, db_insert, db_update, db_delete,
     get_restock_df, get_suppliers_df,
     TBL_PRODUCTS, TBL_RESTOCK, TBL_SUPPLIERS,
-    gen_id, fmt_naira, safe_float, safe_int,
+    gen_id, fmt_naira, safe_float, safe_int, fmt_qty,
 )
 from shared.theme import (
     apply_suite_css, kpi_card, section_header, page_header, stock_pill,
@@ -472,11 +472,11 @@ def page_products():
             # Current stock — compact single line, no truncation
             if upp > 1:
                 stock_str = (
-                    f"{cur_stock:.2f} {base_unit}s "
+                    f"{fmt_qty(cur_stock)} {base_unit}s "
                     f"({int(round(cur_stock * upp))} {sub_unit}s)"
                 )
             else:
-                stock_str = f"{cur_stock:.0f} {base_unit}s"
+                stock_str = f"{fmt_qty(cur_stock)} {base_unit}s"
             st.caption(f"📦 Current stock: **{stock_str}**")
 
             # ── Recent deliveries panel (reactive to product selection) ──
@@ -585,7 +585,7 @@ def page_products():
                          f"({upp} {sub_unit}s = 1 {base_unit})",
                 )
                 add_qty = add_qty_raw / upp  # fractional base units
-                rd1.caption(f"= **{add_qty:.2f} {base_unit}s**")
+                rd1.caption(f"= **{fmt_qty(add_qty)} {base_unit}s**")
             else:
                 add_qty = rd1.number_input(
                     f"Packs Received ({base_unit}s) *",
@@ -730,7 +730,7 @@ def page_products():
 
                     _auto_note = (
                         f"Received {add_qty_raw} {sub_unit}(s) "
-                        f"(= {add_qty:.2f} {base_unit}s)"
+                        f"(= {fmt_qty(add_qty)} {base_unit}s)"
                         if restock_mode == "sub" else ""
                     )
                     _final_note = " | ".join(
@@ -754,10 +754,9 @@ def page_products():
                             "recorded_by":   user.get("full_name", user.get("email", "")),
                             "restock_date":  datetime.now().isoformat(),
                         })
-                        _fmt = ".2f" if upp > 1 else ".0f"
                         msg = (
                             f"✅ Restocked! {selected_product['product_name']}: "
-                            f"{cur_stock:{_fmt}} → {new_qty:{_fmt}} {base_unit}s"
+                            f"{fmt_qty(cur_stock)} → {fmt_qty(new_qty)} {base_unit}s"
                         )
                         if resolved_supplier_name:
                             msg += f" | Supplier: {resolved_supplier_name}"

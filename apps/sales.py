@@ -32,7 +32,7 @@ from shared.db import (
     db_fetch, db_insert, db_update, db_delete,
     log_activity,
     TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS,
-    gen_id, fmt_naira, safe_float, safe_int,
+    gen_id, fmt_naira, safe_float, safe_int, fmt_qty,
 )
 from shared.theme import apply_suite_css, kpi_card, section_header, page_header, chart_layout, chart_config, CHART_GOLD, CHART_JADE, CHART_INDIGO, CHART_RUBY, CHART_PALETTE
 from shared.auth import verify_void_pin, has_void_pin
@@ -442,8 +442,8 @@ def page_record_sale():
 
             st.caption(
                 f"📦 Listed price: **{fmt_naira(default_price)} per {unit_label}** "
-                f"&nbsp;|&nbsp; 🏷️ Available: **{avail_display:.0f} {unit_label}s**"
-                + (f" ({remaining_base:.2f} {base_unit}s)" if sell_mode == "sub" else "")
+                f"&nbsp;|&nbsp; 🏷️ Available: **{fmt_qty(avail_display)} {unit_label}s**"
+                + (f" ({fmt_qty(remaining_base)} {base_unit}s)" if sell_mode == "sub" else "")
             )
 
             with st.form("add_to_cart", clear_on_submit=True):
@@ -482,7 +482,7 @@ def page_record_sale():
 
                 if stock_deduct > remaining_base:
                     st.error(
-                        f"Not enough stock. Available: {avail_display:.0f} {unit_label}s "
+                        f"Not enough stock. Available: {fmt_qty(avail_display)} {unit_label}s "
                         f"({remaining_base:.1f} {base_unit}s)."
                     )
                 else:
