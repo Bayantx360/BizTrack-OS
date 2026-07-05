@@ -479,10 +479,11 @@ def compute_kpis(sales_df: pd.DataFrame, expenses_df: pd.DataFrame) -> dict:
 
     df = sales_df.dropna(subset=["sale_date"])
 
-    today_df  = df[df["sale_date"].dt.date == today]
-    week_df   = df[df["sale_date"] >= (now - timedelta(days=7))]
-    month_df  = df[df["sale_date"] >= (now - timedelta(days=30))]
-    prev_week = df[
+    today_df   = df[df["sale_date"].dt.date == today]
+    week_df    = df[df["sale_date"] >= (now - timedelta(days=7))]
+    month_start = datetime(now.year, now.month, 1)
+    month_df   = df[(df["sale_date"] >= month_start) & (df["sale_date"] <= now)]
+    prev_week  = df[
         (df["sale_date"] >= (now - timedelta(days=14))) &
         (df["sale_date"] <  (now - timedelta(days=7)))
     ]
@@ -511,7 +512,10 @@ def compute_kpis(sales_df: pd.DataFrame, expenses_df: pd.DataFrame) -> dict:
         kpis["week_growth"] = ((curr_rev - prev_rev) / prev_rev) * 100
 
     if not expenses_df.empty:
-        m_exp = expenses_df[expenses_df["expense_date"] >= (now - timedelta(days=30))]
+        m_exp = expenses_df[
+            (expenses_df["expense_date"] >= month_start) &
+            (expenses_df["expense_date"] <= now)
+        ]
         kpis["month_expenses"] = m_exp["amount"].sum()
     kpis["net_profit"] = kpis["month_profit"] - kpis["month_expenses"]
 
