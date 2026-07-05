@@ -538,6 +538,10 @@ def page_record_sale():
                     if neg < item["unit_price"]:
                         price_str = (f"~~{fmt_naira(item['unit_price'])}~~ → "
                                      f"**{fmt_naira(neg)}** (-{fmt_naira(item['discount_amt'])})")
+                    elif neg > item["unit_price"]:
+                        markup_amt = round((neg - item["unit_price"]) * item["quantity"], 2)
+                        price_str = (f"~~{fmt_naira(item['unit_price'])}~~ → "
+                                     f"**{fmt_naira(neg)}** (+{fmt_naira(markup_amt)})")
                     else:
                         price_str = fmt_naira(item["unit_price"])
                     st.markdown(
