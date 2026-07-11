@@ -446,25 +446,52 @@ def page_record_sale():
                 + (f" ({fmt_qty(remaining_base)} {base_unit}s)" if sell_mode == "sub" else "")
             )
 
+            currency_sym = st.session_state.get("currency_symbol", "₦")
+            pricing_mode = st.radio(
+                "How do you want to enter the price?",
+                options=["per_unit", "total"],
+                format_func=lambda x: "Price per unit" if x == "per_unit" else "Total price for this line",
+                horizontal=True,
+                key="cart_pricing_mode",
+                help=(
+                    "Use 'Total price for this line' when you've agreed a lump sum for multiple "
+                    "units (e.g. 3 for ₦500) instead of a clean per-unit rate — BizTrack will "
+                    "work out the per-unit rate for you."
+                ),
+            )
+
             with st.form("add_to_cart", clear_on_submit=True):
                 ac1, ac2  = st.columns(2)
                 sel_qty   = ac1.number_input(
                     f"Quantity ({unit_label}s)",
                     min_value=1, max_value=max(1, int(avail_display)), value=1, step=1,
                 )
-                sel_price = ac2.number_input(
-                    f"Price per " + unit_label + " (" + st.session_state.get("currency_symbol","₦") + ")",
-                    min_value=0.0, value=float(default_price), step=100.0,
-                    help="Change to override listed price",
-                )
-                if sel_price > default_price:
-                    st.warning(f"⚠️ Above listed price ({fmt_naira(default_price)}). Confirm?")
+
+                if pricing_mode == "total":
+                    sel_total_price = ac2.number_input(
+                        f"Total price for these {unit_label}s ({currency_sym})",
+                        min_value=0.0, value=float(default_price), step=100.0,
+                        help="Enter the full amount for this line — the per-unit rate is worked out automatically.",
+                    )
+                    sel_price = None
+                    listed_total = round(default_price * sel_qty, 2)
+                    if sel_total_price > listed_total:
+                        st.warning(f"⚠️ Above listed total ({fmt_naira(listed_total)} for {sel_qty} {unit_label}s). Confirm?")
+                else:
+                    sel_price = ac2.number_input(
+                        f"Price per " + unit_label + " (" + currency_sym + ")",
+                        min_value=0.0, value=float(default_price), step=100.0,
+                        help="Change to override listed price",
+                    )
+                    sel_total_price = None
+                    if sel_price > default_price:
+                        st.warning(f"⚠️ Above listed price ({fmt_naira(default_price)}). Confirm?")
+
                 add_btn = st.form_submit_button("➕ Add to Cart", type="primary",
                                                 width='stretch')
 
             if add_btn:
                 prod_row   = in_stock[in_stock["product_name"] == sel_name].iloc[0]
-                negotiated = float(sel_price)
 
                 # Convert everything to base units for stock deduction
                 if sell_mode == "sub":
@@ -476,8 +503,16 @@ def page_record_sale():
                     cost_total    = round(cost_price_u * sel_qty, 2)
                     display_label = f"{sel_qty} {base_unit}s"
 
-                line_total   = round(negotiated * sel_qty, 2)
-                disc_amt     = max(0, round((default_price - negotiated) * sel_qty, 2))
+                if pricing_mode == "total":
+                    # Line total is exactly what the user typed — no per-unit rounding drift.
+                    line_total = round(float(sel_total_price), 2)
+                    negotiated = round(line_total / sel_qty, 6) if sel_qty else 0.0
+                    disc_amt   = max(0, round(default_price * sel_qty - line_total, 2))
+                else:
+                    negotiated   = float(sel_price)
+                    line_total   = round(negotiated * sel_qty, 2)
+                    disc_amt     = max(0, round((default_price - negotiated) * sel_qty, 2))
+
                 gross_profit = round(line_total - cost_total, 2)
 
                 if stock_deduct > remaining_base:
@@ -487,23 +522,28 @@ def page_record_sale():
                     )
                 else:
                     merged = False
-                    for item in st.session_state.cart:
-                        if (item["product_id"] == prod_row["product_id"] and
-                                item["sell_mode"] == sell_mode and
-                                item["negotiated_price"] == negotiated):
-                            item["quantity"]     += int(sel_qty)
-                            item["stock_deduct"] += stock_deduct
-                            item["line_total"]    = round(negotiated * item["quantity"], 2)
-                            item["cost_total"]    = round(cost_price_u * item["stock_deduct"], 2)
-                            item["gross_profit"]  = round(item["line_total"] - item["cost_total"], 2)
-                            item["discount_amt"]  = max(0, round((default_price - negotiated) * item["quantity"], 2))
-                            merged = True
-                            break
+                    # Only merge clean per-unit lines; total-price lines stay on their own
+                    # row so the exact typed amount is never re-multiplied/rounded.
+                    if pricing_mode == "per_unit":
+                        for item in st.session_state.cart:
+                            if (item["product_id"] == prod_row["product_id"] and
+                                    item["sell_mode"] == sell_mode and
+                                    item.get("pricing_mode", "per_unit") == "per_unit" and
+                                    item["negotiated_price"] == negotiated):
+                                item["quantity"]     += int(sel_qty)
+                                item["stock_deduct"] += stock_deduct
+                                item["line_total"]    = round(negotiated * item["quantity"], 2)
+                                item["cost_total"]    = round(cost_price_u * item["stock_deduct"], 2)
+                                item["gross_profit"]  = round(item["line_total"] - item["cost_total"], 2)
+                                item["discount_amt"]  = max(0, round((default_price - negotiated) * item["quantity"], 2))
+                                merged = True
+                                break
                     if not merged:
                         st.session_state.cart.append({
                             "product_id":       prod_row["product_id"],
                             "product_name":     sel_name,
                             "sell_mode":        sell_mode,
+                            "pricing_mode":     pricing_mode,
                             "unit_label":       unit_label,
                             "display_label":    display_label,
                             "quantity":         int(sel_qty),
