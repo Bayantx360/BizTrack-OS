@@ -23,8 +23,8 @@ import streamlit as st
 
 from shared.db import (
     get_products_df, get_products_df_live, get_sales_df, get_expenses_df,
-    compute_insights,
-    db_fetch, db_insert, db_update, db_delete,
+    compute_insights, get_insights_cached,
+    db_fetch, db_insert, db_update, db_delete, clear_table_cache,
     get_restock_df, get_suppliers_df,
     TBL_PRODUCTS, TBL_RESTOCK, TBL_SUPPLIERS,
     gen_id, fmt_naira, safe_float, safe_int, fmt_qty,
@@ -264,12 +264,13 @@ def page_products():
                     st.session_state.prod_page = min(total_pages, pg+1); st.rerun()
 
         # ── Stockout Projection (bottom of tab 1) ──
+        # Uses the cached insights wrapper (60s TTL, keyed by business_id) so
+        # this heavy computation runs at most once a minute — not on every
+        # rerun of this tab, which previously included every keystroke typed
+        # into the product search box above.
         st.markdown("---")
         section_header("📅 Stockout Projections")
-        sales_df    = get_sales_df(business_id)
-        expenses_df = get_expenses_df(business_id)
-        insights    = compute_insights(sales_df, products_df if not products_df.empty
-                                       else get_products_df(business_id), expenses_df)
+        insights = get_insights_cached(business_id)
 
         if not insights["stockout_projection"].empty:
             proj = insights["stockout_projection"].copy()

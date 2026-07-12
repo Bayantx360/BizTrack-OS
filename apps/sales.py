@@ -26,10 +26,10 @@ import streamlit as st
 from shared.db import (
     get_supabase,
     get_sales_df, get_products_df, get_products_df_live, get_expenses_df,
-    get_sale_items_df,
+    get_sale_items_df, get_products_by_ids,
     get_debts_df,
     compute_kpis,
-    db_fetch, db_insert, db_update, db_delete,
+    db_fetch, db_insert, db_insert_many, db_update, db_delete, clear_table_cache,
     log_activity,
     TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS,
     gen_id, fmt_naira, safe_float, safe_int, fmt_qty,
@@ -704,8 +704,11 @@ def page_record_sale():
                 })
 
                 if sale_ok:
-                    for item in cart:
-                        db_insert(TBL_SALE_ITEMS, {
+                    # Bulk-insert all cart lines in one request instead of
+                    # looping db_insert() per item (was N round-trips + N
+                    # cache invalidations for an N-item cart).
+                    db_insert_many(TBL_SALE_ITEMS, [
+                        {
                             "item_id":      gen_id("ITM"),
                             "sale_id":      sale_id,
                             "business_id":  business_id,
@@ -725,16 +728,21 @@ def page_record_sale():
                             # in whatever unit — base or sub — the sale was made in).
                             "stock_deduct": item["stock_deduct"],
                             "sell_mode":    item["sell_mode"],
-                        })
+                        }
+                        for item in cart
+                    ])
                     # Deduct stock — business_id filter satisfies RLS.
                     # stock_quantity is float8 in Supabase to support sub-unit sales
                     # (e.g. selling 3 out of a 12-unit bag deducts 0.25 bags).
                     # ── Pre-commit stock guard (concurrent-use safety) ──────
-                    # Re-fetch live stock at commit time and validate every cart
+                    # Fetch live stock for just the cart's products (not the
+                    # whole catalogue) at commit time and validate every cart
                     # item before writing anything. If another device sold the
                     # same product between cart-build and checkout, we catch it
                     # here and abort cleanly instead of writing negative stock.
-                    live_products = get_products_df_live(business_id)
+                    live_products = get_products_by_ids(
+                        business_id, [item["product_id"] for item in cart]
+                    )
                     stock_conflicts = []
                     if not live_products.empty:
                         for item in cart:
@@ -762,6 +770,10 @@ def page_record_sale():
                             + "\n\nPlease remove or reduce those items and try again."
                         )
                     else:
+                        # clear_cache=False on each write here — one write per
+                        # cart item is unavoidable (each needs a different new
+                        # stock value), but we only need to invalidate the
+                        # products cache once, after the loop, not N times.
                         for item in cart:
                             if not live_products.empty:
                                 pr = live_products[
@@ -779,7 +791,8 @@ def page_record_sale():
                                     else:
                                         new_stock = int(max(0, round(raw)))  # integer, e.g. 7 units
                                     db_update(TBL_PRODUCTS, "product_id", item["product_id"],
-                                              {"stock_quantity": new_stock})
+                                              {"stock_quantity": new_stock}, clear_cache=False)
+                        clear_table_cache(TBL_PRODUCTS)
 
                     # ── Debt recording (part payment or full credit) ──
                     _balance = round(grand_total - _paid_now, 2)
@@ -1313,7 +1326,8 @@ def page_sales_history():
                                 if not pr.empty:
                                     restored = _restore_stock_amount(pr.iloc[0], item)
                                     db_update(TBL_PRODUCTS, "product_id", item["product_id"],
-                                              {"stock_quantity": restored})
+                                              {"stock_quantity": restored}, clear_cache=False)
+                            clear_table_cache(TBL_PRODUCTS)
                         ok = db_delete(TBL_SALES, "sale_id", sale_id)
                         if not items_df.empty:
                             db_delete(TBL_SALE_ITEMS, "sale_id", sale_id)
@@ -1354,7 +1368,8 @@ def page_sales_history():
                                     if not pr.empty:
                                         restored = _restore_stock_amount(pr.iloc[0], item)
                                         db_update(TBL_PRODUCTS, "product_id", item["product_id"],
-                                                  {"stock_quantity": restored})
+                                                  {"stock_quantity": restored}, clear_cache=False)
+                                clear_table_cache(TBL_PRODUCTS)
                             ok = db_delete(TBL_SALES, "sale_id", sale_id)
                             if not items_df.empty:
                                 db_delete(TBL_SALE_ITEMS, "sale_id", sale_id)

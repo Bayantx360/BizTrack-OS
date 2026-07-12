@@ -23,7 +23,7 @@ import streamlit as st
 
 from shared.db import (
     get_sales_df, get_products_df, get_expenses_df,
-    compute_kpis, compute_insights,
+    compute_kpis, compute_insights, get_insights_cached,
     db_fetch, db_insert, db_update, db_delete,
     get_payments_df, log_payment,
     get_debts_df, get_debt_payments_df, record_debt_payment,
@@ -249,10 +249,8 @@ def page_insights():
 
     with st.spinner("Crunching your numbers…"):
         sales_df    = get_sales_df(business_id)
-        products_df = get_products_df(business_id)
         expenses_df = get_expenses_df(business_id)
-        items_df    = db_fetch(TBL_SALE_ITEMS, {"business_id": business_id})
-        insights    = compute_insights(sales_df, products_df, expenses_df, items_df)
+        insights    = get_insights_cached(business_id)
         kpis        = compute_kpis(sales_df, expenses_df)
 
     if sales_df.empty:
