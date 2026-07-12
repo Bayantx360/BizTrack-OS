@@ -168,15 +168,41 @@ def db_fetch(table: str, filters: dict = None) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def db_insert(table: str, row: dict) -> bool:
-    """INSERT a single row dict into table. Returns True on success."""
+def db_insert(table: str, row: dict, clear_cache: bool = True) -> bool:
+    """
+    INSERT a single row dict into table. Returns True on success.
+    clear_cache=False lets a caller doing several writes in a row (e.g. a
+    cart checkout) defer invalidation and clear once at the end instead of
+    once per write.
+    """
     try:
         sb  = get_supabase()
         res = sb.table(table).insert(row).execute()
-        st.cache_data.clear()
+        if clear_cache:
+            clear_table_cache(table)
         return bool(res.data)
     except Exception as e:
         st.error(f"❌ Error inserting into {table}: {e}")
+        return False
+
+
+def db_insert_many(table: str, rows: list[dict], clear_cache: bool = True) -> bool:
+    """
+    INSERT multiple row dicts into table in a single request instead of
+    looping db_insert() per row. Use for cart checkout (sale_items), bulk
+    imports, or any place writing several rows of the same table at once.
+    Returns True only if every row was written.
+    """
+    if not rows:
+        return True
+    try:
+        sb  = get_supabase()
+        res = sb.table(table).insert(rows).execute()
+        if clear_cache:
+            clear_table_cache(table)
+        return bool(res.data) and len(res.data) == len(rows)
+    except Exception as e:
+        st.error(f"❌ Error bulk-inserting into {table}: {e}")
         return False
 
 
@@ -205,12 +231,17 @@ def log_activity(business_id: str, event_type: str, subscription_status: str = "
         pass  # never surface activity-log errors to the user
 
 
-def db_update(table: str, id_col: str, id_val: str, updates: dict) -> bool:
-    """UPDATE table SET updates WHERE id_col = id_val. Returns True only if a row was actually changed."""
+def db_update(table: str, id_col: str, id_val: str, updates: dict, clear_cache: bool = True) -> bool:
+    """
+    UPDATE table SET updates WHERE id_col = id_val. Returns True only if a row was actually changed.
+    clear_cache=False lets a caller doing several updates in a row (e.g. deducting
+    stock for every cart item) defer invalidation and clear once at the end.
+    """
     try:
         sb  = get_supabase()
         res = sb.table(table).update(updates).eq(id_col, id_val).execute()
-        st.cache_data.clear()
+        if clear_cache:
+            clear_table_cache(table)
         # Supabase returns the updated rows in res.data — empty list means nothing matched / RLS blocked it
         if not res.data:
             st.error(f"❌ Update on {table} matched no rows (check RLS policies and id value: {id_val})")
@@ -221,12 +252,13 @@ def db_update(table: str, id_col: str, id_val: str, updates: dict) -> bool:
         return False
 
 
-def db_delete(table: str, id_col: str, id_val: str) -> bool:
+def db_delete(table: str, id_col: str, id_val: str, clear_cache: bool = True) -> bool:
     """DELETE FROM table WHERE id_col = id_val."""
     try:
         sb = get_supabase()
         sb.table(table).delete().eq(id_col, id_val).execute()
-        st.cache_data.clear()
+        if clear_cache:
+            clear_table_cache(table)
         return True
     except Exception as e:
         st.error(f"❌ Error deleting from {table}: {e}")
@@ -406,6 +438,65 @@ def get_debt_payments_df(business_id: str) -> pd.DataFrame:
     df["amount"]       = pd.to_numeric(df["amount"],        errors="coerce").fillna(0)
     df["payment_date"] = pd.to_datetime(df["payment_date"], errors="coerce", utc=True).dt.tz_localize(None)
     return df
+
+
+# ── Scoped cache invalidation ──────────────────────────────────────────────────
+# Maps each table to the @st.cache_data getters that read from it. A write to
+# one table should only invalidate the getters backed by that table — not
+# every cached dataframe for every business on the server. Defined here
+# (after the getters above) so the function objects already exist; Python
+# only looks this dict up when clear_table_cache() is actually called, by
+# which point the whole module has finished loading.
+_TABLE_CACHE_MAP: dict[str, tuple] = {
+    TBL_PAYMENTS:      (get_payments_df,),
+    TBL_SALES:         (get_sales_df,),
+    TBL_PRODUCTS:      (get_products_df_live, get_products_df),
+    TBL_EXPENSES:      (get_expenses_df,),
+    TBL_RESTOCK:       (get_restock_df,),
+    TBL_SUPPLIERS:     (get_suppliers_df,),
+    TBL_SALE_ITEMS:    (get_sale_items_df,),
+    TBL_DEBTS:         (get_debts_df,),
+    TBL_DEBT_PAYMENTS: (get_debt_payments_df,),
+}
+
+
+def clear_table_cache(table: str) -> None:
+    """
+    Clear only the cached getter(s) backed by this table, instead of wiping
+    every cached dataframe for every business (the old st.cache_data.clear()
+    behavior). Tables with no cached getter (e.g. "users", user_activity) are
+    a safe no-op.
+    """
+    for fn in _TABLE_CACHE_MAP.get(table, ()):
+        try:
+            fn.clear()
+        except Exception:
+            pass
+
+
+def get_products_by_ids(business_id: str, product_ids: list[str]) -> pd.DataFrame:
+    """
+    Fetch only the given product_ids for this business — used for the
+    pre-commit stock-conflict check at checkout, where we only ever need
+    the handful of products actually in the cart, not the full catalogue.
+    Not cached: this is intentionally always a live read for a small,
+    bounded number of rows.
+    """
+    if not product_ids:
+        return pd.DataFrame()
+    try:
+        sb  = get_supabase()
+        res = (
+            sb.table(TBL_PRODUCTS)
+            .select("*")
+            .eq("business_id", business_id)
+            .in_("product_id", list(product_ids))
+            .execute()
+        )
+        return _type_products_df(pd.DataFrame(res.data or []))
+    except Exception as e:
+        st.error(f"❌ Error reading products: {e}")
+        return pd.DataFrame()
 
 
 def record_debt_payment(debt_id: str, business_id: str,
@@ -683,26 +774,51 @@ def compute_insights(sales_df, products_df, expenses_df, items_df=None) -> dict:
             products_df["stock_quantity"] <= products_df["reorder_level"]
         ][["product_name","stock_quantity","reorder_level","category"]].copy()
 
-        proj_rows = []
-        for _, prod in products_df.iterrows():
-            prod_sales_df = df[df["product_name"] == prod["product_name"]]
-            if not prod_sales_df.empty:
-                days_range  = max((df["sale_date"].max() - df["sale_date"].min()).days, 1)
-                avg_per_day = prod_sales_df["quantity"].sum() / days_range
-                if avg_per_day > 0:
-                    days_left = prod["stock_quantity"] / avg_per_day
-                    proj_rows.append({
-                        "product_name":        prod["product_name"],
-                        "stock_quantity":       prod["stock_quantity"],
-                        "days_until_stockout":  round(days_left, 1),
-                        "avg_daily_sales":      round(avg_per_day, 2),
-                    })
-        if proj_rows:
+        # Vectorized replacement for the old per-product Python loop: one
+        # groupby to get total quantity sold per product, one merge against
+        # products_df, then arithmetic over the whole column at once instead
+        # of re-scanning the sales dataframe for every single product.
+        days_range = max((df["sale_date"].max() - df["sale_date"].min()).days, 1)
+        qty_by_product = (
+            df.groupby("product_name")["quantity"].sum().reset_index()
+            .rename(columns={"quantity": "_qty_sold"})
+        )
+        proj = products_df[["product_name", "stock_quantity"]].merge(
+            qty_by_product, on="product_name", how="inner"
+        )
+        proj["avg_daily_sales"] = proj["_qty_sold"] / days_range
+        proj = proj[proj["avg_daily_sales"] > 0].copy()
+        if not proj.empty:
+            proj["days_until_stockout"] = (
+                proj["stock_quantity"] / proj["avg_daily_sales"]
+            ).round(1)
+            proj["avg_daily_sales"] = proj["avg_daily_sales"].round(2)
             insights["stockout_projection"] = (
-                pd.DataFrame(proj_rows).sort_values("days_until_stockout")
+                proj[["product_name", "stock_quantity",
+                      "days_until_stockout", "avg_daily_sales"]]
+                .sort_values("days_until_stockout")
             )
 
     return insights
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def get_insights_cached(business_id: str) -> dict:
+    """
+    Cached wrapper around compute_insights(), keyed by business_id with a
+    60s TTL. compute_insights() is the heaviest call in the suite (stockout
+    projections, slow movers, expiry alerts, etc.) and was previously being
+    re-run from scratch on every Streamlit rerun of the page it lives on —
+    including every keystroke in a search box on that same page. Caching by
+    business_id (a plain string) is cheap to key on, unlike caching directly
+    on DataFrame arguments. Stockout/insight numbers being up to 60s stale
+    is an acceptable trade for not recomputing on every keystroke.
+    """
+    sales_df    = get_sales_df(business_id)
+    products_df = get_products_df(business_id)
+    expenses_df = get_expenses_df(business_id)
+    items_df    = get_sale_items_df(business_id)
+    return compute_insights(sales_df, products_df, expenses_df, items_df)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
