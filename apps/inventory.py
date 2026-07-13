@@ -420,357 +420,358 @@ def page_products():
     # Tab 3 — Restock
     # ══════════════════════════════════════
     with tab3:
-        # Lightweight existence check instead of pulling the whole catalogue.
-        if search_products(business_id, "", limit=1).empty:
-            st.info("No products found. Add products first.")
-        else:
-            st.markdown("#### 🔄 Restock a Product")
+        st.markdown("#### 🔄 Restock a Product")
 
-            # ── Product search + selector (outside form for reactivity) ──
-            restock_search = st.text_input(
-                "🔍 Search product to restock",
-                placeholder="Type product name…",
-                key="restock_search_query",
-            )
+        # ── Product search + selector (outside form for reactivity) ──
+        restock_search = st.text_input(
+            "🔍 Search product to restock",
+            placeholder="Type product name…",
+            key="restock_search_query",
+        )
 
-            search_term = restock_search.strip()
-            # Indexed, bounded search — cost stays flat whether the catalogue
-            # has 50 SKUs or 5,000. in_stock_only=False since restocking is
-            # exactly when a product IS low/out of stock. Empty query shows a
-            # small default page instead of the whole catalogue, so the
-            # selectbox never has to render thousands of options.
-            filtered_df = search_products(business_id, search_term, limit=30)
+        search_term = restock_search.strip()
+        # Indexed, bounded search — cost stays flat whether the catalogue
+        # has 50 SKUs or 5,000. in_stock_only=False since restocking is
+        # exactly when a product IS low/out of stock. Empty query shows a
+        # small default page instead of the whole catalogue, so the
+        # selectbox never has to render thousands of options. This single
+        # call also tells us whether the business has any products at all —
+        # no separate existence-check round-trip needed.
+        filtered_df = search_products(business_id, search_term, limit=30)
 
-            if filtered_df.empty:
+        if filtered_df.empty:
+            if search_term:
                 st.warning("⚠️ No products match your search. Try a different name.")
-                st.stop()
-
-            product_options = {
-                f"{r['product_name']} ({r.get('base_unit','unit')}s)": r
-                for _, r in filtered_df.iterrows()
-            }
-
-            # Auto-select when search narrows to exactly one match
-            if len(product_options) == 1:
-                selected_label   = list(product_options.keys())[0]
-                selected_product = product_options[selected_label]
-                st.info(f"✅ Matched: **{selected_label}**")
             else:
-                selected_label   = st.selectbox(
-                    "Select product to restock",
-                    list(product_options.keys()),
-                    key="restock_product_select",
-                )
-                selected_product = product_options[selected_label]
+                st.info("No products found. Add products first.")
+            st.stop()
 
-            cur_cost      = safe_float(selected_product["cost_price"])
-            cur_sell_pack = safe_float(selected_product["selling_price"])
-            cur_sell_unit = safe_float(selected_product.get("selling_price_sub", 0))
-            cur_stock     = safe_float(selected_product["stock_quantity"])
-            base_unit     = selected_product.get("base_unit", "unit") or "unit"
-            sub_unit      = selected_product.get("sub_unit",  "unit") or "unit"
-            upp           = safe_int(selected_product.get("units_per_pack", 1)) or 1
+        product_options = {
+            f"{r['product_name']} ({r.get('base_unit','unit')}s)": r
+            for _, r in filtered_df.iterrows()
+        }
 
-            # Current stock — compact single line, no truncation
-            if upp > 1:
-                stock_str = (
-                    f"{fmt_qty(cur_stock)} {base_unit}s "
-                    f"({int(round(cur_stock * upp))} {sub_unit}s)"
-                )
-            else:
-                stock_str = f"{fmt_qty(cur_stock)} {base_unit}s"
-            st.caption(f"📦 Current stock: **{stock_str}**")
-
-            # ── Recent deliveries panel (reactive to product selection) ──
-            hist_df = get_restock_df(business_id)
-            if not hist_df.empty:
-                pid          = selected_product["product_id"]
-                product_hist = hist_df[hist_df["product_id"] == pid].copy()
-                product_hist = product_hist.sort_values("restock_date", ascending=False).head(5)
-
-                if not product_hist.empty:
-                    with st.expander(
-                        f"📋 Last {len(product_hist)} deliver{'y' if len(product_hist) == 1 else 'ies'} "
-                        f"for **{selected_product['product_name']}**",
-                        expanded=True,
-                    ):
-                        for _, h in product_hist.iterrows():
-                            date_str     = str(h.get("restock_date", ""))[:10] or "—"
-                            qty          = int(h.get("qty_added", 0))
-                            sup          = h.get("supplier_name", "") or "No supplier recorded"
-                            note         = h.get("note", "") or ""
-                            note_snippet = f" · _{note}_" if note else ""
-                            st.markdown(
-                                f"**{date_str}** &nbsp;·&nbsp; "
-                                f"+{qty} {base_unit}s &nbsp;·&nbsp; "
-                                f"🏭 {sup}{note_snippet}"
-                            )
-
-            st.markdown("---")
-
-            # ── Supplier selector (outside form for reactivity) ──
-            st.markdown("**🏭 Supplier**")
-            suppliers_df = get_suppliers_df(business_id)
-
-            add_new_supplier = st.checkbox(
-                "➕ New supplier — add to directory",
-                value=False,
-                key="restock_new_supplier_toggle",
+        # Auto-select when search narrows to exactly one match
+        if len(product_options) == 1:
+            selected_label   = list(product_options.keys())[0]
+            selected_product = product_options[selected_label]
+            st.info(f"✅ Matched: **{selected_label}**")
+        else:
+            selected_label   = st.selectbox(
+                "Select product to restock",
+                list(product_options.keys()),
+                key="restock_product_select",
             )
+            selected_product = product_options[selected_label]
 
-            if add_new_supplier:
-                ns1, ns2 = st.columns(2)
-                new_sup_name  = ns1.text_input(
-                    "Supplier Name *",
-                    placeholder="e.g. Alhaji Musa Traders",
-                    key="new_sup_name",
-                )
-                new_sup_phone = ns2.text_input(
-                    "Phone *",
-                    placeholder="e.g. 0801 234 5678",
-                    key="new_sup_phone",
-                )
-                new_sup_notes = st.text_input(
-                    "Notes (optional)",
-                    placeholder="e.g. Cash on delivery only",
-                    key="new_sup_notes",
-                )
-                selected_supplier_id   = None
-                selected_supplier_name = new_sup_name.strip() or "—"
-            else:
-                if suppliers_df.empty:
-                    st.info("No suppliers saved yet. Tick the box above to add your first one.")
-                    selected_supplier_id   = None
-                    selected_supplier_name = ""
-                else:
-                    sup_options = {
-                        f"{r['name']}  •  {r.get('phone', '')}": r
-                        for _, r in suppliers_df.iterrows()
-                    }
-                    sup_label            = st.selectbox(
-                        "Select supplier",
-                        list(sup_options.keys()),
-                        key="restock_supplier_select",
-                    )
-                    selected_supplier_id   = sup_options[sup_label]["supplier_id"]
-                    selected_supplier_name = sup_options[sup_label]["name"]
+        cur_cost      = safe_float(selected_product["cost_price"])
+        cur_sell_pack = safe_float(selected_product["selling_price"])
+        cur_sell_unit = safe_float(selected_product.get("selling_price_sub", 0))
+        cur_stock     = safe_float(selected_product["stock_quantity"])
+        base_unit     = selected_product.get("base_unit", "unit") or "unit"
+        sub_unit      = selected_product.get("sub_unit",  "unit") or "unit"
+        upp           = safe_int(selected_product.get("units_per_pack", 1)) or 1
 
-            st.markdown("---")
-
-            # ── Delivery fields (outside form for reactivity) ──
-            st.markdown("**📥 New Delivery**")
-
-            if upp > 1:
-                restock_mode = st.radio(
-                    "Received as",
-                    options=["base", "sub"],
-                    format_func=lambda x: (
-                        f"Full {base_unit}s" if x == "base"
-                        else f"Individual {sub_unit}s"
-                    ),
-                    horizontal=True,
-                    key="restock_mode",
-                    help=f"Use '{sub_unit}s' if you received a partial "
-                         f"{base_unit} (e.g. only 3 out of {upp}).",
-                )
-            else:
-                restock_mode = "base"
-
-            rd1, rd2 = st.columns(2)
-
-            if restock_mode == "sub":
-                add_qty_raw = rd1.number_input(
-                    f"{sub_unit.capitalize()}s Received *",
-                    min_value=1, step=1, value=upp,
-                    key="restock_add_qty_sub",
-                    help=f"Number of individual {sub_unit}s received "
-                         f"({upp} {sub_unit}s = 1 {base_unit})",
-                )
-                add_qty = add_qty_raw / upp  # fractional base units
-                rd1.caption(f"= **{fmt_qty(add_qty)} {base_unit}s**")
-            else:
-                add_qty = rd1.number_input(
-                    f"Packs Received ({base_unit}s) *",
-                    min_value=1, step=1, value=10,
-                    key="restock_add_qty",
-                    help=f"Number of {base_unit}s received from supplier",
-                )
-
-            restock_note = rd2.text_input(
-                "Batch Note (optional)",
-                placeholder="e.g. 3 cartons were dented",
-                key="restock_note",
+        # Current stock — compact single line, no truncation
+        if upp > 1:
+            stock_str = (
+                f"{fmt_qty(cur_stock)} {base_unit}s "
+                f"({int(round(cur_stock * upp))} {sub_unit}s)"
             )
+        else:
+            stock_str = f"{fmt_qty(cur_stock)} {base_unit}s"
+        st.caption(f"📦 Current stock: **{stock_str}**")
 
-            st.markdown("---")
+        # ── Recent deliveries panel (reactive to product selection) ──
+        hist_df = get_restock_df(business_id)
+        if not hist_df.empty:
+            pid          = selected_product["product_id"]
+            product_hist = hist_df[hist_df["product_id"] == pid].copy()
+            product_hist = product_hist.sort_values("restock_date", ascending=False).head(5)
 
-            # ── Price update (outside form so checkbox reacts immediately) ──
-            st.markdown("**💰 Update Prices**")
-            update_prices = st.checkbox(
-                "Supplier prices have changed — update now",
-                value=False,
-                key="restock_update_prices",
-                help="Tick this if cost or selling prices changed with this delivery",
-            )
-
-            if update_prices:
-                # Current prices reference — visible only when user is editing prices
-                pc1, pc2, pc3 = st.columns(3)
-                pc1.metric("Current Cost",      fmt_naira(cur_cost),      help=f"Per {base_unit}")
-                pc2.metric("Current Sell/Pack",  fmt_naira(cur_sell_pack), help=f"Per {base_unit}")
-                pc3.metric("Current Sell/Unit",  fmt_naira(cur_sell_unit), help=f"Per {sub_unit}")
-                st.caption("Pre-filled with current prices. Edit only what changed.")
-
-                new_cost = st.number_input(
-                    f"New Cost Price per {base_unit} ({st.session_state.get('currency_symbol','₦')})",
-                    min_value=0.0, step=50.0, value=float(cur_cost),
-                    key="restock_new_cost",
-                )
-                if new_cost != cur_cost and cur_cost > 0:
-                    diff = new_cost - cur_cost
-                    pct  = diff / cur_cost * 100
-                    icon = "📈 Cost UP" if diff > 0 else "📉 Cost DOWN"
-                    st.caption(f"{icon} by {fmt_naira(abs(diff))} ({abs(pct):.1f}%)")
-
-                st.markdown("**Pack Selling Price**")
-                new_sell_pack = st.number_input(
-                    f"New Selling Price per {base_unit} ({st.session_state.get('currency_symbol','₦')})",
-                    min_value=0.0, step=50.0, value=float(cur_sell_pack),
-                    key="restock_new_sell_pack",
-                )
-                if new_cost > 0 and new_sell_pack > 0:
-                    pm = new_sell_pack - new_cost
-                    st.caption(
-                        f"New pack margin: {fmt_naira(pm)} ({pm/new_sell_pack*100:.1f}%)"
-                    )
-
-                st.markdown("**Unit Selling Price**")
-                suggested_unit = round(new_sell_pack / upp, 2) if upp > 1 else new_sell_pack
-                new_sell_unit  = st.number_input(
-                    f"New Selling Price per {sub_unit} ({st.session_state.get('currency_symbol','₦')})",
-                    min_value=0.0, step=50.0,
-                    value=float(cur_sell_unit) if cur_sell_unit > 0 else float(suggested_unit),
-                    key="restock_new_sell_unit",
-                    help=f"Suggested: {fmt_naira(suggested_unit)}" if upp > 1 else "",
-                )
-                if upp > 1 and new_sell_unit > 0 and new_cost > 0:
-                    um = new_sell_unit - (new_cost / upp)
-                    st.caption(
-                        f"New unit margin: {fmt_naira(um)} | "
-                        f"All {upp} units = {fmt_naira(new_sell_unit * upp)} "
-                        f"vs pack {fmt_naira(new_sell_pack)}"
-                    )
-            else:
-                new_cost      = cur_cost
-                new_sell_pack = cur_sell_pack
-                new_sell_unit = cur_sell_unit
-
-            st.markdown("---")
-
-            # ── Expiry date update (optional — for perishable goods) ──────────
-            st.markdown("**📅 New Batch Dates** *(optional)*")
-            st.caption("New delivery? Update expiry if this batch has a different date. Leave blank to keep current.")
-            _existing_expiry = selected_product.get("expiry_date")
-            _existing_mfg    = selected_product.get("mfg_date")
-            try:
-                _existing_expiry = pd.to_datetime(_existing_expiry).date() if pd.notna(_existing_expiry) else None
-            except Exception:
-                _existing_expiry = None
-            try:
-                _existing_mfg = pd.to_datetime(_existing_mfg).date() if pd.notna(_existing_mfg) else None
-            except Exception:
-                _existing_mfg = None
-            rb1, rb2 = st.columns(2)
-            restock_mfg_date    = rb1.date_input("Manufacturing Date",        value=_existing_mfg,    key="restock_mfg_date")
-            restock_expiry_date = rb2.date_input("Expiry / Best-Before Date", value=_existing_expiry, key="restock_expiry_date")
-
-            st.markdown("---")
-
-            # ── Submit button inside the form ──
-            with st.form("restock_form", clear_on_submit=True):
-                submitted = st.form_submit_button(
-                    "🔄 Confirm Restock", width='stretch', type="primary"
-                )
-
-                if submitted:
-                    # Validate supplier fields if adding new
-                    if add_new_supplier:
-                        if not new_sup_name.strip() or not new_sup_phone.strip():
-                            st.error("Please enter the new supplier's name and phone number.")
-                            st.stop()
-                        # Save new supplier to directory
-                        new_sup_id = gen_id("SUP")
-                        sup_saved  = db_insert(TBL_SUPPLIERS, {
-                            "supplier_id": new_sup_id,
-                            "business_id": business_id,
-                            "name":        new_sup_name.strip(),
-                            "phone":       new_sup_phone.strip(),
-                            "notes":       new_sup_notes.strip() if new_sup_notes else "",
-                            "created_at":  datetime.now().isoformat(),
-                        })
-                        if not sup_saved:
-                            st.error("Failed to save new supplier. Please try again.")
-                            st.stop()
-                        resolved_supplier_id   = new_sup_id
-                        resolved_supplier_name = new_sup_name.strip()
-                    else:
-                        resolved_supplier_id   = selected_supplier_id   or ""
-                        resolved_supplier_name = selected_supplier_name or ""
-
-                    if upp > 1:
-                        new_qty = round(cur_stock + add_qty, 4)
-                    else:
-                        new_qty = int(round(cur_stock + add_qty))
-                    updates = {"stock_quantity": new_qty}
-                    if update_prices:
-                        updates["cost_price"]        = new_cost
-                        updates["selling_price"]     = new_sell_pack
-                        updates["selling_price_sub"] = new_sell_unit
-                    # Always write dates (None clears them, a value updates them)
-                    updates["mfg_date"]    = restock_mfg_date.isoformat()    if restock_mfg_date    else None
-                    updates["expiry_date"] = restock_expiry_date.isoformat()  if restock_expiry_date else None
-
-                    _auto_note = (
-                        f"Received {add_qty_raw} {sub_unit}(s) "
-                        f"(= {fmt_qty(add_qty)} {base_unit}s)"
-                        if restock_mode == "sub" else ""
-                    )
-                    _final_note = " | ".join(
-                        n for n in [restock_note.strip() if restock_note else "", _auto_note] if n
-                    )
-
-                    ok = db_update(TBL_PRODUCTS, "product_id",
-                                   selected_product["product_id"], updates)
-                    if ok:
-                        db_insert(TBL_RESTOCK, {
-                            "restock_id":    gen_id("RST"),
-                            "business_id":   business_id,
-                            "product_id":    selected_product["product_id"],
-                            "product_name":  selected_product["product_name"],
-                            "qty_added":     add_qty if upp > 1 else int(add_qty),
-                            "qty_before":    cur_stock if upp > 1 else int(cur_stock),
-                            "qty_after":     new_qty if upp > 1 else int(new_qty),
-                            "supplier_id":   resolved_supplier_id,
-                            "supplier_name": resolved_supplier_name,
-                            "note":          _final_note,
-                            "recorded_by":   user.get("full_name", user.get("email", "")),
-                            "restock_date":  datetime.now().isoformat(),
-                        })
-                        msg = (
-                            f"✅ Restocked! {selected_product['product_name']}: "
-                            f"{fmt_qty(cur_stock)} → {fmt_qty(new_qty)} {base_unit}s"
+            if not product_hist.empty:
+                with st.expander(
+                    f"📋 Last {len(product_hist)} deliver{'y' if len(product_hist) == 1 else 'ies'} "
+                    f"for **{selected_product['product_name']}**",
+                    expanded=True,
+                ):
+                    for _, h in product_hist.iterrows():
+                        date_str     = str(h.get("restock_date", ""))[:10] or "—"
+                        qty          = int(h.get("qty_added", 0))
+                        sup          = h.get("supplier_name", "") or "No supplier recorded"
+                        note         = h.get("note", "") or ""
+                        note_snippet = f" · _{note}_" if note else ""
+                        st.markdown(
+                            f"**{date_str}** &nbsp;·&nbsp; "
+                            f"+{qty} {base_unit}s &nbsp;·&nbsp; "
+                            f"🏭 {sup}{note_snippet}"
                         )
-                        if resolved_supplier_name:
-                            msg += f" | Supplier: {resolved_supplier_name}"
-                        if update_prices:
-                            msg += (
-                                f" | Prices updated — Cost: {fmt_naira(new_cost)}, "
-                                f"Pack: {fmt_naira(new_sell_pack)}, "
-                                f"Unit: {fmt_naira(new_sell_unit)}"
-                            )
-                        st.success(msg)
-                    else:
-                        st.error("Failed to update stock.")
+
+        st.markdown("---")
+
+        # ── Supplier selector (outside form for reactivity) ──
+        st.markdown("**🏭 Supplier**")
+        suppliers_df = get_suppliers_df(business_id)
+
+        add_new_supplier = st.checkbox(
+            "➕ New supplier — add to directory",
+            value=False,
+            key="restock_new_supplier_toggle",
+        )
+
+        if add_new_supplier:
+            ns1, ns2 = st.columns(2)
+            new_sup_name  = ns1.text_input(
+                "Supplier Name *",
+                placeholder="e.g. Alhaji Musa Traders",
+                key="new_sup_name",
+            )
+            new_sup_phone = ns2.text_input(
+                "Phone *",
+                placeholder="e.g. 0801 234 5678",
+                key="new_sup_phone",
+            )
+            new_sup_notes = st.text_input(
+                "Notes (optional)",
+                placeholder="e.g. Cash on delivery only",
+                key="new_sup_notes",
+            )
+            selected_supplier_id   = None
+            selected_supplier_name = new_sup_name.strip() or "—"
+        else:
+            if suppliers_df.empty:
+                st.info("No suppliers saved yet. Tick the box above to add your first one.")
+                selected_supplier_id   = None
+                selected_supplier_name = ""
+            else:
+                sup_options = {
+                    f"{r['name']}  •  {r.get('phone', '')}": r
+                    for _, r in suppliers_df.iterrows()
+                }
+                sup_label            = st.selectbox(
+                    "Select supplier",
+                    list(sup_options.keys()),
+                    key="restock_supplier_select",
+                )
+                selected_supplier_id   = sup_options[sup_label]["supplier_id"]
+                selected_supplier_name = sup_options[sup_label]["name"]
+
+        st.markdown("---")
+
+        # ── Delivery fields (outside form for reactivity) ──
+        st.markdown("**📥 New Delivery**")
+
+        if upp > 1:
+            restock_mode = st.radio(
+                "Received as",
+                options=["base", "sub"],
+                format_func=lambda x: (
+                    f"Full {base_unit}s" if x == "base"
+                    else f"Individual {sub_unit}s"
+                ),
+                horizontal=True,
+                key="restock_mode",
+                help=f"Use '{sub_unit}s' if you received a partial "
+                     f"{base_unit} (e.g. only 3 out of {upp}).",
+            )
+        else:
+            restock_mode = "base"
+
+        rd1, rd2 = st.columns(2)
+
+        if restock_mode == "sub":
+            add_qty_raw = rd1.number_input(
+                f"{sub_unit.capitalize()}s Received *",
+                min_value=1, step=1, value=upp,
+                key="restock_add_qty_sub",
+                help=f"Number of individual {sub_unit}s received "
+                     f"({upp} {sub_unit}s = 1 {base_unit})",
+            )
+            add_qty = add_qty_raw / upp  # fractional base units
+            rd1.caption(f"= **{fmt_qty(add_qty)} {base_unit}s**")
+        else:
+            add_qty = rd1.number_input(
+                f"Packs Received ({base_unit}s) *",
+                min_value=1, step=1, value=10,
+                key="restock_add_qty",
+                help=f"Number of {base_unit}s received from supplier",
+            )
+
+        restock_note = rd2.text_input(
+            "Batch Note (optional)",
+            placeholder="e.g. 3 cartons were dented",
+            key="restock_note",
+        )
+
+        st.markdown("---")
+
+        # ── Price update (outside form so checkbox reacts immediately) ──
+        st.markdown("**💰 Update Prices**")
+        update_prices = st.checkbox(
+            "Supplier prices have changed — update now",
+            value=False,
+            key="restock_update_prices",
+            help="Tick this if cost or selling prices changed with this delivery",
+        )
+
+        if update_prices:
+            # Current prices reference — visible only when user is editing prices
+            pc1, pc2, pc3 = st.columns(3)
+            pc1.metric("Current Cost",      fmt_naira(cur_cost),      help=f"Per {base_unit}")
+            pc2.metric("Current Sell/Pack",  fmt_naira(cur_sell_pack), help=f"Per {base_unit}")
+            pc3.metric("Current Sell/Unit",  fmt_naira(cur_sell_unit), help=f"Per {sub_unit}")
+            st.caption("Pre-filled with current prices. Edit only what changed.")
+
+            new_cost = st.number_input(
+                f"New Cost Price per {base_unit} ({st.session_state.get('currency_symbol','₦')})",
+                min_value=0.0, step=50.0, value=float(cur_cost),
+                key="restock_new_cost",
+            )
+            if new_cost != cur_cost and cur_cost > 0:
+                diff = new_cost - cur_cost
+                pct  = diff / cur_cost * 100
+                icon = "📈 Cost UP" if diff > 0 else "📉 Cost DOWN"
+                st.caption(f"{icon} by {fmt_naira(abs(diff))} ({abs(pct):.1f}%)")
+
+            st.markdown("**Pack Selling Price**")
+            new_sell_pack = st.number_input(
+                f"New Selling Price per {base_unit} ({st.session_state.get('currency_symbol','₦')})",
+                min_value=0.0, step=50.0, value=float(cur_sell_pack),
+                key="restock_new_sell_pack",
+            )
+            if new_cost > 0 and new_sell_pack > 0:
+                pm = new_sell_pack - new_cost
+                st.caption(
+                    f"New pack margin: {fmt_naira(pm)} ({pm/new_sell_pack*100:.1f}%)"
+                )
+
+            st.markdown("**Unit Selling Price**")
+            suggested_unit = round(new_sell_pack / upp, 2) if upp > 1 else new_sell_pack
+            new_sell_unit  = st.number_input(
+                f"New Selling Price per {sub_unit} ({st.session_state.get('currency_symbol','₦')})",
+                min_value=0.0, step=50.0,
+                value=float(cur_sell_unit) if cur_sell_unit > 0 else float(suggested_unit),
+                key="restock_new_sell_unit",
+                help=f"Suggested: {fmt_naira(suggested_unit)}" if upp > 1 else "",
+            )
+            if upp > 1 and new_sell_unit > 0 and new_cost > 0:
+                um = new_sell_unit - (new_cost / upp)
+                st.caption(
+                    f"New unit margin: {fmt_naira(um)} | "
+                    f"All {upp} units = {fmt_naira(new_sell_unit * upp)} "
+                    f"vs pack {fmt_naira(new_sell_pack)}"
+                )
+        else:
+            new_cost      = cur_cost
+            new_sell_pack = cur_sell_pack
+            new_sell_unit = cur_sell_unit
+
+        st.markdown("---")
+
+        # ── Expiry date update (optional — for perishable goods) ──────────
+        st.markdown("**📅 New Batch Dates** *(optional)*")
+        st.caption("New delivery? Update expiry if this batch has a different date. Leave blank to keep current.")
+        _existing_expiry = selected_product.get("expiry_date")
+        _existing_mfg    = selected_product.get("mfg_date")
+        try:
+            _existing_expiry = pd.to_datetime(_existing_expiry).date() if pd.notna(_existing_expiry) else None
+        except Exception:
+            _existing_expiry = None
+        try:
+            _existing_mfg = pd.to_datetime(_existing_mfg).date() if pd.notna(_existing_mfg) else None
+        except Exception:
+            _existing_mfg = None
+        rb1, rb2 = st.columns(2)
+        restock_mfg_date    = rb1.date_input("Manufacturing Date",        value=_existing_mfg,    key="restock_mfg_date")
+        restock_expiry_date = rb2.date_input("Expiry / Best-Before Date", value=_existing_expiry, key="restock_expiry_date")
+
+        st.markdown("---")
+
+        # ── Submit button inside the form ──
+        with st.form("restock_form", clear_on_submit=True):
+            submitted = st.form_submit_button(
+                "🔄 Confirm Restock", width='stretch', type="primary"
+            )
+
+            if submitted:
+                # Validate supplier fields if adding new
+                if add_new_supplier:
+                    if not new_sup_name.strip() or not new_sup_phone.strip():
+                        st.error("Please enter the new supplier's name and phone number.")
+                        st.stop()
+                    # Save new supplier to directory
+                    new_sup_id = gen_id("SUP")
+                    sup_saved  = db_insert(TBL_SUPPLIERS, {
+                        "supplier_id": new_sup_id,
+                        "business_id": business_id,
+                        "name":        new_sup_name.strip(),
+                        "phone":       new_sup_phone.strip(),
+                        "notes":       new_sup_notes.strip() if new_sup_notes else "",
+                        "created_at":  datetime.now().isoformat(),
+                    })
+                    if not sup_saved:
+                        st.error("Failed to save new supplier. Please try again.")
+                        st.stop()
+                    resolved_supplier_id   = new_sup_id
+                    resolved_supplier_name = new_sup_name.strip()
+                else:
+                    resolved_supplier_id   = selected_supplier_id   or ""
+                    resolved_supplier_name = selected_supplier_name or ""
+
+                if upp > 1:
+                    new_qty = round(cur_stock + add_qty, 4)
+                else:
+                    new_qty = int(round(cur_stock + add_qty))
+                updates = {"stock_quantity": new_qty}
+                if update_prices:
+                    updates["cost_price"]        = new_cost
+                    updates["selling_price"]     = new_sell_pack
+                    updates["selling_price_sub"] = new_sell_unit
+                # Always write dates (None clears them, a value updates them)
+                updates["mfg_date"]    = restock_mfg_date.isoformat()    if restock_mfg_date    else None
+                updates["expiry_date"] = restock_expiry_date.isoformat()  if restock_expiry_date else None
+
+                _auto_note = (
+                    f"Received {add_qty_raw} {sub_unit}(s) "
+                    f"(= {fmt_qty(add_qty)} {base_unit}s)"
+                    if restock_mode == "sub" else ""
+                )
+                _final_note = " | ".join(
+                    n for n in [restock_note.strip() if restock_note else "", _auto_note] if n
+                )
+
+                ok = db_update(TBL_PRODUCTS, "product_id",
+                               selected_product["product_id"], updates)
+                if ok:
+                    db_insert(TBL_RESTOCK, {
+                        "restock_id":    gen_id("RST"),
+                        "business_id":   business_id,
+                        "product_id":    selected_product["product_id"],
+                        "product_name":  selected_product["product_name"],
+                        "qty_added":     add_qty if upp > 1 else int(add_qty),
+                        "qty_before":    cur_stock if upp > 1 else int(cur_stock),
+                        "qty_after":     new_qty if upp > 1 else int(new_qty),
+                        "supplier_id":   resolved_supplier_id,
+                        "supplier_name": resolved_supplier_name,
+                        "note":          _final_note,
+                        "recorded_by":   user.get("full_name", user.get("email", "")),
+                        "restock_date":  datetime.now().isoformat(),
+                    })
+                    msg = (
+                        f"✅ Restocked! {selected_product['product_name']}: "
+                        f"{fmt_qty(cur_stock)} → {fmt_qty(new_qty)} {base_unit}s"
+                    )
+                    if resolved_supplier_name:
+                        msg += f" | Supplier: {resolved_supplier_name}"
+                    if update_prices:
+                        msg += (
+                            f" | Prices updated — Cost: {fmt_naira(new_cost)}, "
+                            f"Pack: {fmt_naira(new_sell_pack)}, "
+                            f"Unit: {fmt_naira(new_sell_unit)}"
+                        )
+                    st.success(msg)
+                else:
+                    st.error("Failed to update stock.")
 
     # ══════════════════════════════════════
     # Tab 4 — Restock History
