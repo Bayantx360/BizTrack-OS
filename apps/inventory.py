@@ -23,6 +23,7 @@ import streamlit as st
 
 from shared.db import (
     get_products_df, get_products_df_live, get_sales_df, get_expenses_df,
+    search_products, get_products_by_ids,
     compute_insights, get_insights_cached,
     db_fetch, db_insert, db_update, db_delete, clear_table_cache,
     get_restock_df, get_suppliers_df,
@@ -419,8 +420,8 @@ def page_products():
     # Tab 3 — Restock
     # ══════════════════════════════════════
     with tab3:
-        products_df = get_products_df_live(business_id)  # live for restock
-        if products_df.empty:
+        # Lightweight existence check instead of pulling the whole catalogue.
+        if search_products(business_id, "", limit=1).empty:
             st.info("No products found. Add products first.")
         else:
             st.markdown("#### 🔄 Restock a Product")
@@ -433,12 +434,12 @@ def page_products():
             )
 
             search_term = restock_search.strip()
-            if search_term:
-                filtered_df = products_df[
-                    products_df["product_name"].str.contains(search_term, case=False, na=False)
-                ]
-            else:
-                filtered_df = products_df
+            # Indexed, bounded search — cost stays flat whether the catalogue
+            # has 50 SKUs or 5,000. in_stock_only=False since restocking is
+            # exactly when a product IS low/out of stock. Empty query shows a
+            # small default page instead of the whole catalogue, so the
+            # selectbox never has to render thousands of options.
+            filtered_df = search_products(business_id, search_term, limit=30)
 
             if filtered_df.empty:
                 st.warning("⚠️ No products match your search. Try a different name.")
@@ -835,7 +836,7 @@ def page_products():
                         st.caption("  •  ".join(meta_parts))
                     with c2:
                         if st.button("↩️ Reverse", key=f"rev_{restock_id}", type="secondary"):
-                            current_df  = get_products_df_live(business_id)
+                            current_df  = get_products_by_ids(business_id, [product_id])
                             product_row = current_df[current_df["product_id"] == product_id]
                             if product_row.empty:
                                 st.error("Product not found.")
