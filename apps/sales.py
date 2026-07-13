@@ -348,15 +348,6 @@ def page_record_sale():
 
     page_header("🛒 Record a Sale", "Build a cart, apply discounts, print receipt")
 
-    # Lightweight existence check — no need to pull the whole catalogue just
-    # to know whether this business has any products at all yet.
-    if search_products(business_id, "", limit=1).empty:
-        st.warning("No products found. Please add products in the Inventory app first.")
-        if st.button("→ Go to Inventory"):
-            st.session_state.current_page = "inventory"
-            st.rerun()
-        return
-
     if "cart"      not in st.session_state: st.session_state.cart      = []
     if "sale_done" not in st.session_state: st.session_state.sale_done = None
 
@@ -389,7 +380,10 @@ def page_record_sale():
             if query:
                 st.warning(f"No in-stock products match \"{query}\".")
             else:
-                st.warning("All products are out of stock.")
+                st.warning("No products in stock. Add products in the Inventory app if you haven't yet.")
+                if st.button("→ Go to Inventory"):
+                    st.session_state.current_page = "inventory"
+                    st.rerun()
         else:
             prod_names = in_stock["product_name"].tolist()
             sel_name   = st.selectbox("Product", prod_names, key="cart_prod")

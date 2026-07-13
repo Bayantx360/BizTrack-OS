@@ -499,6 +499,7 @@ def get_products_by_ids(business_id: str, product_ids: list[str]) -> pd.DataFram
         return pd.DataFrame()
 
 
+@st.cache_data(ttl=15, show_spinner=False)
 def search_products(business_id: str, query: str, limit: int = 30,
                      in_stock_only: bool = False) -> pd.DataFrame:
     """
@@ -509,8 +510,13 @@ def search_products(business_id: str, query: str, limit: int = 30,
 
     Always returns at most `limit` rows, so search cost stays flat whether
     the business has 50 SKUs or 5,000 — unlike the old approach of fetching
-    the whole table and filtering in pandas. Not cached: search results
-    should reflect the current query, not a stale one.
+    the whole table and filtering in pandas. Cached for 15s (same window as
+    get_products_df_live) so repeated calls with the same arguments — e.g.
+    Streamlit re-running every tab's code on every rerun — hit cache instead
+    of firing a fresh network round-trip each time. 15s staleness is fine
+    for search/selection; checkout still re-validates stock live via
+    get_products_by_ids() at commit time, so this cache never affects
+    what actually gets sold.
 
     query="" (or shorter than 2 characters) returns a small default page
     instead of the whole catalogue, so the caller never has to render a
@@ -534,6 +540,13 @@ def search_products(business_id: str, query: str, limit: int = 30,
     except Exception as e:
         st.error(f"❌ Error searching products: {e}")
         return pd.DataFrame()
+
+
+# search_products is defined after _TABLE_CACHE_MAP above, so it's registered
+# here — a write to products should invalidate this cache too, not just
+# get_products_df_live/get_products_df, so restocks/sales show up in search
+# immediately rather than waiting out the 15s TTL.
+_TABLE_CACHE_MAP[TBL_PRODUCTS] = _TABLE_CACHE_MAP[TBL_PRODUCTS] + (search_products,)
 
 
 def record_debt_payment(debt_id: str, business_id: str,
