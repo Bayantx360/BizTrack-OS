@@ -499,6 +499,43 @@ def get_products_by_ids(business_id: str, product_ids: list[str]) -> pd.DataFram
         return pd.DataFrame()
 
 
+def search_products(business_id: str, query: str, limit: int = 30,
+                     in_stock_only: bool = False) -> pd.DataFrame:
+    """
+    Search products by name, done in Postgres instead of pandas.
+    Requires the trigram index from supabase/migrations/001_product_search_index.sql
+    to stay fast as the catalogue grows — without it this still works
+    correctly, just without the index speedup.
+
+    Always returns at most `limit` rows, so search cost stays flat whether
+    the business has 50 SKUs or 5,000 — unlike the old approach of fetching
+    the whole table and filtering in pandas. Not cached: search results
+    should reflect the current query, not a stale one.
+
+    query="" (or shorter than 2 characters) returns a small default page
+    instead of the whole catalogue, so the caller never has to render a
+    multi-thousand-row selectbox.
+    """
+    try:
+        sb = get_supabase()
+        q = (
+            sb.table(TBL_PRODUCTS)
+            .select("*")
+            .eq("business_id", business_id)
+        )
+        query = (query or "").strip()
+        if len(query) >= 2:
+            q = q.ilike("product_name", f"%{query}%")
+        if in_stock_only:
+            q = q.gt("stock_quantity", 0)
+        q = q.order("product_name").limit(limit)
+        res = q.execute()
+        return _type_products_df(pd.DataFrame(res.data or []))
+    except Exception as e:
+        st.error(f"❌ Error searching products: {e}")
+        return pd.DataFrame()
+
+
 def record_debt_payment(debt_id: str, business_id: str,
                         amount: float, note: str = "") -> bool:
     """
