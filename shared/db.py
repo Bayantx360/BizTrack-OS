@@ -549,6 +549,35 @@ def search_products(business_id: str, query: str, limit: int = 30,
 _TABLE_CACHE_MAP[TBL_PRODUCTS] = _TABLE_CACHE_MAP[TBL_PRODUCTS] + (search_products,)
 
 
+def get_recent_restocks_for_product(business_id: str, product_id: str, limit: int = 5) -> pd.DataFrame:
+    """
+    Fetch only the last `limit` restock entries for ONE product — used by the
+    "Recent Deliveries" panel on the Restock tab. Unlike get_restock_df(),
+    which downloads the business's ENTIRE restock history (something that
+    only grows over time, unlike catalogue size, which is naturally bounded),
+    this scopes the query to exactly the rows being displayed. Not cached:
+    restock history for one product is a small, cheap query even live.
+    """
+    try:
+        sb  = get_supabase()
+        res = (
+            sb.table(TBL_RESTOCK)
+            .select("*")
+            .eq("business_id", business_id)
+            .eq("product_id", product_id)
+            .order("restock_date", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        df = pd.DataFrame(res.data or [])
+        if not df.empty:
+            df["restock_date"] = pd.to_datetime(df["restock_date"], errors="coerce")
+        return df
+    except Exception as e:
+        st.error(f"❌ Error reading restock history: {e}")
+        return pd.DataFrame()
+
+
 def record_debt_payment(debt_id: str, business_id: str,
                         amount: float, note: str = "") -> bool:
     """
