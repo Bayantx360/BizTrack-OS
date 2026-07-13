@@ -26,7 +26,7 @@ import streamlit as st
 from shared.db import (
     get_supabase,
     get_sales_df, get_products_df, get_products_df_live, get_expenses_df,
-    get_sale_items_df, get_products_by_ids,
+    get_sale_items_df, get_products_by_ids, search_products,
     get_debts_df,
     compute_kpis,
     db_fetch, db_insert, db_insert_many, db_update, db_delete, clear_table_cache,
@@ -348,9 +348,9 @@ def page_record_sale():
 
     page_header("🛒 Record a Sale", "Build a cart, apply discounts, print receipt")
 
-    # Always fetch live stock — never use cache here to prevent overselling
-    products_df = get_products_df_live(business_id)
-    if products_df.empty:
+    # Lightweight existence check — no need to pull the whole catalogue just
+    # to know whether this business has any products at all yet.
+    if search_products(business_id, "", limit=1).empty:
         st.warning("No products found. Please add products in the Inventory app first.")
         if st.button("→ Go to Inventory"):
             st.session_state.current_page = "inventory"
@@ -365,34 +365,33 @@ def page_record_sale():
     # ── LEFT: Build cart ──
     with col1:
         section_header("🛍️ Build Cart")
-        in_stock = products_df[products_df["stock_quantity"] > 0]
+        # ── Product search ──────────────────────────────────────────
+        # Initialise search query in session state so it persists across reruns
+        if "cart_search" not in st.session_state:
+            st.session_state.cart_search = ""
+
+        st.session_state.cart_search = st.text_input(
+            "🔍 Search product",
+            value=st.session_state.cart_search,
+            placeholder="Type any part of the product name…",
+            key="cart_search_input",
+        )
+
+        query = st.session_state.cart_search.strip()
+        # Indexed, bounded search — same cost whether the catalogue has 50
+        # SKUs or 5,000, since Postgres does the filtering (not pandas) and
+        # results are capped at 30. Empty/short query shows a small default
+        # page instead of the whole catalogue, so the selectbox below never
+        # has to render thousands of options.
+        in_stock = search_products(business_id, query, limit=30, in_stock_only=True)
+
         if in_stock.empty:
-            st.warning("All products are out of stock.")
-        else:
-            # ── Product search ──────────────────────────────────────────
-            # Initialise search query in session state so it persists across reruns
-            if "cart_search" not in st.session_state:
-                st.session_state.cart_search = ""
-
-            st.session_state.cart_search = st.text_input(
-                "🔍 Search product",
-                value=st.session_state.cart_search,
-                placeholder="Type any part of the product name…",
-                key="cart_search_input",
-            )
-
-            query = st.session_state.cart_search.strip()
             if query:
-                filtered = in_stock[
-                    in_stock["product_name"].str.contains(query, case=False, na=False)
-                ]
-                if filtered.empty:
-                    st.warning(f"No products match \"{query}\". Showing all in-stock products.")
-                    filtered = in_stock
+                st.warning(f"No in-stock products match \"{query}\".")
             else:
-                filtered = in_stock
-
-            prod_names = filtered["product_name"].tolist()
+                st.warning("All products are out of stock.")
+        else:
+            prod_names = in_stock["product_name"].tolist()
             sel_name   = st.selectbox("Product", prod_names, key="cart_prod")
             sel_prod_row = in_stock[in_stock["product_name"] == sel_name].iloc[0]
 
