@@ -341,6 +341,273 @@ def page_dashboard():
 # RECORD SALE
 # ══════════════════════════════════════════════════════════════════════════════
 
+@st.fragment
+def _build_cart_fragment(business_id):
+    """
+    Everything needed to search products and build the cart, isolated in
+    its own fragment. Typing in the search box now only reruns THIS
+    fragment, not the whole page (checkout panel, other sections) —
+    unlike before, where every keystroke reran the entire page.
+    Add-to-cart / remove-item already call st.rerun() explicitly below;
+    inside a fragment that defaults to a FULL app rerun, so the checkout
+    panel on the right still updates immediately when the cart changes —
+    only pure typing (no rerun call) stays scoped to this fragment.
+    """
+    section_header("🛍️ Build Cart")
+    # ── Product search ──────────────────────────────────────────
+    # Initialise search query in session state so it persists across reruns
+    if "cart_search" not in st.session_state:
+        st.session_state.cart_search = ""
+
+    st.session_state.cart_search = st.text_input(
+        "🔍 Search product",
+        value=st.session_state.cart_search,
+        placeholder="Type any part of the product name…",
+        key="cart_search_input",
+    )
+
+    query = st.session_state.cart_search.strip()
+    # Indexed, bounded search — same cost whether the catalogue has 50
+    # SKUs or 5,000, since Postgres does the filtering (not pandas) and
+    # results are capped at 30. Empty/short query shows a small default
+    # page instead of the whole catalogue, so the selectbox below never
+    # has to render thousands of options.
+    in_stock = search_products(business_id, query, limit=30, in_stock_only=True)
+
+    if in_stock.empty:
+        if query:
+            st.warning(f"No in-stock products match \"{query}\".")
+        else:
+            st.warning("No products in stock. Add products in the Inventory app if you haven't yet.")
+            if st.button("→ Go to Inventory"):
+                st.session_state.current_page = "inventory"
+                st.rerun()
+    else:
+        prod_names = in_stock["product_name"].tolist()
+        sel_name   = st.selectbox("Product", prod_names, key="cart_prod")
+        sel_prod_row = in_stock[in_stock["product_name"] == sel_name].iloc[0]
+
+        # Unit config
+        base_unit    = sel_prod_row.get("base_unit", "unit") or "unit"
+        sub_unit     = sel_prod_row.get("sub_unit",  "unit") or "unit"
+        upp          = safe_int(sel_prod_row.get("units_per_pack", 1)) or 1
+        price_base   = safe_float(sel_prod_row["selling_price"])
+        price_sub    = safe_float(sel_prod_row.get("selling_price_sub", 0))
+        cost_price_u = safe_float(sel_prod_row["cost_price"])
+        avail_base   = safe_float(sel_prod_row["stock_quantity"])   # always in base units
+
+        # How much is already in cart (in base units)
+        cart_reserved = sum(
+            i["stock_deduct"] for i in st.session_state.cart
+            if i["product_id"] == sel_prod_row["product_id"]
+        )
+        remaining_base = avail_base - cart_reserved
+
+        # Unit selector — only show if product supports sub units
+        if upp > 1 and price_sub > 0:
+            sell_mode = st.radio(
+                "Selling as",
+                options=["base", "sub"],
+                format_func=lambda x: (
+                    f"Full {base_unit} — {fmt_naira(price_base)}"
+                    if x == "base" else
+                    f"Per {sub_unit} — {fmt_naira(price_sub)}"
+                ),
+                horizontal=True,
+                key="cart_sell_mode",
+            )
+        else:
+            sell_mode = "base"
+
+        # Compute display availability based on mode
+        if sell_mode == "sub":
+            avail_display = remaining_base * upp
+            unit_label    = sub_unit
+            default_price = price_sub
+            cost_per_unit = cost_price_u / upp
+        else:
+            avail_display = remaining_base
+            unit_label    = base_unit
+            default_price = price_base
+            cost_per_unit = cost_price_u
+
+        st.caption(
+            f"📦 Listed price: **{fmt_naira(default_price)} per {unit_label}** "
+            f"&nbsp;|&nbsp; 🏷️ Available: **{fmt_qty(avail_display)} {unit_label}s**"
+            + (f" ({fmt_qty(remaining_base)} {base_unit}s)" if sell_mode == "sub" else "")
+        )
+
+        currency_sym = st.session_state.get("currency_symbol", "₦")
+        pricing_mode = st.radio(
+            "How do you want to enter the price?",
+            options=["per_unit", "total"],
+            format_func=lambda x: "Price per unit" if x == "per_unit" else "Total price for this line",
+            horizontal=True,
+            key="cart_pricing_mode",
+            help=(
+                "Use 'Total price for this line' when you've agreed a lump sum for multiple "
+                "units (e.g. 3 for ₦500) instead of a clean per-unit rate — BizTrack will "
+                "work out the per-unit rate for you."
+            ),
+        )
+
+        with st.form("add_to_cart", clear_on_submit=True):
+            ac1, ac2  = st.columns(2)
+            sel_qty   = ac1.number_input(
+                f"Quantity ({unit_label}s)",
+                min_value=1, max_value=max(1, int(avail_display)), value=1, step=1,
+            )
+
+            if pricing_mode == "total":
+                sel_total_price = ac2.number_input(
+                    f"Total price for these {unit_label}s ({currency_sym})",
+                    min_value=0.0, value=float(default_price), step=100.0,
+                    help="Enter the full amount for this line — the per-unit rate is worked out automatically.",
+                )
+                sel_price = None
+                listed_total = round(default_price * sel_qty, 2)
+                if sel_total_price > listed_total:
+                    st.warning(f"⚠️ Above listed total ({fmt_naira(listed_total)} for {sel_qty} {unit_label}s). Confirm?")
+            else:
+                sel_price = ac2.number_input(
+                    f"Price per " + unit_label + " (" + currency_sym + ")",
+                    min_value=0.0, value=float(default_price), step=100.0,
+                    help="Change to override listed price",
+                )
+                sel_total_price = None
+                if sel_price > default_price:
+                    st.warning(f"⚠️ Above listed price ({fmt_naira(default_price)}). Confirm?")
+
+            add_btn = st.form_submit_button("➕ Add to Cart", type="primary",
+                                            width='stretch')
+
+        if add_btn:
+            prod_row   = in_stock[in_stock["product_name"] == sel_name].iloc[0]
+
+            # Convert everything to base units for stock deduction
+            if sell_mode == "sub":
+                stock_deduct  = sel_qty / upp          # fractional base units
+                cost_total    = round(cost_price_u * stock_deduct, 2)
+                display_label = f"{sel_qty} {sub_unit}s"
+            else:
+                stock_deduct  = float(sel_qty)
+                cost_total    = round(cost_price_u * sel_qty, 2)
+                display_label = f"{sel_qty} {base_unit}s"
+
+            if pricing_mode == "total":
+                # Line total is exactly what the user typed — no per-unit rounding drift.
+                line_total = round(float(sel_total_price), 2)
+                negotiated = round(line_total / sel_qty, 6) if sel_qty else 0.0
+                disc_amt   = max(0, round(default_price * sel_qty - line_total, 2))
+            else:
+                negotiated   = float(sel_price)
+                line_total   = round(negotiated * sel_qty, 2)
+                disc_amt     = max(0, round((default_price - negotiated) * sel_qty, 2))
+
+            gross_profit = round(line_total - cost_total, 2)
+
+            if stock_deduct > remaining_base:
+                st.error(
+                    f"Not enough stock. Available: {fmt_qty(avail_display)} {unit_label}s "
+                    f"({remaining_base:.1f} {base_unit}s)."
+                )
+            else:
+                merged = False
+                # Only merge clean per-unit lines; total-price lines stay on their own
+                # row so the exact typed amount is never re-multiplied/rounded.
+                if pricing_mode == "per_unit":
+                    for item in st.session_state.cart:
+                        if (item["product_id"] == prod_row["product_id"] and
+                                item["sell_mode"] == sell_mode and
+                                item.get("pricing_mode", "per_unit") == "per_unit" and
+                                item["negotiated_price"] == negotiated):
+                            item["quantity"]     += int(sel_qty)
+                            item["stock_deduct"] += stock_deduct
+                            item["line_total"]    = round(negotiated * item["quantity"], 2)
+                            item["cost_total"]    = round(cost_price_u * item["stock_deduct"], 2)
+                            item["gross_profit"]  = round(item["line_total"] - item["cost_total"], 2)
+                            item["discount_amt"]  = max(0, round((default_price - negotiated) * item["quantity"], 2))
+                            merged = True
+                            break
+                if not merged:
+                    st.session_state.cart.append({
+                        "product_id":       prod_row["product_id"],
+                        "product_name":     sel_name,
+                        "sell_mode":        sell_mode,
+                        "pricing_mode":     pricing_mode,
+                        "unit_label":       unit_label,
+                        "display_label":    display_label,
+                        "quantity":         int(sel_qty),
+                        "stock_deduct":     stock_deduct,
+                        "unit_price":       default_price,
+                        "negotiated_price": negotiated,
+                        "cost_price":       cost_price_u,
+                        "discount_pct":     0.0,
+                        "discount_amt":     disc_amt,
+                        "line_total":       line_total,
+                        "cost_total":       cost_total,
+                        "gross_profit":     gross_profit,
+                    })
+                st.session_state.sale_done = None
+                st.rerun()
+
+    # ── Cart display ──
+    if not st.session_state.cart:
+        st.info("Cart is empty. Add products above.")
+    else:
+        st.markdown("---")
+        section_header("🧾 Cart Items")
+        grand_total    = 0
+        total_discount = 0
+        total_cost     = 0
+        total_profit   = 0
+
+        for idx, item in enumerate(st.session_state.cart):
+            ic1, ic2 = st.columns([6, 1])
+            with ic1:
+                neg = item.get("negotiated_price", item["unit_price"])
+                if neg < item["unit_price"]:
+                    price_str = (f"~~{fmt_naira(item['unit_price'])}~~ → "
+                                 f"**{fmt_naira(neg)}** (-{fmt_naira(item['discount_amt'])})")
+                elif neg > item["unit_price"]:
+                    markup_amt = round((neg - item["unit_price"]) * item["quantity"], 2)
+                    price_str = (f"~~{fmt_naira(item['unit_price'])}~~ → "
+                                 f"**{fmt_naira(neg)}** (+{fmt_naira(markup_amt)})")
+                else:
+                    price_str = fmt_naira(item["unit_price"])
+                st.markdown(
+                    f"**{item['product_name']}** × {item['quantity']} "
+                    f"{item.get('unit_label','unit')}s "
+                    f"@ {price_str} — **{fmt_naira(item['line_total'])}**"
+                )
+            with ic2:
+                if st.button("🗑️", key=f"rm_{idx}", help="Remove"):
+                    st.session_state.cart.pop(idx)
+                    st.rerun()
+            grand_total    += item["line_total"]
+            total_discount += item["discount_amt"]
+            total_cost     += item["cost_total"]
+            total_profit   += item["gross_profit"]
+            if idx < len(st.session_state.cart) - 1:
+                st.divider()
+
+        st.markdown(f"""
+<div class="kpi-card">
+  <div class="kpi-label">Cart Summary</div>
+  <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.75rem;">
+    <div><div class="kpi-label">Items</div>
+     <div style="font-weight:700;font-size:1.1rem;color:#f1f5f9">{len(st.session_state.cart)}</div></div>
+    <div><div class="kpi-label">Discount Given</div>
+     <div style="font-weight:700;font-size:1.1rem;color:#ef4444">{fmt_naira(total_discount)}</div></div>
+    <div><div class="kpi-label">Grand Total</div>
+     <div style="font-weight:700;font-size:1.4rem;color:#00C896">{fmt_naira(grand_total)}</div></div>
+    <div><div class="kpi-label">Gross Profit</div>
+     <div style="font-weight:700;font-size:1.1rem;color:#6366f1">{fmt_naira(total_profit)}</div></div>
+  </div>
+</div>
+        """, unsafe_allow_html=True)
+
+
 def page_record_sale():
     apply_suite_css()
     user        = st.session_state.user
@@ -355,259 +622,7 @@ def page_record_sale():
 
     # ── LEFT: Build cart ──
     with col1:
-        section_header("🛍️ Build Cart")
-        # ── Product search ──────────────────────────────────────────
-        # Initialise search query in session state so it persists across reruns
-        if "cart_search" not in st.session_state:
-            st.session_state.cart_search = ""
-
-        st.session_state.cart_search = st.text_input(
-            "🔍 Search product",
-            value=st.session_state.cart_search,
-            placeholder="Type any part of the product name…",
-            key="cart_search_input",
-        )
-
-        query = st.session_state.cart_search.strip()
-        # Indexed, bounded search — same cost whether the catalogue has 50
-        # SKUs or 5,000, since Postgres does the filtering (not pandas) and
-        # results are capped at 30. Empty/short query shows a small default
-        # page instead of the whole catalogue, so the selectbox below never
-        # has to render thousands of options.
-        in_stock = search_products(business_id, query, limit=30, in_stock_only=True)
-
-        if in_stock.empty:
-            if query:
-                st.warning(f"No in-stock products match \"{query}\".")
-            else:
-                st.warning("No products in stock. Add products in the Inventory app if you haven't yet.")
-                if st.button("→ Go to Inventory"):
-                    st.session_state.current_page = "inventory"
-                    st.rerun()
-        else:
-            prod_names = in_stock["product_name"].tolist()
-            sel_name   = st.selectbox("Product", prod_names, key="cart_prod")
-            sel_prod_row = in_stock[in_stock["product_name"] == sel_name].iloc[0]
-
-            # Unit config
-            base_unit    = sel_prod_row.get("base_unit", "unit") or "unit"
-            sub_unit     = sel_prod_row.get("sub_unit",  "unit") or "unit"
-            upp          = safe_int(sel_prod_row.get("units_per_pack", 1)) or 1
-            price_base   = safe_float(sel_prod_row["selling_price"])
-            price_sub    = safe_float(sel_prod_row.get("selling_price_sub", 0))
-            cost_price_u = safe_float(sel_prod_row["cost_price"])
-            avail_base   = safe_float(sel_prod_row["stock_quantity"])   # always in base units
-
-            # How much is already in cart (in base units)
-            cart_reserved = sum(
-                i["stock_deduct"] for i in st.session_state.cart
-                if i["product_id"] == sel_prod_row["product_id"]
-            )
-            remaining_base = avail_base - cart_reserved
-
-            # Unit selector — only show if product supports sub units
-            if upp > 1 and price_sub > 0:
-                sell_mode = st.radio(
-                    "Selling as",
-                    options=["base", "sub"],
-                    format_func=lambda x: (
-                        f"Full {base_unit} — {fmt_naira(price_base)}"
-                        if x == "base" else
-                        f"Per {sub_unit} — {fmt_naira(price_sub)}"
-                    ),
-                    horizontal=True,
-                    key="cart_sell_mode",
-                )
-            else:
-                sell_mode = "base"
-
-            # Compute display availability based on mode
-            if sell_mode == "sub":
-                avail_display = remaining_base * upp
-                unit_label    = sub_unit
-                default_price = price_sub
-                cost_per_unit = cost_price_u / upp
-            else:
-                avail_display = remaining_base
-                unit_label    = base_unit
-                default_price = price_base
-                cost_per_unit = cost_price_u
-
-            st.caption(
-                f"📦 Listed price: **{fmt_naira(default_price)} per {unit_label}** "
-                f"&nbsp;|&nbsp; 🏷️ Available: **{fmt_qty(avail_display)} {unit_label}s**"
-                + (f" ({fmt_qty(remaining_base)} {base_unit}s)" if sell_mode == "sub" else "")
-            )
-
-            currency_sym = st.session_state.get("currency_symbol", "₦")
-            pricing_mode = st.radio(
-                "How do you want to enter the price?",
-                options=["per_unit", "total"],
-                format_func=lambda x: "Price per unit" if x == "per_unit" else "Total price for this line",
-                horizontal=True,
-                key="cart_pricing_mode",
-                help=(
-                    "Use 'Total price for this line' when you've agreed a lump sum for multiple "
-                    "units (e.g. 3 for ₦500) instead of a clean per-unit rate — BizTrack will "
-                    "work out the per-unit rate for you."
-                ),
-            )
-
-            with st.form("add_to_cart", clear_on_submit=True):
-                ac1, ac2  = st.columns(2)
-                sel_qty   = ac1.number_input(
-                    f"Quantity ({unit_label}s)",
-                    min_value=1, max_value=max(1, int(avail_display)), value=1, step=1,
-                )
-
-                if pricing_mode == "total":
-                    sel_total_price = ac2.number_input(
-                        f"Total price for these {unit_label}s ({currency_sym})",
-                        min_value=0.0, value=float(default_price), step=100.0,
-                        help="Enter the full amount for this line — the per-unit rate is worked out automatically.",
-                    )
-                    sel_price = None
-                    listed_total = round(default_price * sel_qty, 2)
-                    if sel_total_price > listed_total:
-                        st.warning(f"⚠️ Above listed total ({fmt_naira(listed_total)} for {sel_qty} {unit_label}s). Confirm?")
-                else:
-                    sel_price = ac2.number_input(
-                        f"Price per " + unit_label + " (" + currency_sym + ")",
-                        min_value=0.0, value=float(default_price), step=100.0,
-                        help="Change to override listed price",
-                    )
-                    sel_total_price = None
-                    if sel_price > default_price:
-                        st.warning(f"⚠️ Above listed price ({fmt_naira(default_price)}). Confirm?")
-
-                add_btn = st.form_submit_button("➕ Add to Cart", type="primary",
-                                                width='stretch')
-
-            if add_btn:
-                prod_row   = in_stock[in_stock["product_name"] == sel_name].iloc[0]
-
-                # Convert everything to base units for stock deduction
-                if sell_mode == "sub":
-                    stock_deduct  = sel_qty / upp          # fractional base units
-                    cost_total    = round(cost_price_u * stock_deduct, 2)
-                    display_label = f"{sel_qty} {sub_unit}s"
-                else:
-                    stock_deduct  = float(sel_qty)
-                    cost_total    = round(cost_price_u * sel_qty, 2)
-                    display_label = f"{sel_qty} {base_unit}s"
-
-                if pricing_mode == "total":
-                    # Line total is exactly what the user typed — no per-unit rounding drift.
-                    line_total = round(float(sel_total_price), 2)
-                    negotiated = round(line_total / sel_qty, 6) if sel_qty else 0.0
-                    disc_amt   = max(0, round(default_price * sel_qty - line_total, 2))
-                else:
-                    negotiated   = float(sel_price)
-                    line_total   = round(negotiated * sel_qty, 2)
-                    disc_amt     = max(0, round((default_price - negotiated) * sel_qty, 2))
-
-                gross_profit = round(line_total - cost_total, 2)
-
-                if stock_deduct > remaining_base:
-                    st.error(
-                        f"Not enough stock. Available: {fmt_qty(avail_display)} {unit_label}s "
-                        f"({remaining_base:.1f} {base_unit}s)."
-                    )
-                else:
-                    merged = False
-                    # Only merge clean per-unit lines; total-price lines stay on their own
-                    # row so the exact typed amount is never re-multiplied/rounded.
-                    if pricing_mode == "per_unit":
-                        for item in st.session_state.cart:
-                            if (item["product_id"] == prod_row["product_id"] and
-                                    item["sell_mode"] == sell_mode and
-                                    item.get("pricing_mode", "per_unit") == "per_unit" and
-                                    item["negotiated_price"] == negotiated):
-                                item["quantity"]     += int(sel_qty)
-                                item["stock_deduct"] += stock_deduct
-                                item["line_total"]    = round(negotiated * item["quantity"], 2)
-                                item["cost_total"]    = round(cost_price_u * item["stock_deduct"], 2)
-                                item["gross_profit"]  = round(item["line_total"] - item["cost_total"], 2)
-                                item["discount_amt"]  = max(0, round((default_price - negotiated) * item["quantity"], 2))
-                                merged = True
-                                break
-                    if not merged:
-                        st.session_state.cart.append({
-                            "product_id":       prod_row["product_id"],
-                            "product_name":     sel_name,
-                            "sell_mode":        sell_mode,
-                            "pricing_mode":     pricing_mode,
-                            "unit_label":       unit_label,
-                            "display_label":    display_label,
-                            "quantity":         int(sel_qty),
-                            "stock_deduct":     stock_deduct,
-                            "unit_price":       default_price,
-                            "negotiated_price": negotiated,
-                            "cost_price":       cost_price_u,
-                            "discount_pct":     0.0,
-                            "discount_amt":     disc_amt,
-                            "line_total":       line_total,
-                            "cost_total":       cost_total,
-                            "gross_profit":     gross_profit,
-                        })
-                    st.session_state.sale_done = None
-                    st.rerun()
-
-        # ── Cart display ──
-        if not st.session_state.cart:
-            st.info("Cart is empty. Add products above.")
-        else:
-            st.markdown("---")
-            section_header("🧾 Cart Items")
-            grand_total    = 0
-            total_discount = 0
-            total_cost     = 0
-            total_profit   = 0
-
-            for idx, item in enumerate(st.session_state.cart):
-                ic1, ic2 = st.columns([6, 1])
-                with ic1:
-                    neg = item.get("negotiated_price", item["unit_price"])
-                    if neg < item["unit_price"]:
-                        price_str = (f"~~{fmt_naira(item['unit_price'])}~~ → "
-                                     f"**{fmt_naira(neg)}** (-{fmt_naira(item['discount_amt'])})")
-                    elif neg > item["unit_price"]:
-                        markup_amt = round((neg - item["unit_price"]) * item["quantity"], 2)
-                        price_str = (f"~~{fmt_naira(item['unit_price'])}~~ → "
-                                     f"**{fmt_naira(neg)}** (+{fmt_naira(markup_amt)})")
-                    else:
-                        price_str = fmt_naira(item["unit_price"])
-                    st.markdown(
-                        f"**{item['product_name']}** × {item['quantity']} "
-                        f"{item.get('unit_label','unit')}s "
-                        f"@ {price_str} — **{fmt_naira(item['line_total'])}**"
-                    )
-                with ic2:
-                    if st.button("🗑️", key=f"rm_{idx}", help="Remove"):
-                        st.session_state.cart.pop(idx)
-                        st.rerun()
-                grand_total    += item["line_total"]
-                total_discount += item["discount_amt"]
-                total_cost     += item["cost_total"]
-                total_profit   += item["gross_profit"]
-                if idx < len(st.session_state.cart) - 1:
-                    st.divider()
-
-            st.markdown(f"""
-<div class="kpi-card">
-  <div class="kpi-label">Cart Summary</div>
-  <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:0.75rem;">
-    <div><div class="kpi-label">Items</div>
-         <div style="font-weight:700;font-size:1.1rem;color:#f1f5f9">{len(st.session_state.cart)}</div></div>
-    <div><div class="kpi-label">Discount Given</div>
-         <div style="font-weight:700;font-size:1.1rem;color:#ef4444">{fmt_naira(total_discount)}</div></div>
-    <div><div class="kpi-label">Grand Total</div>
-         <div style="font-weight:700;font-size:1.4rem;color:#00C896">{fmt_naira(grand_total)}</div></div>
-    <div><div class="kpi-label">Gross Profit</div>
-         <div style="font-weight:700;font-size:1.1rem;color:#6366f1">{fmt_naira(total_profit)}</div></div>
-  </div>
-</div>
-            """, unsafe_allow_html=True)
+        _build_cart_fragment(business_id)
 
     # ── RIGHT: Checkout + receipt ──
     with col2:
