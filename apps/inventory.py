@@ -643,7 +643,8 @@ def page_products():
         if not insights["stockout_projection"].empty:
             proj = insights["stockout_projection"].copy()
             proj["stockout_date"] = proj["days_until_stockout"].apply(
-                lambda d: (datetime.now() + timedelta(days=d)).strftime("%d %b %Y")
+                lambda d: (datetime.now() + timedelta(days=min(d, 3650))).strftime("%d %b %Y")
+                if pd.notna(d) else "—"
             )
             proj["urgency"] = proj["days_until_stockout"].apply(
                 lambda d: "🔴 Critical" if d <= 3 else ("🟡 Soon" if d <= 7 else "🟢 OK")

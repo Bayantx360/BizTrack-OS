@@ -868,9 +868,18 @@ def compute_insights(sales_df, products_df, expenses_df, items_df=None) -> dict:
         proj["avg_daily_sales"] = proj["_qty_sold"] / days_range
         proj = proj[proj["avg_daily_sales"] > 0].copy()
         if not proj.empty:
+            # Cap at 10 years out. Without this, a corrupted/outlier
+            # sale_date (common in cloned/stress-test datasets) can inflate
+            # days_range enough to make avg_daily_sales near-zero, which
+            # sends days_until_stockout into the hundreds of thousands or
+            # millions — enough for datetime.now() + timedelta(days=d) to
+            # overflow past year 9999 downstream in inventory.py/health.py.
+            _MAX_DAYS_OUT = 3650
             proj["days_until_stockout"] = (
-                proj["stock_quantity"] / proj["avg_daily_sales"]
-            ).round(1)
+                (proj["stock_quantity"] / proj["avg_daily_sales"])
+                .clip(upper=_MAX_DAYS_OUT)
+                .round(1)
+            )
             proj["avg_daily_sales"] = proj["avg_daily_sales"].round(2)
             insights["stockout_projection"] = (
                 proj[["product_name", "stock_quantity",
