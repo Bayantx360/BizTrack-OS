@@ -227,7 +227,7 @@ def page_login():
   </div>
   <div style="font-size:11.5px;color:#6B7280;text-align:center;
               line-height:1.6;max-width:340px;">
-    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses.
+    Trusted by <span style="color:#D1D5DB;">{names_str}</span> & more amazing businesses.
   </div>
 </div>
     """, unsafe_allow_html=True)
