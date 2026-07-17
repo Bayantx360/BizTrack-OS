@@ -60,10 +60,10 @@ PAGES = {
     "inventory":     ("Inventory",     "📦", "inventory", page_products),
     # Business Health
     "expenses":      ("Expenses",      "💸", "health",    page_expenses),
-    "insights":      ("Insights",      "🧠", "health",    page_insights),
+    "insights":      ("Insights",      "💰", "health",    page_insights),
     "debtors":       ("Debtors Ledger","📕", "health",    page_debtors),
     # Admin (conditionally shown)
-    "admin":         ("Admin Panel",   "🛡️", "health",    page_admin),
+    "admin":         ("Admin Panel",   "🪎", "health",    page_admin),
     # Settings
     "settings":      ("Settings",      "⚙️", "settings",  None),
 }
