@@ -60,10 +60,10 @@ PAGES = {
     "inventory":     ("Inventory",     "📦", "inventory", page_products),
     # Business Health
     "expenses":      ("Expenses",      "💸", "health",    page_expenses),
-    "insights":      ("Insights",      "🧠", "health",    page_insights),
+    "insights":      ("Insights",      "💰", "health",    page_insights),
     "debtors":       ("Debtors Ledger","📕", "health",    page_debtors),
     # Admin (conditionally shown)
-    "admin":         ("Admin Panel",   "🛡️", "health",    page_admin),
+    "admin":         ("Admin Panel",   "🪎", "health",    page_admin),
     # Settings
     "settings":      ("Settings",      "⚙️", "settings",  None),
 }
@@ -168,7 +168,7 @@ def page_login():
         {"name": "Ammy's Gadgets",                 "photo": "assets/user2.jpg"},
         {"name": "Bularis C.E",                    "photo": "assets/user3.jpg"},
         {"name": "Tundsam Agromart Ltd",           "photo": "assets/user4.jpg"},
-        {"name": "Omokorewa Kitchens",     "photo": "assets/user5.jpg"},
+        {"name": "Hollmide Ventures",     "photo": "assets/user5.jpg"},
     ]
 
     import base64, os
