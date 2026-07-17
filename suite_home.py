@@ -168,7 +168,7 @@ def page_login():
         {"name": "Ammy's Gadgets",                 "photo": "assets/user2.jpg"},
         {"name": "Bularis C.E",                    "photo": "assets/user3.jpg"},
         {"name": "Tundsam Agromart Ltd",           "photo": "assets/user4.jpg"},
-        {"name": "Omokorewa Kitchens",     "photo": "assets/user5.jpg"},
+        {"name": "Hollmide Ventures",     "photo": "assets/user5.jpg"},
     ]
 
     import base64, os
