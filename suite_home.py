@@ -103,6 +103,150 @@ def get_business_social_proof():
         return 0, []
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# PUBLIC TESTIMONIALS — no login required
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _avatar_html(photo_path, name, size=46):
+    """Render a circular avatar from a photo file, falling back to initials."""
+    import base64
+    try:
+        with open(photo_path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        ext  = photo_path.rsplit(".", 1)[-1].lower()
+        mime = "image/jpg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+        src  = f"data:{mime};base64,{b64}"
+        return (
+            f'<div style="width:{size}px;height:{size}px;border-radius:50%;'
+            f'border:2.5px solid #0D1117;flex-shrink:0;overflow:hidden;'
+            f'margin-right:-12px;position:relative;" title="{name}">'
+            f'<img src="{src}" style="width:100%;height:100%;object-fit:cover;display:block;"/>'
+            f'</div>'
+        )
+    except Exception:
+        initials = "".join(p[0].upper() for p in name.split()[:2])
+        return (
+            f'<div style="width:{size}px;height:{size}px;border-radius:50%;'
+            f'background:#1A2332;border:2.5px solid #0D1117;flex-shrink:0;'
+            f'display:flex;align-items:center;justify-content:center;'
+            f'font-size:13px;font-weight:600;color:#F5A623;'
+            f'margin-right:-12px;position:relative;" title="{name}">'
+            f'{initials}</div>'
+        )
+
+
+# ── Edit this list to add/update testimonials — no DB involved ────────────────
+TESTIMONIALS = [
+    {
+        "name": "Bay Enterprises",
+        "person": "Bashir A. (Business Owner)",
+        "photo": "assets/user1.jpg",
+        "rating": 5,
+        "comment": "This app is good, stable and have so much value that help us to manage our business on a daily basis "
+                   "in tracking inventory, recording sales and see exact profit. Their customer support is also great and I recommend them for anyone to give it a trial ",
+    },
+    {
+        "name": "Ammy's Gadgets",
+        "person": "Amina Y. (Business Manager)",
+        "photo": "assets/user2.jpg",
+        "rating": 5,
+        "comment": "I like the way BizTrack-OS make it easier to keep our records organised and intact. Features like low stock alert alone has saved us from running out of our "
+                   "best-selling items on different occassion.",
+    },
+    {
+        "name": "Hollmide Ventures",
+        "person": "Olamide M. (Business Owner)",
+        "photo": "assets/user7.jpg",
+        "rating": 5,
+        "comment": "Since I started using BizTrack-OS, I no longer record on paper and I am seeing how my business is performing on a daily basis. "
+                   "I like the fact that I can see and manage my business through this app on my phone.",
+    },
+    {
+        "name": "Tundsam Agromart Ltd",
+        "person": "Samuel T. (Business Owner)",
+        "photo": "assets/user3.jpg",
+        "rating": 4,
+        "comment": "I switched from a notebook to BizTrack-OS and so far the app "
+                   "has been useful in keeping our sales and transaction records. It is stable and solid. I recommend it for anyone",
+    },
+    {
+        "name": " Emeks Stores",
+        "person": "Eze O. (Business Owner)",
+        "photo": "assets/user4.jpg",
+        "rating": 5,
+        "comment": "This app is nice, have useful features and good customer support. I like the way it makes it easy to directly reach "
+                   "customers and share reciept on Whatsapp whenever I sell or I want to collect my balance.",
+    },
+    {
+        "name": "Gladys Ventures",
+        "person": "Gloria M. (Business Owner)",
+        "photo": "assets/user5.jpg",
+        "rating": 5,
+        "comment": "This business app is very reliable, trustworthy and easy to use on mobile phone. Setup took me less than 10 minutes to get it working on my phone "
+                   "and I have been using to accurately monitor my stock and sales performance.",
+    },
+]
+
+
+def page_testimonials():
+    """Public page — no auth required. Shows curated user feedback."""
+    apply_suite_css()
+
+    st.markdown("""
+<style>
+.tm-header { text-align:center; padding: 18px 0 10px; }
+.tm-title  {
+  font-family:'Syne',sans-serif; font-size:1.7rem; font-weight:800;
+  color:#F0F4F8; letter-spacing:-0.03em;
+}
+.tm-sub { font-size:0.88rem; color:#8BA0B8; margin-top:0.4rem; max-width:480px;
+  margin-left:auto; margin-right:auto; }
+.tm-card {
+  background: var(--surface); border:1px solid var(--border);
+  border-radius: 14px; padding: 16px 18px; margin-bottom: 14px;
+}
+.tm-card-head { display:flex; align-items:center; gap:16px; margin-bottom:10px; }
+.tm-card-name { font-weight:700; color:#F0F4F8; font-size:0.92rem; }
+.tm-card-person { font-size:0.76rem; color:#8BA0B8; }
+.tm-stars { color:#F5A623; font-size:0.85rem; letter-spacing:2px; margin-top:2px;}
+.tm-comment { font-size:0.85rem; color:#C9D3DD; line-height:1.55; }
+</style>
+
+<div class="tm-header">
+  <div class="tm-title">💬 What our users are saying</div>
+  <div class="tm-sub">
+    Real feedback from business owners using BizTrack-OS to track sales,
+    stock, debtors and profit.
+  </div>
+</div>
+    """, unsafe_allow_html=True)
+
+    _, col, _ = st.columns([1, 1.6, 1])
+    with col:
+        for t in TESTIMONIALS:
+            stars = "★" * t["rating"] + "☆" * (5 - t["rating"])
+            st.markdown(f"""
+<div class="tm-card">
+  <div class="tm-card-head">
+    {_avatar_html(t["photo"], t["person"], size=44)}
+    <div style="margin-left:14px;">
+      <div class="tm-card-name">{t["name"]}</div>
+      <div class="tm-card-person">{t["person"]}</div>
+      <div class="tm-stars">{stars}</div>
+    </div>
+  </div>
+  <div class="tm-comment">{t["comment"]}</div>
+</div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        bc1, bc2 = st.columns(2)
+        if bc1.button("← Back to Login", width='stretch'):
+            st.session_state.current_page = "login"; st.rerun()
+        if bc2.button("Create free account", width='stretch', type="primary"):
+            st.session_state.current_page = "signup"; st.rerun()
+
+
 def page_login():
     apply_suite_css()
     st.markdown("""
@@ -139,15 +283,11 @@ def page_login():
     <div class="lp-logo-icon">📒</div>
   </div>
   <div class="lp-logo-text">BizTrack-OS</div><br>
-  <div class="lp-badge"><span>●</span> All-in-one business suite</div>
+  <div class="lp-badge"><span>●</span> All-in-one Business App for SMEs</div>
   <div class="lp-headline">Run & Monitor your <span>Business</span><br>Smarter</div>
-  <div class="lp-sub">
-    Everything your business needs — sales, stock, debtors and growth insights — in one place.
-  </div>
 
-  <div class="lp-sub" style="color: gold;">
-    Key Features that you can use on BizTrack-OS
-  </div>
+  
+  <div class="lp-badge" style="color: gold;"><span>●</span> Key Features that Support Businesses</div>
 
   <div class="lp-feature-strip">
     <div class="lp-feature-chip"><span>💰</span> Sales & Revenue</div>
@@ -227,13 +367,43 @@ def page_login():
   </div>
   <div style="font-size:11.5px;color:#6B7280;text-align:center;
               line-height:1.6;max-width:340px;">
-    Trusted by <span style="color:#D1D5DB;">{names_str}</span> and more amazing businesses.
+    Trusted by <span style="color:#D1D5DB;">{names_str}</span> & more amazing businesses.
   </div>
 </div>
     """, unsafe_allow_html=True)
 
     _, form_col, _ = st.columns([1, 1.4, 1])
     with form_col:
+        st.markdown("""
+<style>
+div.st-key-testimonials_cta button {
+  background: linear-gradient(135deg, #0EA5A0, #0D7EDB) !important;
+  border: none !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  padding: 14px 10px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 18px rgba(14,165,160,0.35) !important;
+}
+div.st-key-testimonials_cta button:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px rgba(14,165,160,0.5) !important;
+}
+.tm-cta-badge {
+  display:inline-block; background:#EAB308; color:#1A1200;
+  font-size:0.62rem; font-weight:800; letter-spacing:0.04em;
+  padding:2px 7px; border-radius:99px; margin-bottom:6px;
+  text-transform:uppercase;
+}
+</style>
+<div style="text-align:center;">
+  <span class="tm-cta-badge">⭐ Hear from real users</span>
+</div>
+        """, unsafe_allow_html=True)
+        with st.container(key="testimonials_cta"):
+            if st.button("💬 See what our users are saying 👉→", width='stretch'):
+                st.session_state.current_page = "testimonials"; st.rerun()
+
         st.markdown('<div class="lp-divider">Sign in to your account</div>',
                     unsafe_allow_html=True)
         with st.form("login_form"):
@@ -875,6 +1045,7 @@ def main():
         route_map = {
             "login":           page_login,
             "signup":          page_signup,
+            "testimonials":    page_testimonials,
             "forgot_password": page_forgot_password,
             "force_password_change": page_force_password_change,
             "pending_payment": lambda: __import__(
