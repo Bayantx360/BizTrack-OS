@@ -103,6 +103,143 @@ def get_business_social_proof():
         return 0, []
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# PUBLIC TESTIMONIALS — no login required
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _avatar_html(photo_path, name, size=46):
+    """Render a circular avatar from a photo file, falling back to initials."""
+    import base64
+    try:
+        with open(photo_path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        ext  = photo_path.rsplit(".", 1)[-1].lower()
+        mime = "image/jpg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+        src  = f"data:{mime};base64,{b64}"
+        return (
+            f'<div style="width:{size}px;height:{size}px;border-radius:50%;'
+            f'border:2.5px solid #0D1117;flex-shrink:0;overflow:hidden;'
+            f'margin-right:-12px;position:relative;" title="{name}">'
+            f'<img src="{src}" style="width:100%;height:100%;object-fit:cover;display:block;"/>'
+            f'</div>'
+        )
+    except Exception:
+        initials = "".join(p[0].upper() for p in name.split()[:2])
+        return (
+            f'<div style="width:{size}px;height:{size}px;border-radius:50%;'
+            f'background:#1A2332;border:2.5px solid #0D1117;flex-shrink:0;'
+            f'display:flex;align-items:center;justify-content:center;'
+            f'font-size:13px;font-weight:600;color:#F5A623;'
+            f'margin-right:-12px;position:relative;" title="{name}">'
+            f'{initials}</div>'
+        )
+
+
+# ── Edit this list to add/update testimonials — no DB involved ────────────────
+TESTIMONIALS = [
+    {
+        "name": "Babsam Pharmacy",
+        "person": "Bashir A., Owner",
+        "photo": "assets/user1.jpg",
+        "rating": 5,
+        "comment": "Before BizTrack-OS I was losing track of who owed me money. "
+                   "Now I record every sale in seconds and I can see my real profit, "
+                   "not just guesswork.",
+    },
+    {
+        "name": "Ammy's Gadgets",
+        "person": "Amina Y., Manager",
+        "photo": "assets/user2.jpg",
+        "rating": 5,
+        "comment": "The low stock alert alone has saved me from running out of my "
+                   "best-selling items twice this month. Dead simple to use.",
+    },
+    {
+        "name": "Bularis C.E",
+        "person": "Chidi E., Founder",
+        "photo": "assets/user3.jpg",
+        "rating": 4,
+        "comment": "I switched from a notebook to BizTrack-OS and my debtors list "
+                   "finally makes sense. Would love more report exports but overall solid.",
+    },
+    {
+        "name": "Tundsam Agromart Ltd",
+        "person": "Samuel T., Operations",
+        "photo": "assets/user4.jpg",
+        "rating": 5,
+        "comment": "Whatsapp receipts changed how my customers see us — looks more "
+                   "professional and they trust the numbers.",
+    },
+    {
+        "name": "Hollmide Ventures",
+        "person": "Hauwa M., Owner",
+        "photo": "assets/user5.jpg",
+        "rating": 5,
+        "comment": "Setup took me less than 10 minutes on my phone. I can finally "
+                   "tell which days actually make money.",
+    },
+]
+
+
+def page_testimonials():
+    """Public page — no auth required. Shows curated user feedback."""
+    apply_suite_css()
+
+    st.markdown("""
+<style>
+.tm-header { text-align:center; padding: 18px 0 10px; }
+.tm-title  {
+  font-family:'Syne',sans-serif; font-size:1.7rem; font-weight:800;
+  color:#F0F4F8; letter-spacing:-0.03em;
+}
+.tm-sub { font-size:0.88rem; color:#8BA0B8; margin-top:0.4rem; max-width:480px;
+  margin-left:auto; margin-right:auto; }
+.tm-card {
+  background: var(--surface); border:1px solid var(--border);
+  border-radius: 14px; padding: 16px 18px; margin-bottom: 14px;
+}
+.tm-card-head { display:flex; align-items:center; gap:16px; margin-bottom:10px; }
+.tm-card-name { font-weight:700; color:#F0F4F8; font-size:0.92rem; }
+.tm-card-person { font-size:0.76rem; color:#8BA0B8; }
+.tm-stars { color:#F5A623; font-size:0.85rem; letter-spacing:2px; margin-top:2px;}
+.tm-comment { font-size:0.85rem; color:#C9D3DD; line-height:1.55; }
+</style>
+
+<div class="tm-header">
+  <div class="tm-title">💬 What our users are saying</div>
+  <div class="tm-sub">
+    Real feedback from business owners using BizTrack-OS to track sales,
+    stock, debtors and profit.
+  </div>
+</div>
+    """, unsafe_allow_html=True)
+
+    _, col, _ = st.columns([1, 1.6, 1])
+    with col:
+        for t in TESTIMONIALS:
+            stars = "★" * t["rating"] + "☆" * (5 - t["rating"])
+            st.markdown(f"""
+<div class="tm-card">
+  <div class="tm-card-head">
+    {_avatar_html(t["photo"], t["person"], size=44)}
+    <div style="margin-left:14px;">
+      <div class="tm-card-name">{t["name"]}</div>
+      <div class="tm-card-person">{t["person"]}</div>
+      <div class="tm-stars">{stars}</div>
+    </div>
+  </div>
+  <div class="tm-comment">{t["comment"]}</div>
+</div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        bc1, bc2 = st.columns(2)
+        if bc1.button("← Back to Login", width='stretch'):
+            st.session_state.current_page = "login"; st.rerun()
+        if bc2.button("Create free account", width='stretch', type="primary"):
+            st.session_state.current_page = "signup"; st.rerun()
+
+
 def page_login():
     apply_suite_css()
     st.markdown("""
@@ -267,6 +404,9 @@ def page_login():
             st.session_state.current_page = "signup"; st.rerun()
         if c2.button("Forgot password?", width='stretch', type="primary"):
             st.session_state.current_page = "forgot_password"; st.rerun()
+
+        if st.button("💬 See what our users are saying", width='stretch'):
+            st.session_state.current_page = "testimonials"; st.rerun()
 
         st.markdown("""
 <div class="lp-trust-strip">
@@ -875,6 +1015,7 @@ def main():
         route_map = {
             "login":           page_login,
             "signup":          page_signup,
+            "testimonials":    page_testimonials,
             "forgot_password": page_forgot_password,
             "force_password_change": page_force_password_change,
             "pending_payment": lambda: __import__(
