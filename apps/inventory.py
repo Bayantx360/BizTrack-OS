@@ -189,6 +189,10 @@ def _restock_tab_fragment(business_id, user):
     st.markdown("**📥 New Delivery**")
 
     if upp > 1:
+        st.caption(
+            f"Use '{sub_unit}s' if you received a partial "
+            f"{base_unit} (e.g. only 3 out of {upp})."
+        )
         restock_mode = st.radio(
             "Received as",
             options=["base", "sub"],
@@ -198,8 +202,6 @@ def _restock_tab_fragment(business_id, user):
             ),
             horizontal=True,
             key="restock_mode",
-            help=f"Use '{sub_unit}s' if you received a partial "
-                 f"{base_unit} (e.g. only 3 out of {upp}).",
         )
     else:
         restock_mode = "base"
@@ -207,21 +209,24 @@ def _restock_tab_fragment(business_id, user):
     rd1, rd2 = st.columns(2)
 
     if restock_mode == "sub":
+        rd1.markdown(f"**{sub_unit.capitalize()}s Received \\***")
+        rd1.caption(f"{upp} {sub_unit}s = 1 {base_unit}")
         add_qty_raw = rd1.number_input(
-            f"{sub_unit.capitalize()}s Received *",
+            f"{sub_unit.capitalize()}s Received",
             min_value=1, step=1, value=upp,
             key="restock_add_qty_sub",
-            help=f"Number of individual {sub_unit}s received "
-                 f"({upp} {sub_unit}s = 1 {base_unit})",
+            label_visibility="collapsed",
         )
         add_qty = add_qty_raw / upp  # fractional base units
         rd1.caption(f"= **{fmt_qty(add_qty)} {base_unit}s**")
     else:
+        rd1.markdown(f"**Packs Received ({base_unit}s) \\***")
+        rd1.caption(f"Number of {base_unit}s received from supplier")
         add_qty = rd1.number_input(
-            f"Packs Received ({base_unit}s) *",
+            f"Packs Received ({base_unit}s)",
             min_value=1, step=1, value=10,
             key="restock_add_qty",
-            help=f"Number of {base_unit}s received from supplier",
+            label_visibility="collapsed",
         )
 
     restock_note = rd2.text_input(
@@ -234,11 +239,11 @@ def _restock_tab_fragment(business_id, user):
 
     # ── Price update (outside form so checkbox reacts immediately) ──
     st.markdown("**💰 Update Prices**")
+    st.caption("Tick this if cost or selling prices changed with this delivery")
     update_prices = st.checkbox(
         "Supplier prices have changed — update now",
         value=False,
         key="restock_update_prices",
-        help="Tick this if cost or selling prices changed with this delivery",
     )
 
     if update_prices:
@@ -274,12 +279,13 @@ def _restock_tab_fragment(business_id, user):
 
         st.markdown("**Unit Selling Price**")
         suggested_unit = round(new_sell_pack / upp, 2) if upp > 1 else new_sell_pack
+        if upp > 1:
+            st.caption(f"Suggested: {fmt_naira(suggested_unit)}")
         new_sell_unit  = st.number_input(
             f"New Selling Price per {sub_unit} ({st.session_state.get('currency_symbol','₦')})",
             min_value=0.0, step=50.0,
             value=float(cur_sell_unit) if cur_sell_unit > 0 else float(suggested_unit),
             key="restock_new_sell_unit",
-            help=f"Suggested: {fmt_naira(suggested_unit)}" if upp > 1 else "",
         )
         if upp > 1 and new_sell_unit > 0 and new_cost > 0:
             um = new_sell_unit - (new_cost / upp)
@@ -519,9 +525,11 @@ def page_products():
                         # ── Pack Section ──
                         st.markdown("**📦 Pack Details**")
                         pp1, pp2, pp3 = st.columns(3)
+                        pp1.markdown("**Pack Unit**")
+                        pp1.caption("e.g. carton, bag, crate")
                         new_base    = pp1.text_input("Pack Unit",
                                                      value=row.get("base_unit","unit") or "unit",
-                                                     help="e.g. carton, bag, crate")
+                                                     label_visibility="collapsed")
                         new_upp     = pp2.number_input("Units per Pack",
                                                        value=safe_int(row.get("units_per_pack",1)) or 1,
                                                        min_value=1, step=1)
@@ -537,15 +545,17 @@ def page_products():
 
                         # ── Unit Section ──
                         st.markdown("**🔢 Unit Details**")
+                        st.caption("e.g. piece, bottle, kg, sachet")
                         new_sub     = st.text_input("Unit Name",
                                                     value=row.get("sub_unit","unit") or "unit",
-                                                    help="e.g. piece, bottle, kg, sachet")
+                                                    label_visibility="collapsed")
                         suggested   = round(new_sell / new_upp, 2) if new_upp > 1 and new_sell > 0 else new_sell
+                        if new_upp > 1:
+                            st.caption(f"Suggested: {fmt_naira(suggested)} (pack ÷ {new_upp})")
                         new_sub_price = st.number_input(
                             f"Selling Price per Unit — {row.get('sub_unit','unit')} ({st.session_state.get('currency_symbol','₦')})",
                             value=safe_float(row.get("selling_price_sub", suggested)),
                             min_value=0.0, step=50.0,
-                            help=f"Suggested: {fmt_naira(suggested)} (pack ÷ {new_upp})" if new_upp > 1 else "",
                         )
                         if new_upp > 1 and new_sub_price > 0 and new_cost > 0:
                             um = new_sub_price - (new_cost / new_upp)
