@@ -142,9 +142,8 @@ TESTIMONIALS = [
         "person": "Bashir A., Owner",
         "photo": "assets/user1.jpg",
         "rating": 5,
-        "comment": "Before BizTrack-OS I was losing track of who owed me money. "
-                   "Now I record every sale in seconds and I can see my real profit, "
-                   "not just guesswork.",
+        "comment": "This app is good, stable and have so much value that help every businesses "
+                   "to track inventory, record sales and see profit on a daily basis. Their customer support is also great",
     },
     {
         "name": "Ammy's Gadgets",
