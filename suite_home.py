@@ -157,7 +157,7 @@ TESTIMONIALS = [
     {
         "name": "Bularis C.E",
         "person": "Chidi E., Founder",
-        "photo": "assets/user3.jpg",
+        "photo": "assets/user6.jpg",
         "rating": 4,
         "comment": "I switched from a notebook to BizTrack-OS and my debtors list "
                    "finally makes sense. Would love more report exports but overall solid.",
