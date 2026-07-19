@@ -155,12 +155,12 @@ TESTIMONIALS = [
                    "best-selling items twice this month. Dead simple to use.",
     },
     {
-        "name": "Bularis C.E",
-        "person": "Chidi E., Founder",
-        "photo": "assets/user6.jpg",
+        "name": "Emeks Gadgets",
+        "person": "Eze F., Owner",
+        "photo": "assets/user3.jpg",
         "rating": 4,
-        "comment": "I switched from a notebook to BizTrack-OS and my debtors list "
-                   "finally makes sense. Would love more report exports but overall solid.",
+        "comment": "I switched from a notebook to BizTrack-OS and So far the app"
+                   "has been useful in keeping records. It is stable and solid. I recommend it for anyone",
     },
     {
         "name": "Tundsam Agromart Ltd",
