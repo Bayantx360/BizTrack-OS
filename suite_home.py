@@ -401,7 +401,7 @@ div.st-key-testimonials_cta button:hover {
 </div>
         """, unsafe_allow_html=True)
         with st.container(key="testimonials_cta"):
-            if st.button("💬 See what our users are saying →", width='stretch'):
+            if st.button("💬 See what our users are saying 👉→", width='stretch'):
                 st.session_state.current_page = "testimonials"; st.rerun()
 
         st.markdown('<div class="lp-divider">Sign in to your account</div>',
