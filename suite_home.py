@@ -182,8 +182,8 @@ TESTIMONIALS = [
         "person": "Gloria M. (Business Owner)",
         "photo": "assets/user5.jpg",
         "rating": 5,
-        "comment": "BizTrack-OS is very reliable, trustworthy and easy to use on mobile phone. Setup took me less than 10 minutes on my phone. "
-                   "I have been using to accurately monitor my stock and sales performance.",
+        "comment": "This business app is very reliable, trustworthy and easy to use on mobile phone. Setup took me less than 10 minutes to get it working on my phone "
+                   "and I have been using to accurately monitor my stock and sales performance.",
     },
 ]
 
