@@ -673,14 +673,21 @@ def page_products():
 
             # ── Basic Info ───────────────────────────────────────
             st.markdown("#### 🏷️ Basic Information")
+            cur = st.session_state.get("currency_symbol", "₦")
             f1, f2      = st.columns(2)
             prod_name   = f1.text_input("Product Name *", placeholder="e.g. Coca-Cola")
             category    = f2.text_input("Category *",     placeholder="e.g. Beverages")
+
             f3, f4      = st.columns(2)
-            cost_price  = f3.number_input("Cost Price (" + st.session_state.get("currency_symbol","₦") + ") *", min_value=0.0, step=50.0,
-                                          help="What you paid per pack/unit when buying")
-            reorder_lvl = f4.number_input("Reorder Level *",  min_value=0, step=1,
-                                          help="Alert me when stock falls to this level")
+            f3.markdown(f"**Cost Price ({cur}) \\***")
+            f3.caption("What you paid per pack/unit when buying")
+            cost_price  = f3.number_input("Cost Price", min_value=0.0, step=50.0,
+                                          label_visibility="collapsed")
+
+            f4.markdown("**Reorder Level \\***")
+            f4.caption("Alert me when stock falls to this level")
+            reorder_lvl = f4.number_input("Reorder Level", min_value=0, step=1,
+                                          label_visibility="collapsed")
 
             st.markdown("---")
 
@@ -688,16 +695,26 @@ def page_products():
             st.markdown("#### 📦 Pack (Bulk) Details")
             st.caption("This is how you BUY the product — e.g. by carton, bag, crate.")
             p1, p2, p3  = st.columns(3)
-            base_unit      = p1.text_input("Pack Unit *", value="unit",
-                                           help="e.g. carton, bag, crate, dozen")
-            units_per_pack = p2.number_input("Units per Pack *", min_value=1, step=1, value=1,
-                                             help="How many pieces/bottles/kg in one pack")
-            stock_qty      = p3.number_input("Opening Stock *", min_value=0, step=1,
-                                             help="How many packs you currently have")
+            p1.markdown("**Pack Unit \\***")
+            p1.caption("e.g. carton, bag, crate")
+            base_unit      = p1.text_input("Pack Unit", value="unit",
+                                           label_visibility="collapsed")
+
+            p2.markdown("**Units per Pack \\***")
+            p2.caption("Pieces/bottles/kg in one pack")
+            units_per_pack = p2.number_input("Units per Pack", min_value=1, step=1, value=1,
+                                             label_visibility="collapsed")
+
+            p3.markdown("**Opening Stock \\***")
+            p3.caption("How many packs you have now")
+            stock_qty      = p3.number_input("Opening Stock", min_value=0, step=1,
+                                             label_visibility="collapsed")
+
+            st.markdown(f"**Selling Price per Pack ({cur}) \\***")
+            st.caption("Price charged when selling a full pack/carton/bag")
             sell_price     = st.number_input(
-                "Selling Price per Pack (" + st.session_state.get("currency_symbol","₦") + ") *",
-                min_value=0.0, step=50.0,
-                help="Price charged when selling a full pack/carton/bag",
+                "Selling Price per Pack", min_value=0.0, step=50.0,
+                label_visibility="collapsed",
             )
             if cost_price > 0 and sell_price > 0:
                 pack_margin     = sell_price - cost_price
@@ -716,21 +733,25 @@ def page_products():
                 "If you only sell in packs, leave Units per Pack as 1 above and set "
                 "selling price per unit same as pack price."
             )
-            sub_unit       = st.text_input("Unit Name *", value="unit",
-                                           help="e.g. piece, bottle, sachet, kg")
+            st.markdown("**Unit Name \\***")
+            st.caption("e.g. piece, bottle, sachet, kg")
+            sub_unit       = st.text_input("Unit Name", value="unit",
+                                           label_visibility="collapsed")
 
             # Suggest unit price based on pack price ÷ units_per_pack
             suggested_unit_price = round(sell_price / units_per_pack, 2) if (
                 units_per_pack > 1 and sell_price > 0
             ) else sell_price
+            st.markdown(f"**Selling Price per Unit ({cur}) \\***")
+            st.caption(
+                f"Suggested: {fmt_naira(suggested_unit_price)} (pack price ÷ {units_per_pack}). "
+                f"You can set higher for unit-sale profit."
+                if units_per_pack > 1 else "Price per individual item"
+            )
             sell_price_sub = st.number_input(
-                "Selling Price per Unit (" + st.session_state.get("currency_symbol","₦") + ") *",
-                min_value=0.0, step=50.0,
+                "Selling Price per Unit", min_value=0.0, step=50.0,
                 value=float(suggested_unit_price),
-                help=(
-                    f"Suggested: {fmt_naira(suggested_unit_price)} (pack price ÷ {units_per_pack}). "
-                    f"You can set higher for unit-sale profit."
-                ) if units_per_pack > 1 else "Price per individual item",
+                label_visibility="collapsed",
             )
             if units_per_pack > 1 and sell_price_sub > 0 and cost_price > 0:
                 unit_cost   = cost_price / units_per_pack
