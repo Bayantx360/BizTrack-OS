@@ -143,7 +143,7 @@ TESTIMONIALS = [
         "photo": "assets/user1.jpg",
         "rating": 5,
         "comment": "This app is good, stable and have so much value that help us to manage our business on a daily basis "
-                   "in tracking inventory, recording sales and see exact profit. Their customer support is also great and I think every businesses should get their app ",
+                   "in tracking inventory, recording sales and see exact profit. Their customer support is also great and I recommend them for anyone to give it a trial ",
     },
     {
         "name": "Ammy's Gadgets",
