@@ -371,6 +371,36 @@ def page_login():
 
     _, form_col, _ = st.columns([1, 1.4, 1])
     with form_col:
+        st.markdown("""
+<style>
+div.st-key-testimonials_cta button {
+  background: linear-gradient(135deg, #0EA5A0, #0D7EDB) !important;
+  border: none !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  padding: 14px 10px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 18px rgba(14,165,160,0.35) !important;
+}
+div.st-key-testimonials_cta button:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px rgba(14,165,160,0.5) !important;
+}
+.tm-cta-badge {
+  display:inline-block; background:#EAB308; color:#1A1200;
+  font-size:0.62rem; font-weight:800; letter-spacing:0.04em;
+  padding:2px 7px; border-radius:99px; margin-bottom:6px;
+  text-transform:uppercase;
+}
+</style>
+<div style="text-align:center;">
+  <span class="tm-cta-badge">⭐ Hear from real users</span>
+</div>
+        """, unsafe_allow_html=True)
+        with st.container(key="testimonials_cta"):
+            if st.button("💬 See what our users are saying →", width='stretch'):
+                st.session_state.current_page = "testimonials"; st.rerun()
+
         st.markdown('<div class="lp-divider">Sign in to your account</div>',
                     unsafe_allow_html=True)
         with st.form("login_form"):
@@ -404,9 +434,6 @@ def page_login():
             st.session_state.current_page = "signup"; st.rerun()
         if c2.button("Forgot password?", width='stretch', type="primary"):
             st.session_state.current_page = "forgot_password"; st.rerun()
-
-        if st.button("💬 See what our users are saying", width='stretch'):
-            st.session_state.current_page = "testimonials"; st.rerun()
 
         st.markdown("""
 <div class="lp-trust-strip">
