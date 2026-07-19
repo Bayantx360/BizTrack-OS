@@ -283,11 +283,8 @@ def page_login():
     <div class="lp-logo-icon">📒</div>
   </div>
   <div class="lp-logo-text">BizTrack-OS</div><br>
-  <div class="lp-badge"><span>●</span> All-in-one business suite</div>
+  <div class="lp-badge"><span>●</span> All-in-one business App for SMEs</div>
   <div class="lp-headline">Run & Monitor your <span>Business</span><br>Smarter</div>
-  <div class="lp-sub">
-    Everything your business needs — sales, stock, debtors and growth insights — in one place.
-  </div>
 
   <div class="lp-sub" style="color: gold;">
     Key Features that you can use on BizTrack-OS
