@@ -138,12 +138,12 @@ def _avatar_html(photo_path, name, size=46):
 # ── Edit this list to add/update testimonials — no DB involved ────────────────
 TESTIMONIALS = [
     {
-        "name": "Bay Ventures",
+        "name": "Bay Enterprises",
         "person": "Bashir A., Owner",
         "photo": "assets/user1.jpg",
         "rating": 5,
-        "comment": "This app is good, stable and have so much value that help every businesses "
-                   "to track inventory, record sales and see profit on a daily basis. Their customer support is also great",
+        "comment": "This app is good, stable and have so much value that help us to manage our business on a daily basis "
+                   "in tracking inventory, recording sales and see exact profit. Their customer support is also great and I think every businesses should get their app ",
     },
     {
         "name": "Ammy's Gadgets",
@@ -158,7 +158,7 @@ TESTIMONIALS = [
         "person": "Samuel T., Owner",
         "photo": "assets/user3.jpg",
         "rating": 4,
-        "comment": "I switched from a notebook to BizTrack-OS and So far the app "
+        "comment": "I switched from a notebook to BizTrack-OS and so far the app "
                    "has been useful in keeping our sales and transaction records. It is stable and solid. I recommend it for anyone",
     },
     {
@@ -166,7 +166,7 @@ TESTIMONIALS = [
         "person": "Eze O., Owner",
         "photo": "assets/user4.jpg",
         "rating": 5,
-        "comment": "This app is nice, have useful features and goof customer support. I like the way it make it easy to directly reach "
+        "comment": "This app is nice, have useful features and good customer support. I like the way it makes it easy to directly reach "
                    "customers and share reciept on Whatsapp whenever I sell or I want to collect my balance.",
     },
     {
