@@ -139,7 +139,7 @@ def _avatar_html(photo_path, name, size=46):
 TESTIMONIALS = [
     {
         "name": "Bay Enterprises",
-        "person": "Bashir A., Owner",
+        "person": "Bashir A. (Business Owner)",
         "photo": "assets/user1.jpg",
         "rating": 5,
         "comment": "This app is good, stable and have so much value that help us to manage our business on a daily basis "
@@ -147,7 +147,7 @@ TESTIMONIALS = [
     },
     {
         "name": "Ammy's Gadgets",
-        "person": "Amina Y., Manager",
+        "person": "Amina Y. (Business Manager)",
         "photo": "assets/user2.jpg",
         "rating": 5,
         "comment": "I like the way BizTrack-OS make it easier to keep our records organised and intact. Features like low stock alert alone has saved us from running out of our "
@@ -155,7 +155,7 @@ TESTIMONIALS = [
     },
     {
         "name": "Hollmide Ventures",
-        "person": "Olamide M., Owner",
+        "person": "Olamide M. (Business Owner)",
         "photo": "assets/user7.jpg",
         "rating": 5,
         "comment": "Since I started using BizTrack-OS, I no longer record on paper and I am seeing how my business is performing on a daily basis. "
@@ -163,7 +163,7 @@ TESTIMONIALS = [
     },
     {
         "name": "Tundsam Agromart Ltd",
-        "person": "Samuel T., Owner",
+        "person": "Samuel T. (Business Owner)",
         "photo": "assets/user3.jpg",
         "rating": 4,
         "comment": "I switched from a notebook to BizTrack-OS and so far the app "
@@ -171,7 +171,7 @@ TESTIMONIALS = [
     },
     {
         "name": " Emeks Stores",
-        "person": "Eze O., Owner",
+        "person": "Eze O. (Business Owner)",
         "photo": "assets/user4.jpg",
         "rating": 5,
         "comment": "This app is nice, have useful features and good customer support. I like the way it makes it easy to directly reach "
@@ -179,7 +179,7 @@ TESTIMONIALS = [
     },
     {
         "name": "Gladys Ventures",
-        "person": "Hauwa M., Owner",
+        "person": "Gloria M. (Business Owner)",
         "photo": "assets/user5.jpg",
         "rating": 5,
         "comment": "BizTrack-OS is very reliable, trustworthy and easy to use on mobile phone. Setup took me less than 10 minutes on my phone. "
