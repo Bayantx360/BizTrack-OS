@@ -150,8 +150,16 @@ TESTIMONIALS = [
         "person": "Amina Y., Manager",
         "photo": "assets/user2.jpg",
         "rating": 5,
-        "comment": "I like the way BizTrack-OS make it easier to keep our records organised and intact. Features like low stock alert alone has saved me from running out of my "
+        "comment": "I like the way BizTrack-OS make it easier to keep our records organised and intact. Features like low stock alert alone has saved us from running out of our "
                    "best-selling items on different occassion.",
+    },
+    {
+        "name": "Hollmide Ventures",
+        "person": "Olamide M., Owner",
+        "photo": "assets/user7.jpg",
+        "rating": 5,
+        "comment": "Since I started using BizTrack-OS, I no longer record on paper and I am seeing how my business is performing on a daily basis. "
+                   "I like the fact that I can see and manage my business through this app on my phone.",
     },
     {
         "name": "Tundsam Agromart Ltd",
