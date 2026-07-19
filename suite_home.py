@@ -287,7 +287,7 @@ def page_login():
   <div class="lp-headline">Run & Monitor your <span>Business</span><br>Smarter</div>
 
   
-  <div class="lp-badge" style="color: gold;"><span>●</span> Key Features for that Support Businesses</div>
+  <div class="lp-badge" style="color: gold;"><span>●</span> Key Features that Support Businesses</div>
 
   <div class="lp-feature-strip">
     <div class="lp-feature-chip"><span>💰</span> Sales & Revenue</div>
