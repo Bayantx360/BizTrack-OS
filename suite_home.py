@@ -150,32 +150,32 @@ TESTIMONIALS = [
         "person": "Amina Y., Manager",
         "photo": "assets/user2.jpg",
         "rating": 5,
-        "comment": "The low stock alert alone has saved me from running out of my "
-                   "best-selling items twice this month. Dead simple to use.",
-    },
-    {
-        "name": "Emeks Gadgets",
-        "person": "Eze F., Owner",
-        "photo": "assets/user3.jpg",
-        "rating": 4,
-        "comment": "I switched from a notebook to BizTrack-OS and So far the app"
-                   "has been useful in keeping records. It is stable and solid. I recommend it for anyone",
+        "comment": "I like the way BizTrack-OS make it easier to keep our records organised and intact. Features like low stock alert alone has saved me from running out of my "
+                   "best-selling items on different occassion.",
     },
     {
         "name": "Tundsam Agromart Ltd",
-        "person": "Samuel T., Operations",
-        "photo": "assets/user4.jpg",
-        "rating": 5,
-        "comment": "Whatsapp receipts changed how my customers see us — looks more "
-                   "professional and they trust the numbers.",
+        "person": "Samuel T., Owner",
+        "photo": "assets/user3.jpg",
+        "rating": 4,
+        "comment": "I switched from a notebook to BizTrack-OS and So far the app "
+                   "has been useful in keeping our sales and transaction records. It is stable and solid. I recommend it for anyone",
     },
     {
-        "name": "Hollmide Ventures",
+        "name": " Emeks Stores",
+        "person": "Eze O., Owner",
+        "photo": "assets/user4.jpg",
+        "rating": 5,
+        "comment": "This app is nice, have useful features and goof customer support. I like the way it make it easy to directly reach "
+                   "customers and share reciept on Whatsapp whenever I sell or I want to collect my balance.",
+    },
+    {
+        "name": "Gladys Ventures",
         "person": "Hauwa M., Owner",
         "photo": "assets/user5.jpg",
         "rating": 5,
-        "comment": "Setup took me less than 10 minutes on my phone. I can finally "
-                   "tell which days actually make money.",
+        "comment": "BizTrack-OS is very reliable, trustworthy and easy to use on mobile phone. Setup took me less than 10 minutes on my phone. "
+                   "I have been using to accurately monitor my stock and sales performance.",
     },
 ]
 
