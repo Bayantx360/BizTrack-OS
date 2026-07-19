@@ -286,11 +286,8 @@ def page_login():
   <div class="lp-badge"><span>●</span> All-in-one Business App for SMEs</div>
   <div class="lp-headline">Run & Monitor your <span>Business</span><br>Smarter</div>
 
-  <div class="lp-sub" style="color: gold;">
-    Key Features that you can use on BizTrack-OS
-  </div>
   
-  <div class="lp-badge" style="color: gold;"><span>●</span> Key Features</div>
+  <div class="lp-badge" style="color: gold;"><span>●</span> Key Features for that Support Businesses</div>
 
   <div class="lp-feature-strip">
     <div class="lp-feature-chip"><span>💰</span> Sales & Revenue</div>
