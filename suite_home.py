@@ -138,7 +138,7 @@ def _avatar_html(photo_path, name, size=46):
 # ── Edit this list to add/update testimonials — no DB involved ────────────────
 TESTIMONIALS = [
     {
-        "name": "Babsam Pharmacy",
+        "name": "Bay Ventures",
         "person": "Bashir A., Owner",
         "photo": "assets/user1.jpg",
         "rating": 5,
