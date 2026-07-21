@@ -690,7 +690,7 @@ def page_products():
 
             f3, f4      = st.columns(2)
             f3.markdown(f"**Cost Price ({cur}) \\***")
-            f3.caption("What you paid per pack/unit when buying")
+            f3.caption("What you paid per pack/unit when buying from supplier")
             cost_price  = f3.number_input("Cost Price", min_value=0.0, step=50.0,
                                           label_visibility="collapsed")
 
@@ -703,7 +703,7 @@ def page_products():
 
             # ── Pack Section ─────────────────────────────────────
             st.markdown("#### 📦 Pack (Bulk) Details")
-            st.caption("This is how you BUY the product — e.g. by carton, bag, crate.")
+            st.caption("This is how you BUY the product from supplier— e.g. by carton, bag, crate.")
             p1, p2, p3  = st.columns(3)
             p1.markdown("**Pack Unit \\***")
             p1.caption("e.g. carton, bag, crate")
@@ -711,12 +711,12 @@ def page_products():
                                            label_visibility="collapsed")
 
             p2.markdown("**Units per Pack \\***")
-            p2.caption("Pieces/bottles/kg in one pack")
+            p2.caption("Pieces/bottles/kg in one pack/bag/carton")
             units_per_pack = p2.number_input("Units per Pack", min_value=1, step=1, value=1,
                                              label_visibility="collapsed")
 
             p3.markdown("**Opening Stock \\***")
-            p3.caption("How many packs you have now")
+            p3.caption("How many packs/bags/carton you have now")
             stock_qty      = p3.number_input("Opening Stock", min_value=0, step=1,
                                              label_visibility="collapsed")
 

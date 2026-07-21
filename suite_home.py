@@ -165,7 +165,7 @@ TESTIMONIALS = [
         "name": "Tundsam Agromart Ltd",
         "person": "Samuel T. (Business Owner)",
         "photo": "assets/user3.jpg",
-        "rating": 4,
+        "rating": 5,
         "comment": "I switched from a notebook to BizTrack-OS and so far the app "
                    "has been useful in keeping our sales and transaction records. It is stable and solid. I recommend it for anyone",
     },
