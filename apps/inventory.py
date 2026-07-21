@@ -116,6 +116,8 @@ def _restock_tab_fragment(business_id, user):
     # gets worse the longer this business has been using BizTrack.
     pid          = selected_product["product_id"]
     product_hist = get_recent_restocks_for_product(business_id, pid, limit=5)
+    if not product_hist.empty and "entry_type" in product_hist.columns:
+        product_hist = product_hist[product_hist["entry_type"] != "correction"]
     if not product_hist.empty:
         with st.expander(
             f"📋 Last {len(product_hist)} deliver{'y' if len(product_hist) == 1 else 'ies'} "
@@ -389,6 +391,7 @@ def _restock_tab_fragment(business_id, user):
                     "note":          _final_note,
                     "recorded_by":   user.get("full_name", user.get("email", "")),
                     "restock_date":  datetime.now().isoformat(),
+                    "entry_type":    "delivery",
                 })
                 msg = (
                     f"✅ Restocked! {selected_product['product_name']}: "
@@ -522,6 +525,31 @@ def page_products():
 
                         st.markdown("---")
 
+                        # ── Stock Quantity Correction ──
+                        st.markdown("**📦 Stock Quantity**")
+                        st.caption(
+                            "Only for fixing a mistaken entry, a recount, or damaged/lost stock. "
+                            "For real deliveries, use the **Restock** tab instead — it keeps "
+                            "supplier and pricing history intact."
+                        )
+                        cur_stock_val = safe_float(row["stock_quantity"])
+                        sq1, sq2 = st.columns(2)
+                        sq1.metric("Current Stock",
+                                   f"{fmt_qty(cur_stock_val)} {row.get('base_unit','unit')}s")
+                        new_stock = sq2.number_input(
+                            "Corrected Stock Quantity",
+                            value=cur_stock_val,
+                            min_value=0.0, step=1.0,
+                            key=f"edit_stock_{row['product_id']}",
+                        )
+                        correction_reason = st.text_input(
+                            "Reason for correction (required if changing the number above)",
+                            placeholder="e.g. Recount, typo fix, damaged goods, expired stock removed",
+                            key=f"edit_stock_reason_{row['product_id']}",
+                        )
+
+                        st.markdown("---")
+
                         # ── Pack Section ──
                         st.markdown("**📦 Pack Details**")
                         pp1, pp2, pp3 = st.columns(3)
@@ -588,24 +616,53 @@ def page_products():
                                                      width='stretch')
 
                     if save:
-                        ok = db_update(TBL_PRODUCTS, "product_id", row["product_id"], {
-                            "product_name":      new_name.strip(),
-                            "category":          new_cat.strip(),
-                            "cost_price":        new_cost,
-                            "selling_price":     new_sell,
-                            "reorder_level":     new_reorder,
-                            "units_per_pack":    int(new_upp),
-                            "base_unit":         new_base.strip() or "unit",
-                            "sub_unit":          new_sub.strip()  or "unit",
-                            "selling_price_sub": new_sub_price,
-                            "mfg_date":          new_mfg_date.isoformat()    if new_mfg_date    else None,
-                            "expiry_date":       new_expiry_date.isoformat()  if new_expiry_date else None,
-                        })
-                        if ok:
-                            st.session_state["inv_msg"] = "✅ Product updated!"
+                        stock_changed = abs(new_stock - cur_stock_val) > 1e-9
+                        if stock_changed and not correction_reason.strip():
+                            st.session_state["inv_msg"] = (
+                                "❌ Please enter a reason for the stock quantity change "
+                                "before saving."
+                            )
+                            st.rerun()
                         else:
-                            st.session_state["inv_msg"] = "❌ Update failed."
-                        st.rerun()
+                            ok = db_update(TBL_PRODUCTS, "product_id", row["product_id"], {
+                                "product_name":      new_name.strip(),
+                                "category":          new_cat.strip(),
+                                "cost_price":        new_cost,
+                                "selling_price":     new_sell,
+                                "reorder_level":     new_reorder,
+                                "units_per_pack":    int(new_upp),
+                                "base_unit":         new_base.strip() or "unit",
+                                "sub_unit":          new_sub.strip()  or "unit",
+                                "selling_price_sub": new_sub_price,
+                                "stock_quantity":    new_stock,
+                                "mfg_date":          new_mfg_date.isoformat()    if new_mfg_date    else None,
+                                "expiry_date":       new_expiry_date.isoformat()  if new_expiry_date else None,
+                            })
+                            if ok and stock_changed:
+                                db_insert(TBL_RESTOCK, {
+                                    "restock_id":    gen_id("RST"),
+                                    "business_id":   business_id,
+                                    "product_id":    row["product_id"],
+                                    "product_name":  new_name.strip(),
+                                    "qty_added":     new_stock - cur_stock_val,
+                                    "qty_before":    cur_stock_val,
+                                    "qty_after":     new_stock,
+                                    "supplier_id":   "",
+                                    "supplier_name": "",
+                                    "note":          correction_reason.strip(),
+                                    "recorded_by":   user.get("full_name", user.get("email", "")),
+                                    "restock_date":  datetime.now().isoformat(),
+                                    "entry_type":    "correction",
+                                })
+                            if ok:
+                                st.session_state["inv_msg"] = (
+                                    "✅ Product updated!"
+                                    + (f" Stock corrected: {fmt_qty(cur_stock_val)} → "
+                                       f"{fmt_qty(new_stock)}." if stock_changed else "")
+                                )
+                            else:
+                                st.session_state["inv_msg"] = "❌ Update failed."
+                            st.rerun()
 
                     confirm_key = f"confirm_del_{row['product_id']}"
                     if not st.session_state.get(confirm_key, False):
@@ -833,7 +890,7 @@ def page_products():
             restock_df = restock_df.sort_values("restock_date", ascending=False)
 
             # ── Filters ──
-            f1, f2 = st.columns(2)
+            f1, f2, f3 = st.columns(3)
             search_rst = f1.text_input("🔍 Search by product name", key="restock_search",
                                        placeholder="Type to filter…")
             # Supplier filter — only shown when supplier_name column exists and has data
@@ -845,6 +902,13 @@ def page_products():
                     sup_options = ["All suppliers"] + sup_names
                     sup_filter  = f2.selectbox("🏭 Filter by supplier", sup_options,
                                                key="restock_sup_filter")
+            # Entry-type filter — only shown once corrections exist alongside deliveries
+            type_filter = "All"
+            if "entry_type" in restock_df.columns:
+                type_filter = f3.selectbox(
+                    "📋 Type", ["All", "Deliveries only", "Corrections only"],
+                    key="restock_type_filter",
+                )
 
             if search_rst:
                 restock_df = restock_df[
@@ -852,15 +916,20 @@ def page_products():
                 ]
             if sup_filter and sup_filter != "All suppliers":
                 restock_df = restock_df[restock_df["supplier_name"] == sup_filter]
+            if type_filter == "Deliveries only":
+                restock_df = restock_df[restock_df.get("entry_type", "delivery") != "correction"]
+            elif type_filter == "Corrections only":
+                restock_df = restock_df[restock_df.get("entry_type", "delivery") == "correction"]
 
             # ── Per-row display with Reverse button ──
             for _, row in restock_df.iterrows():
                 restock_id     = row.get("restock_id", "")
                 product_id     = row.get("product_id", "")
                 product_name   = row.get("product_name", "")
-                qty_added      = int(row.get("qty_added", 0))
-                qty_before     = int(row.get("qty_before", 0))
-                qty_after      = int(row.get("qty_after",  0))
+                entry_type     = row.get("entry_type", "delivery") or "delivery"
+                qty_added      = safe_float(row.get("qty_added", 0))
+                qty_before     = safe_float(row.get("qty_before", 0))
+                qty_after      = safe_float(row.get("qty_after",  0))
                 note           = row.get("note", "") or ""
                 recorded_by    = row.get("recorded_by", "") or ""
                 supplier_name  = row.get("supplier_name", "") or ""
@@ -870,11 +939,13 @@ def page_products():
                 with st.container(border=True):
                     c1, c2 = st.columns([5, 1])
                     with c1:
+                        type_badge = "🛠️ Correction" if entry_type == "correction" else "📦 Delivery"
+                        qty_sign   = "+" if qty_added >= 0 else ""
                         st.markdown(
-                            f"**{product_name}** &nbsp;|&nbsp; "
+                            f"**{product_name}** &nbsp;|&nbsp; {type_badge} &nbsp;|&nbsp; "
                             f"📅 {date_str} &nbsp;|&nbsp; "
-                            f"➕ {qty_added} units &nbsp;|&nbsp; "
-                            f"{qty_before} → {qty_after}"
+                            f"{qty_sign}{fmt_qty(qty_added)} units &nbsp;|&nbsp; "
+                            f"{fmt_qty(qty_before)} → {fmt_qty(qty_after)}"
                         )
                         meta_parts = []
                         if supplier_name:
@@ -891,7 +962,7 @@ def page_products():
                                 st.error("Product not found.")
                             else:
                                 current_stock = safe_float(product_row.iloc[0]["stock_quantity"])
-                                restored_qty  = max(0, int(current_stock) - qty_added)
+                                restored_qty  = max(0, current_stock - qty_added)
                                 ok = db_update(
                                     TBL_PRODUCTS, "product_id", product_id,
                                     {"stock_quantity": restored_qty}
@@ -900,7 +971,7 @@ def page_products():
                                     db_delete(TBL_RESTOCK, "restock_id", restock_id)
                                     st.session_state["inv_msg"] = (
                                         f"↩️ Reversed! {product_name} stock: "
-                                        f"{int(current_stock)} → {restored_qty}"
+                                        f"{fmt_qty(current_stock)} → {fmt_qty(restored_qty)}"
                                     )
                                     st.rerun()
 
