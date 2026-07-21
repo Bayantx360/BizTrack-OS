@@ -33,6 +33,7 @@ from shared.db import (
 from shared.theme import (
     apply_suite_css, kpi_card, section_header, page_header, stock_pill,
 )
+from shared.auth import has_void_pin, verify_void_pin
 
 
 @st.fragment
@@ -624,7 +625,7 @@ def page_products():
                             )
                             st.rerun()
                         else:
-                            ok = db_update(TBL_PRODUCTS, "product_id", row["product_id"], {
+                            base_updates = {
                                 "product_name":      new_name.strip(),
                                 "category":          new_cat.strip(),
                                 "cost_price":        new_cost,
@@ -634,35 +635,102 @@ def page_products():
                                 "base_unit":         new_base.strip() or "unit",
                                 "sub_unit":          new_sub.strip()  or "unit",
                                 "selling_price_sub": new_sub_price,
-                                "stock_quantity":    new_stock,
                                 "mfg_date":          new_mfg_date.isoformat()    if new_mfg_date    else None,
                                 "expiry_date":       new_expiry_date.isoformat()  if new_expiry_date else None,
+                            }
+                            if not stock_changed:
+                                # No stock change — save immediately, same as before, no PIN needed.
+                                ok = db_update(TBL_PRODUCTS, "product_id", row["product_id"], base_updates)
+                                st.session_state["inv_msg"] = "✅ Product updated!" if ok else "❌ Update failed."
+                                st.rerun()
+                            else:
+                                # Stock is changing — stage it and require the Void PIN before committing,
+                                # same protection already used for voiding a sale.
+                                st.session_state[f"pending_stock_edit_{row['product_id']}"] = {
+                                    "base_updates":       base_updates,
+                                    "new_stock":          new_stock,
+                                    "cur_stock_val":      cur_stock_val,
+                                    "correction_reason":  correction_reason.strip(),
+                                }
+                                st.rerun()
+
+                    pending_key = f"pending_stock_edit_{row['product_id']}"
+                    pending     = st.session_state.get(pending_key)
+                    if pending:
+                        st.warning(
+                            f"⚠️ Confirm stock correction for **{row['product_name']}**: "
+                            f"{fmt_qty(pending['cur_stock_val'])} → {fmt_qty(pending['new_stock'])} "
+                            f"— *{pending['correction_reason']}*"
+                        )
+
+                        def _commit_stock_edit(pid, pdata, biz_id, usr):
+                            ok = db_update(TBL_PRODUCTS, "product_id", pid, {
+                                **pdata["base_updates"],
+                                "stock_quantity": pdata["new_stock"],
                             })
-                            if ok and stock_changed:
+                            if ok:
                                 db_insert(TBL_RESTOCK, {
                                     "restock_id":    gen_id("RST"),
-                                    "business_id":   business_id,
-                                    "product_id":    row["product_id"],
-                                    "product_name":  new_name.strip(),
-                                    "qty_added":     new_stock - cur_stock_val,
-                                    "qty_before":    cur_stock_val,
-                                    "qty_after":     new_stock,
+                                    "business_id":   biz_id,
+                                    "product_id":    pid,
+                                    "product_name":  pdata["base_updates"]["product_name"],
+                                    "qty_added":     pdata["new_stock"] - pdata["cur_stock_val"],
+                                    "qty_before":    pdata["cur_stock_val"],
+                                    "qty_after":     pdata["new_stock"],
                                     "supplier_id":   "",
                                     "supplier_name": "",
-                                    "note":          correction_reason.strip(),
-                                    "recorded_by":   user.get("full_name", user.get("email", "")),
+                                    "note":          pdata["correction_reason"],
+                                    "recorded_by":   usr.get("full_name", usr.get("email", "")),
                                     "restock_date":  datetime.now().isoformat(),
                                     "entry_type":    "correction",
                                 })
-                            if ok:
-                                st.session_state["inv_msg"] = (
-                                    "✅ Product updated!"
-                                    + (f" Stock corrected: {fmt_qty(cur_stock_val)} → "
-                                       f"{fmt_qty(new_stock)}." if stock_changed else "")
+                            st.session_state["inv_msg"] = (
+                                (f"✅ Product updated! Stock corrected: "
+                                 f"{fmt_qty(pdata['cur_stock_val'])} → {fmt_qty(pdata['new_stock'])}.")
+                                if ok else "❌ Update failed."
+                            )
+
+                        if not has_void_pin(user):
+                            # No PIN set — warn owner and still allow it so they aren't
+                            # locked out, but nudge them to set a PIN (same fallback as void).
+                            st.info(
+                                "ℹ️ No Void PIN is set. Go to **⚙️ Settings** to add one and "
+                                "protect stock records from unauthorised changes."
+                            )
+                            pc1, pc2 = st.columns(2)
+                            if pc1.button("✅ Yes, confirm correction",
+                                          key=f"yes_stockedit_{row['product_id']}", type="primary"):
+                                _commit_stock_edit(row["product_id"], pending, business_id, user)
+                                st.session_state.pop(pending_key, None)
+                                st.rerun()
+                            if pc2.button("❌ Cancel", key=f"no_stockedit_{row['product_id']}"):
+                                st.session_state.pop(pending_key, None)
+                                st.rerun()
+                        else:
+                            pin_err_key = f"stockedit_pin_err_{row['product_id']}"
+                            if st.session_state.get(pin_err_key):
+                                st.error(st.session_state[pin_err_key])
+                            with st.form(f"stockedit_pin_form_{row['product_id']}", clear_on_submit=True):
+                                entered_pin = st.text_input(
+                                    "🔐 Enter Void PIN to confirm",
+                                    type="password", placeholder="Your manager PIN",
                                 )
-                            else:
-                                st.session_state["inv_msg"] = "❌ Update failed."
-                            st.rerun()
+                                spc1, spc2 = st.columns(2)
+                                confirm_edit = spc1.form_submit_button("✅ Confirm Correction", type="primary")
+                                cancel_edit  = spc2.form_submit_button("❌ Cancel")
+                            if confirm_edit:
+                                if verify_void_pin(user, entered_pin):
+                                    _commit_stock_edit(row["product_id"], pending, business_id, user)
+                                    st.session_state.pop(pending_key, None)
+                                    st.session_state.pop(pin_err_key, None)
+                                    st.rerun()
+                                else:
+                                    st.session_state[pin_err_key] = "❌ Incorrect PIN. Please try again."
+                                    st.rerun()
+                            if cancel_edit:
+                                st.session_state.pop(pending_key, None)
+                                st.session_state.pop(pin_err_key, None)
+                                st.rerun()
 
                     confirm_key = f"confirm_del_{row['product_id']}"
                     if not st.session_state.get(confirm_key, False):
