@@ -59,6 +59,7 @@ SUITE_SESSION_KEYS = [
     # per-app transient state
     "cart", "sale_done", "pending_email", "pending_plan",
     "sale_feedback", "prod_page", "exp_page",
+    "inventory_unlocked",
 ]
 
 
@@ -435,3 +436,41 @@ def verify_void_pin(user: dict, plain_pin: str) -> bool:
 def has_void_pin(user: dict) -> bool:
     """Return True if the user has set a void PIN."""
     return bool((user.get("void_pin_hash") or "").strip())
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# INVENTORY PIN HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+# Gates entry to the Inventory section itself (Products, Add Product, Restock,
+# Restock History, Suppliers) so staff/anyone with the login can't casually
+# browse stock levels, costs, and supplier data. Separate PIN from the void
+# PIN so the two protections can be set/changed independently.
+
+def set_inventory_pin(user_id: str, plain_pin: str) -> tuple[bool, str]:
+    """
+    Hash and store a 4-6 digit inventory PIN for the given user.
+    Returns (success, message).
+    """
+    if not (4 <= len(plain_pin) <= 12) or not plain_pin.strip():
+        return False, "PIN must be 4–12 characters (letters, numbers, symbols)."
+    hashed = hash_password(plain_pin)
+    ok = db_update(TBL_USERS, "user_id", user_id, {"inventory_pin_hash": hashed})
+    if ok:
+        return True, "Inventory PIN set successfully."
+    return False, "Failed to save PIN. Please try again."
+
+
+def verify_inventory_pin(user: dict, plain_pin: str) -> bool:
+    """
+    Check a plain PIN against the stored inventory PIN hash.
+    Returns True if correct, False otherwise.
+    """
+    stored = user.get("inventory_pin_hash", "") or ""
+    if not stored:
+        return False
+    return check_password(plain_pin, stored)
+
+
+def has_inventory_pin(user: dict) -> bool:
+    """Return True if the user has set an inventory PIN."""
+    return bool((user.get("inventory_pin_hash") or "").strip())

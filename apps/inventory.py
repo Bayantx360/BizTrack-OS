@@ -411,10 +411,59 @@ def _restock_tab_fragment(business_id, user):
                 st.error("Failed to update stock.")
 
 
+def _inventory_pin_gate(user: dict) -> bool:
+    """
+    Gate entry to the whole Inventory section behind the Inventory PIN.
+    Returns True once the section is unlocked for this session.
+    Admin always passes; a business with no PIN set passes with a nudge
+    (same no-lockout fallback used elsewhere in the suite).
+    """
+    from shared.auth import has_inventory_pin, verify_inventory_pin
+
+    if user.get("role") == "admin":
+        return True
+
+    if st.session_state.get("inventory_unlocked"):
+        return True
+
+    if not has_inventory_pin(user):
+        st.info(
+            "ℹ️ No Inventory PIN is set. Go to **⚙️ Settings** to add one and "
+            "restrict who can view your stock, costs and suppliers."
+        )
+        return True
+
+    apply_suite_css()
+    page_header("📦 Inventory Management", "Enter your Inventory PIN to continue")
+
+    if st.session_state.get("inv_gate_pin_err"):
+        st.error(st.session_state.pop("inv_gate_pin_err"))
+
+    with st.form("inv_gate_pin_form", clear_on_submit=True):
+        entered_pin = st.text_input(
+            "🔐 Inventory PIN", type="password", placeholder="Enter PIN to unlock Inventory",
+        )
+        submitted = st.form_submit_button("Unlock", type="primary")
+
+    if submitted:
+        if verify_inventory_pin(user, entered_pin):
+            st.session_state.inventory_unlocked = True
+            st.rerun()
+        else:
+            st.session_state.inv_gate_pin_err = "❌ Incorrect PIN. Please try again."
+            st.rerun()
+
+    return False
+
+
 def page_products():
     """Products catalogue — view, edit, delete, restock, history."""
+    user = st.session_state.user
+
+    if not _inventory_pin_gate(user):
+        return
+
     apply_suite_css()
-    user        = st.session_state.user
     business_id = user["business_id"]
 
     page_header("📦 Inventory Management", "Add, edit and manage your products")
