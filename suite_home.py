@@ -819,6 +819,7 @@ def render_sidebar():
 def page_settings():
     from shared.theme import page_header, section_header
     from shared.auth import set_void_pin, has_void_pin
+    from shared.auth import set_inventory_pin, has_inventory_pin
     apply_suite_css()
     page_header("⚙️ Settings", "Manage your account and security preferences")
 
@@ -1027,6 +1028,109 @@ def page_settings():
                     if updated:
                         st.session_state.user = updated
                     st.success("Void PIN removed.")
+                    st.rerun()
+                else:
+                    st.error("Failed to remove PIN.")
+            else:
+                st.error("Incorrect PIN.")
+
+    st.markdown("---")
+    section_header("📦 Inventory PIN")
+    st.markdown(
+        "The Inventory PIN protects your product catalogue, stock levels, costs and "
+        "suppliers from casual viewing. Once set, anyone opening **Inventory** must "
+        "enter this PIN first."
+    )
+
+    inv_pin_set = has_inventory_pin(user)
+    if inv_pin_set:
+        st.success("✅ Inventory PIN is active.")
+    else:
+        st.warning("⚠️ No Inventory PIN set — anyone with your login can open Inventory freely. Set one below.")
+
+    inv_action = st.radio(
+        "Action",
+        ["Set / Change PIN", "Remove PIN"] if inv_pin_set else ["Set PIN"],
+        horizontal=True,
+        key="inv_pin_action",
+    )
+
+    if inv_action == "Set PIN":
+        # ── First-time setup — no existing PIN to verify ──────────────
+        with st.form("set_inv_pin_form", clear_on_submit=True):
+            new_pin     = st.text_input("New PIN (4–12 characters)",
+                                         type="password",
+                                         placeholder="Letters, numbers or symbols",
+                                         key="set_inv_pin_new")
+            confirm_pin = st.text_input("Confirm PIN", type="password", key="set_inv_pin_confirm")
+            submitted   = st.form_submit_button("💾 Save PIN", type="primary")
+
+        if submitted:
+            if new_pin != confirm_pin:
+                st.error("PINs do not match.")
+            else:
+                ok, msg = set_inventory_pin(user_id, new_pin)
+                if ok:
+                    updated = get_user_by_email(user.get("email", ""))
+                    if updated:
+                        st.session_state.user = updated
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+    elif inv_action == "Set / Change PIN":
+        # ── Change flow — must prove knowledge of the current PIN first ──
+        st.info("🔐 You must enter your **current PIN** before setting a new one.")
+        with st.form("change_inv_pin_form", clear_on_submit=True):
+            current_pin = st.text_input("Current PIN",
+                                         type="password",
+                                         placeholder="Your existing PIN",
+                                         key="change_inv_pin_current")
+            st.markdown("---")
+            new_pin     = st.text_input("New PIN (4–12 characters)",
+                                         type="password",
+                                         placeholder="Letters, numbers or symbols",
+                                         key="change_inv_pin_new")
+            confirm_pin = st.text_input("Confirm New PIN", type="password", key="change_inv_pin_confirm")
+            submitted   = st.form_submit_button("💾 Update PIN", type="primary")
+
+        if submitted:
+            from shared.auth import verify_inventory_pin
+            if not verify_inventory_pin(user, current_pin):
+                st.error("❌ Incorrect current PIN. PIN not changed.")
+            elif new_pin != confirm_pin:
+                st.error("New PINs do not match.")
+            elif new_pin == current_pin:
+                st.error("New PIN must be different from your current PIN.")
+            else:
+                ok, msg = set_inventory_pin(user_id, new_pin)
+                if ok:
+                    updated = get_user_by_email(user.get("email", ""))
+                    if updated:
+                        st.session_state.user = updated
+                    st.success("✅ Inventory PIN updated successfully.")
+                    st.session_state.pop("inventory_unlocked", None)
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+    elif inv_action == "Remove PIN":
+        st.info("Removing the PIN means anyone with your login can open Inventory without restriction.")
+        with st.form("remove_inv_pin_form"):
+            current_pin = st.text_input("Enter current PIN to confirm removal",
+                                         type="password", key="remove_inv_pin_current")
+            remove_btn  = st.form_submit_button("🗑️ Remove PIN", type="primary")
+        if remove_btn:
+            from shared.auth import verify_inventory_pin
+            if verify_inventory_pin(user, current_pin):
+                ok = db_update(TBL_USERS, "user_id", user_id, {"inventory_pin_hash": None})
+                if ok:
+                    updated = get_user_by_email(user.get("email", ""))
+                    if updated:
+                        st.session_state.user = updated
+                    st.session_state.pop("inventory_unlocked", None)
+                    st.success("Inventory PIN removed.")
                     st.rerun()
                 else:
                     st.error("Failed to remove PIN.")
