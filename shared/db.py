@@ -10,6 +10,7 @@ Single source of truth for:
   • Typed data loaders    (get_sales_df, get_products_df, get_expenses_df)
   • Cross-app analytics   (compute_kpis, compute_insights)
   • Payment helpers       (log_payment, get_payments_df)
+  • Cashbook ledger       (log_cashbook_entry, get_cashbook_df, compute_cashbook_summary)
 
 All three page modules import from here:
     from shared.db import (
@@ -20,10 +21,11 @@ All three page modules import from here:
         log_payment, get_payments_df,
         get_debts_df, get_debt_payments_df, record_debt_payment,
         get_suppliers_df,
+        log_cashbook_entry, get_cashbook_df, compute_cashbook_summary,
         TBL_USERS, TBL_PRODUCTS, TBL_SALES, TBL_EXPENSES,
         TBL_PAYMENTS, TBL_RESTOCK, TBL_SALE_ITEMS,
-        TBL_DEBTS, TBL_DEBT_PAYMENTS, TBL_SUPPLIERS,
-        PAYMENT_DETAILS,
+        TBL_DEBTS, TBL_DEBT_PAYMENTS, TBL_SUPPLIERS, TBL_CASHBOOK,
+        PAYMENT_DETAILS, CASHBOOK_ENTRY_TYPES,
     )
 """
 
@@ -49,6 +51,11 @@ TBL_DEBTS         = "debts"
 TBL_DEBT_PAYMENTS = "debt_payments"
 TBL_SUPPLIERS     = "suppliers"
 TBL_ACTIVITY      = "user_activity"
+TBL_CASHBOOK      = "cashbook_entries"
+
+# Entry types written to the cashbook. "Restock" and "Expense" are cash-out;
+# "Sale" and "Debt Collection" are cash-in; "Manual" can be either direction.
+CASHBOOK_ENTRY_TYPES = ("Sale", "Expense", "Restock", "Debt Collection", "Manual")
 
 # ── Supported countries config ────────────────────────────────────────────────
 # Each entry: country_name → { code, currency_code, currency_symbol, dial_code }
@@ -395,6 +402,80 @@ def get_restock_df(business_id: str) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=60, show_spinner=False)
+def get_cashbook_df(business_id: str) -> pd.DataFrame:
+    """Return typed cashbook ledger for this business — cached 60s."""
+    df = db_fetch(TBL_CASHBOOK, {"business_id": business_id})
+    if df.empty:
+        return pd.DataFrame()
+    df["amount"]      = pd.to_numeric(df["amount"], errors="coerce").fillna(0)
+    df["entry_date"]  = pd.to_datetime(
+        df["entry_date"], errors="coerce", utc=True
+    ).dt.tz_localize(None)
+    # Signed amount makes running-balance math a one-line cumsum downstream
+    # instead of every caller re-deriving sign from the direction column.
+    df["signed_amount"] = df.apply(
+        lambda r: r["amount"] if r.get("direction") == "In" else -r["amount"], axis=1
+    )
+    return df.sort_values("entry_date").reset_index(drop=True)
+
+
+def log_cashbook_entry(business_id: str, entry_date, entry_type: str, direction: str,
+                       amount: float, payment_method: str = "Cash",
+                       note: str = "", source_ref: str = None,
+                       recorded_by: str = "") -> bool:
+    """
+    Write one row to the cashbook ledger. Called both directly (manual
+    entries) and as a mirror-write right after a sale/expense/restock/debt
+    payment is committed elsewhere, so the ledger never needs its own
+    re-entry of data that already lives on another table.
+    direction must be "In" or "Out". Never raises — a failed mirror-write
+    should not roll back or block the original sale/expense/restock, so
+    errors are swallowed and logged silently rather than surfaced.
+    """
+    try:
+        return db_insert(TBL_CASHBOOK, {
+            "entry_id":       gen_id("CBK"),
+            "business_id":    business_id,
+            "entry_date":     str(entry_date),
+            "entry_type":     entry_type,
+            "direction":      direction,
+            "amount":         round(float(amount), 2),
+            "payment_method": payment_method or "Cash",
+            "note":           note,
+            "source_ref":     source_ref,
+            "recorded_by":    recorded_by,
+        })
+    except Exception:
+        return False
+
+
+def compute_cashbook_summary(df: pd.DataFrame, start_date=None, end_date=None) -> dict:
+    """
+    Given the full cashbook ledger, return opening balance (sum of every
+    entry strictly before start_date), total in/out within the
+    [start_date, end_date] window, and the closing balance. Passing no
+    dates summarizes the entire ledger (opening = 0).
+    """
+    summary = {"opening": 0.0, "total_in": 0.0, "total_out": 0.0, "closing": 0.0}
+    if df.empty:
+        return summary
+    d = df.copy()
+    d["_date"] = d["entry_date"].dt.date
+    if start_date is not None:
+        before = d[d["_date"] < start_date]
+        summary["opening"] = round(before["signed_amount"].sum(), 2)
+        d = d[d["_date"] >= start_date]
+    if end_date is not None:
+        d = d[d["_date"] <= end_date]
+    summary["total_in"]  = round(d[d["direction"] == "In"]["amount"].sum(), 2)
+    summary["total_out"] = round(d[d["direction"] == "Out"]["amount"].sum(), 2)
+    summary["closing"]   = round(
+        summary["opening"] + summary["total_in"] - summary["total_out"], 2
+    )
+    return summary
+
+
+@st.cache_data(ttl=60, show_spinner=False)
 def get_suppliers_df(business_id: str) -> pd.DataFrame:
     """Return suppliers directory for this business — cached 60s."""
     df = db_fetch(TBL_SUPPLIERS, {"business_id": business_id})
@@ -457,6 +538,7 @@ _TABLE_CACHE_MAP: dict[str, tuple] = {
     TBL_SALE_ITEMS:    (get_sale_items_df,),
     TBL_DEBTS:         (get_debts_df,),
     TBL_DEBT_PAYMENTS: (get_debt_payments_df,),
+    TBL_CASHBOOK:      (get_cashbook_df,),
 }
 
 
@@ -579,10 +661,14 @@ def get_recent_restocks_for_product(business_id: str, product_id: str, limit: in
 
 
 def record_debt_payment(debt_id: str, business_id: str,
-                        amount: float, note: str = "") -> bool:
+                        amount: float, note: str = "",
+                        payment_method: str = "Cash") -> bool:
     """
     Log a debt instalment and update the parent debt record atomically.
-    Updates amount_paid, balance, and status on the debts row.
+    Updates amount_paid, balance, and status on the debts row, and mirrors
+    the collection into the cashbook as cash-in — this is real cash hitting
+    the till, even though it originated from a sale recorded (as credit)
+    long before today.
     Returns True only if both writes succeed.
     """
     try:
@@ -595,23 +681,33 @@ def record_debt_payment(debt_id: str, business_id: str,
         new_paid   = round(float(debt["amount_paid"]) + amount, 2)
         new_bal    = round(max(float(debt["total_amount"]) - new_paid, 0), 2)
         new_status = "settled" if new_bal <= 0 else "partial"
+        dpay_id    = gen_id("DPY")
 
         pay_ok = db_insert(TBL_DEBT_PAYMENTS, {
-            "dpay_id":      gen_id("DPY"),
-            "debt_id":      debt_id,
-            "business_id":  business_id,
-            "amount":       amount,
-            "payment_date": datetime.now().isoformat(),
-            "note":         note,
+            "dpay_id":        dpay_id,
+            "debt_id":        debt_id,
+            "business_id":    business_id,
+            "amount":         amount,
+            "payment_date":   datetime.now().isoformat(),
+            "note":           note,
+            "payment_method": payment_method,
         })
         if not pay_ok:
             return False
 
-        return db_update(TBL_DEBTS, "debt_id", debt_id, {
+        updated = db_update(TBL_DEBTS, "debt_id", debt_id, {
             "amount_paid": new_paid,
             "balance":     new_bal,
             "status":      new_status,
         })
+        if updated:
+            log_cashbook_entry(
+                business_id=business_id, entry_date=datetime.now().date(),
+                entry_type="Debt Collection", direction="In",
+                amount=amount, payment_method=payment_method,
+                note=note or "Debt collection", source_ref=dpay_id,
+            )
+        return updated
     except Exception as e:
         st.error(f"Error recording debt payment: {e}")
         return False
