@@ -169,6 +169,16 @@ TESTIMONIALS = [
         "comment": "I switched from a notebook to BizTrack-OS and so far the app "
                    "has been useful in keeping our sales and transaction records. It is stable and solid. I recommend it for anyone",
     },
+
+    {
+        "name": "Teejay Ventures",
+        "person": "Tajudeen T. (Business Owner)",
+        "photo": "assets/user6.jpg",
+        "rating": 5,
+        "comment": "This app make sense. I like how it is showing whether I am making profit or losing money on every sales "
+                   "and how my revenue is covering the expenses ",
+    },
+  
     {
         "name": " Emeks Stores",
         "person": "Eze O. (Business Owner)",
@@ -178,7 +188,7 @@ TESTIMONIALS = [
                    "customers and share reciept on Whatsapp whenever I sell or I want to collect my balance.",
     },
     {
-        "name": "Gladys Ventures",
+        "name": "Gladys Provision Store",
         "person": "Gloria M. (Business Owner)",
         "photo": "assets/user5.jpg",
         "rating": 5,
