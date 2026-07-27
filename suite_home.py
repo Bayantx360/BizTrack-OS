@@ -149,7 +149,7 @@ TESTIMONIALS = [
         "name": "Ammy's Gadgets",
         "person": "Amina Y. (Business Manager)",
         "photo": "assets/user2.jpg",
-        "rating": 4.5,
+        "rating": 5,
         "comment": "I like the way BizTrack-OS make it easier to keep our records organised and intact. Features like low stock alert alone has saved us from running out of our "
                    "best-selling items on different occassion.",
     },
@@ -165,7 +165,7 @@ TESTIMONIALS = [
         "name": "Tundsam Agromart Ltd",
         "person": "Samuel T. (Business Owner)",
         "photo": "assets/user3.jpg",
-        "rating": 4.5,
+        "rating": 5,
         "comment": "I switched from a notebook to BizTrack-OS and so far the app "
                    "has been useful in keeping our sales and transaction records. It is stable and solid. I recommend it for anyone",
     },
