@@ -175,7 +175,7 @@ TESTIMONIALS = [
         "person": "Tajudeen T. (Business Owner)",
         "photo": "assets/user6.jpg",
         "rating": 5,
-        "comment": "This app make sense. I like how it is showing whether I am making profit or losing money on every sales"
+        "comment": "This app make sense. I like how it is showing whether I am making profit or losing money on every sales "
                    "and how my revenue is covering the expenses ",
     },
   
