@@ -27,9 +27,9 @@ from shared.db import (
     db_fetch, db_insert, db_update, db_delete,
     get_payments_df, log_payment,
     get_debts_df, get_debt_payments_df, record_debt_payment,
-    get_sale_items_df,
+    get_sale_items_df, log_cashbook_entry,
     TBL_USERS, TBL_EXPENSES, TBL_PAYMENTS, TBL_SALE_ITEMS,
-    TBL_DEBTS, TBL_ACTIVITY,
+    TBL_DEBTS, TBL_ACTIVITY, TBL_CASHBOOK,
     PAYMENT_DETAILS, get_payment_plan, SUPPORTED_COUNTRIES,
     gen_id, fmt_naira, safe_float, safe_int, parse_date,
     get_supabase,
@@ -156,6 +156,16 @@ def page_expenses():
                                 "amount":       new_amt,
                                 "expense_date": str(new_date),
                             })
+                            if ok:
+                                # Keep the mirrored cashbook row in sync rather than
+                                # leaving it pointing at stale amount/date/note.
+                                cb = db_fetch(TBL_CASHBOOK, {"source_ref": exp_id})
+                                if not cb.empty:
+                                    db_update(TBL_CASHBOOK, "entry_id", cb.iloc[0]["entry_id"], {
+                                        "amount":     new_amt,
+                                        "entry_date": str(new_date),
+                                        "note":       new_name.strip(),
+                                    })
                             st.session_state[f"exp_msg_{exp_id}"] = (
                                 "✅ Expense updated." if ok else "❌ Failed to update."
                             )
@@ -175,6 +185,7 @@ def page_expenses():
                             ce1, ce2 = st.columns(2)
                             if ce1.button("✅ Yes, delete", key=f"yes_del_exp_{exp_id}", type="primary"):
                                 ok = db_delete(TBL_EXPENSES, "expense_id", exp_id)
+                                db_delete(TBL_CASHBOOK, "source_ref", exp_id)
                                 st.session_state.pop(confirm_key, None)
                                 st.session_state["exp_del_msg"] = (
                                     "✅ Expense deleted." if ok else "❌ Failed to delete."
@@ -214,22 +225,34 @@ def page_expenses():
             ])
             amount       = col1.number_input("Amount (" + st.session_state.get("currency_symbol","₦") + ") *", min_value=0.0, step=100.0)
             expense_date = col2.date_input("Date", value=datetime.now().date())
+            exp_payment_method = col1.selectbox(
+                "Paid Via", ["Cash", "Bank Transfer", "POS", "Mobile Money"]
+            )
             submitted    = st.form_submit_button("Log Expense", width='stretch', type="primary")
 
         if submitted:
             if not exp_name or amount <= 0:
                 st.error("Please fill in description and a valid amount.")
             else:
+                expense_id = gen_id("EXP")
                 ok = db_insert(TBL_EXPENSES, {
-                    "expense_id":   gen_id("EXP"),
+                    "expense_id":   expense_id,
                     "business_id":  business_id,
                     "description": exp_name.strip(),
                     "category":     category,
                     "amount":       amount,
                     "expense_date": str(expense_date),
                     "recorded_by":  user.get("full_name", user.get("email", "")),
+                    "payment_method": exp_payment_method,
                 })
                 if ok:
+                    log_cashbook_entry(
+                        business_id=business_id, entry_date=expense_date,
+                        entry_type="Expense", direction="Out",
+                        amount=amount, payment_method=exp_payment_method,
+                        note=exp_name.strip(), source_ref=expense_id,
+                        recorded_by=user.get("full_name", user.get("email", "")),
+                    )
                     st.session_state["exp_log_msg"] = f"✅ Expense logged: {exp_name} — {fmt_naira(amount)}"
                     st.rerun()
                 else:
@@ -884,13 +907,17 @@ def page_debtor_statement(customer_name: str):
                 step=100.0,
             )
             pay_note = pf2.text_input("Note (optional)", placeholder="e.g. Cash at shop")
+            pay_method = pf1.selectbox(
+                "Received Via", ["Cash", "Bank Transfer", "POS", "Mobile Money"]
+            )
             pay_btn  = st.form_submit_button(
                 f"💰 Record Payment — {fmt_naira(pay_amount)}",
                 type="primary", width="stretch",
             )
 
         if pay_btn:
-            ok = record_debt_payment(selected_debt_id, business_id, pay_amount, pay_note)
+            ok = record_debt_payment(selected_debt_id, business_id, pay_amount, pay_note,
+                                     payment_method=pay_method)
             if ok:
                 remaining = round(selected_balance - pay_amount, 2)
                 if remaining <= 0:
@@ -1123,6 +1150,10 @@ def page_debtors():
                                 placeholder="e.g. Cash at shop",
                                 key=f"pay_note_{debt_id}_{label}",
                             )
+                            pay_method = pf1.selectbox(
+                                "Received Via", ["Cash", "Bank Transfer", "POS", "Mobile Money"],
+                                key=f"pay_method_{debt_id}_{label}",
+                            )
                             pay_btn = st.form_submit_button(
                                 f"💰 Record Payment — {fmt_naira(pay_amount)}",
                                 type="primary", width="stretch",
@@ -1130,7 +1161,8 @@ def page_debtors():
 
                         if pay_btn:
                             ok = record_debt_payment(debt_id, business_id,
-                                                     pay_amount, pay_note)
+                                                     pay_amount, pay_note,
+                                                     payment_method=pay_method)
                             if ok:
                                 remaining = round(balance - pay_amount, 2)
                                 if remaining <= 0:

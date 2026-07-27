@@ -30,8 +30,8 @@ from shared.db import (
     get_debts_df,
     compute_kpis,
     db_fetch, db_insert, db_insert_many, db_update, db_delete, clear_table_cache,
-    log_activity,
-    TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS,
+    log_activity, log_cashbook_entry,
+    TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS, TBL_CASHBOOK,
     gen_id, fmt_naira, safe_float, safe_int, fmt_qty,
 )
 from shared.theme import apply_suite_css, kpi_card, section_header, page_header, chart_layout, chart_config, CHART_GOLD, CHART_JADE, CHART_INDIGO, CHART_RUBY, CHART_PALETTE
@@ -839,6 +839,20 @@ def page_record_sale():
                     st.session_state.pop("checkout_pay_status", None)
                     st.session_state.pop("checkout_amount_paid", None)
 
+                    # ── Cashbook mirror-write ────────────────────────────
+                    # Only the amount actually collected today counts as cash in —
+                    # a credit balance isn't cash until it's later collected via
+                    # record_debt_payment(), which writes its own entry.
+                    if _paid_now > 0:
+                        log_cashbook_entry(
+                            business_id=business_id, entry_date=sale_time,
+                            entry_type="Sale", direction="In",
+                            amount=_paid_now, payment_method=payment_method,
+                            note=f"Sale to {customer_name.strip() or 'walk-in customer'}",
+                            source_ref=sale_id,
+                            recorded_by=user.get("full_name", user.get("email", "")),
+                        )
+
                     # ── Activity logging ───────────────────────────────
                     _sub = user.get("plan_status", "active")
                     log_activity(business_id, "sale_recorded", _sub)
@@ -1339,6 +1353,7 @@ def page_sales_history():
                         ok = db_delete(TBL_SALES, "sale_id", sale_id)
                         if not items_df.empty:
                             db_delete(TBL_SALE_ITEMS, "sale_id", sale_id)
+                        db_delete(TBL_CASHBOOK, "source_ref", sale_id)
                         st.session_state.pop(void_key, None)
                         st.session_state.pop(pin_err_key, None)
                         st.session_state.sale_feedback = (
@@ -1381,6 +1396,7 @@ def page_sales_history():
                             ok = db_delete(TBL_SALES, "sale_id", sale_id)
                             if not items_df.empty:
                                 db_delete(TBL_SALE_ITEMS, "sale_id", sale_id)
+                            db_delete(TBL_CASHBOOK, "source_ref", sale_id)
                             st.session_state.pop(void_key, None)
                             st.session_state.pop(pin_err_key, None)
                             st.session_state.sale_feedback = (
