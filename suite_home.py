@@ -188,7 +188,7 @@ TESTIMONIALS = [
                    "customers and share reciept on Whatsapp whenever I sell or I want to collect my balance.",
     },
     {
-        "name": "Gladys Ventures",
+        "name": "Gladys Provision Store",
         "person": "Gloria M. (Business Owner)",
         "photo": "assets/user5.jpg",
         "rating": 5,
