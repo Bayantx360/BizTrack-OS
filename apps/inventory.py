@@ -27,6 +27,7 @@ from shared.db import (
     compute_insights, get_insights_cached,
     db_fetch, db_insert, db_update, db_delete, clear_table_cache,
     get_restock_df, get_recent_restocks_for_product, get_suppliers_df,
+    log_cashbook_entry,
     TBL_PRODUCTS, TBL_RESTOCK, TBL_SUPPLIERS,
     gen_id, fmt_naira, safe_float, safe_int, fmt_qty,
 )
@@ -322,6 +323,15 @@ def _restock_tab_fragment(business_id, user):
 
     st.markdown("---")
 
+    st.markdown("**💵 How was this paid for?**")
+    restock_payment_method = st.selectbox(
+        "Payment Method", ["Cash", "Bank Transfer", "POS", "Mobile Money"],
+        key="restock_payment_method",
+        help="Used to log this purchase as cash-out in your Cashbook",
+    )
+
+    st.markdown("---")
+
     # ── Submit button inside the form ──
     with st.form("restock_form", clear_on_submit=True):
         submitted = st.form_submit_button(
@@ -378,8 +388,9 @@ def _restock_tab_fragment(business_id, user):
             ok = db_update(TBL_PRODUCTS, "product_id",
                            selected_product["product_id"], updates)
             if ok:
+                restock_id = gen_id("RST")
                 db_insert(TBL_RESTOCK, {
-                    "restock_id":    gen_id("RST"),
+                    "restock_id":    restock_id,
                     "business_id":   business_id,
                     "product_id":    selected_product["product_id"],
                     "product_name":  selected_product["product_name"],
@@ -392,7 +403,21 @@ def _restock_tab_fragment(business_id, user):
                     "recorded_by":   user.get("full_name", user.get("email", "")),
                     "restock_date":  datetime.now().isoformat(),
                     "entry_type":    "delivery",
+                    "payment_method": restock_payment_method,
                 })
+                # Cash-out mirror-write — restock cost is add_qty (base units)
+                # times the cost actually paid per base unit for this delivery.
+                _restock_cost = round(add_qty * new_cost, 2)
+                if _restock_cost > 0:
+                    log_cashbook_entry(
+                        business_id=business_id, entry_date=datetime.now().date(),
+                        entry_type="Restock", direction="Out",
+                        amount=_restock_cost, payment_method=restock_payment_method,
+                        note=f"Restock: {selected_product['product_name']}"
+                             + (f" — {resolved_supplier_name}" if resolved_supplier_name else ""),
+                        source_ref=restock_id,
+                        recorded_by=user.get("full_name", user.get("email", "")),
+                    )
                 msg = (
                     f"✅ Restocked! {selected_product['product_name']}: "
                     f"{fmt_qty(cur_stock)} → {fmt_qty(new_qty)} {base_unit}s"
