@@ -50,7 +50,7 @@ def page_cashbook():
     user        = st.session_state.user
     business_id = user["business_id"]
 
-    page_header("📒 Cashbook", "Every cedi/naira in and out — and what's left")
+    page_header("📘 Cashbook", "Every cedi/naira in and out — and what's left")
 
     # No caching gap for the person reading this: get_cashbook_df() pulls
     # fresh on every rerun (its cache is cleared the instant any sale,
@@ -59,7 +59,7 @@ def page_cashbook():
     # stale, manually-refreshed snapshot.
     df = get_cashbook_df(business_id)
 
-    tab1, tab2 = st.tabs(["📊 Snapshot", "➕ Manual Entry"])
+    tab1, tab2 = st.tabs(["📖 Daily Ledger", "➕ Manual Entry"])
 
     # ══════════════════════
     # Tab 1 — Snapshot
