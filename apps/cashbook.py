@@ -59,7 +59,7 @@ def page_cashbook():
     # stale, manually-refreshed snapshot.
     df = get_cashbook_df(business_id)
 
-    tab1, tab2 = st.tabs(["📖 Daily Ledger", "➕ Manual Entry"])
+    tab1, tab2 = st.tabs(["📊 Snapshot", "➕ Manual Entry"])
 
     # ══════════════════════
     # Tab 1 — Snapshot
@@ -209,16 +209,13 @@ def _page_snapshot(df: pd.DataFrame, business_id: str):
   <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.4rem;">
     Cash balance · {period.lower() if period != "Custom" else f"{start_date} to {end_date}"}
   </div>
-  <div style="display:flex; align-items:baseline; gap:10px;">
-    <span style="font-family:var(--font-display); font-size:2rem; font-weight:800; color:var(--text-primary);">
-      {fmt_naira(summary['closing'])}
-    </span>
-    <span style="font-size:0.85rem; font-weight:700; color:{delta_color};">
-      {delta_arrow} {fmt_naira(abs(delta))}
-    </span>
+  <div style="font-family:var(--font-display); font-size:1.9rem; font-weight:800;
+              color:var(--text-primary); line-height:1.15; word-break:break-word;">
+    {fmt_naira(summary['closing'])}
   </div>
   <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:1rem;">
-    Opening {fmt_naira(summary['opening'])}
+    <span style="color:{delta_color}; font-weight:700;">{delta_arrow} {fmt_naira(abs(delta))}</span>
+    &nbsp;·&nbsp;Opening {fmt_naira(summary['opening'])}
   </div>
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:1.1rem;">
