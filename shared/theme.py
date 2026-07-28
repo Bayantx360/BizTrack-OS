@@ -427,6 +427,34 @@ html, body, [class*="css"], .stApp {{
     color: var(--obsidian) !important;
 }}
 
+/* ── Native text/number/date input boxes ──
+   st.text_input, st.number_input, st.text_area, and the closed box of
+   st.date_input all render through BaseWeb's "input" component, which
+   (like the selectbox above) pulls straight from Streamlit's own frozen
+   native theme unless explicitly overridden here. */
+[data-baseweb="input"],
+[data-baseweb="input"] > div,
+[data-baseweb="base-input"],
+[data-testid="stTextArea"] textarea {{
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+}}
+[data-baseweb="input"] input,
+[data-baseweb="base-input"] input,
+[data-testid="stTextArea"] textarea {{
+    color: var(--text-primary) !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+}}
+[data-baseweb="input"] input::placeholder,
+[data-testid="stTextArea"] textarea::placeholder {{
+    color: var(--text-muted) !important;
+}}
+/* Number input's +/- step buttons */
+[data-testid="stNumberInput"] button {{
+    background-color: var(--surface2) !important;
+    color: var(--text-primary) !important;
+}}
+
 """
     return base_css
 
