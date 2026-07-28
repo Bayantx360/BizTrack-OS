@@ -408,8 +408,15 @@ def get_cashbook_df(business_id: str) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame()
     df["amount"]      = pd.to_numeric(df["amount"], errors="coerce").fillna(0)
+    # format="ISO8601" is required here — the underlying data legitimately
+    # mixes precisions (a bare-date restock/expense mirror-write next to a
+    # full-timestamp sale). Without it, pandas infers one format from the
+    # column and silently turns every non-matching row into NaT — which
+    # then vanishes from every date comparison downstream (opening/in/out)
+    # with no error at all. This bit a real ₦58,000 sale disappearing from
+    # a trader's balance — never remove this format argument.
     df["entry_date"]  = pd.to_datetime(
-        df["entry_date"], errors="coerce", utc=True
+        df["entry_date"], errors="coerce", utc=True, format="ISO8601"
     ).dt.tz_localize(None)
     # Signed amount makes running-balance math a one-line cumsum downstream
     # instead of every caller re-deriving sign from the direction column.
@@ -433,10 +440,21 @@ def log_cashbook_entry(business_id: str, entry_date, entry_type: str, direction:
     errors are swallowed and logged silently rather than surfaced.
     """
     try:
+        # Normalize to a full datetime string regardless of what the caller
+        # passed (a bare date object from st.date_input, or an already-full
+        # datetime/ISO string) — mixing precisions in this column is what
+        # caused pandas to silently drop a real ₦58,000 entry as NaT.
+        if isinstance(entry_date, str):
+            _dt_str = entry_date
+        elif isinstance(entry_date, datetime):
+            _dt_str = entry_date.isoformat()
+        else:  # a bare date object
+            _dt_str = datetime.combine(entry_date, datetime.min.time()).isoformat()
+
         return db_insert(TBL_CASHBOOK, {
             "entry_id":       gen_id("CBK"),
             "business_id":    business_id,
-            "entry_date":     str(entry_date),
+            "entry_date":     _dt_str,
             "entry_type":     entry_type,
             "direction":      direction,
             "amount":         round(float(amount), 2),

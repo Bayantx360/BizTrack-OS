@@ -28,7 +28,7 @@ from shared.db import (
     db_fetch, db_insert, db_update, db_delete, clear_table_cache,
     get_restock_df, get_recent_restocks_for_product, get_suppliers_df,
     log_cashbook_entry,
-    TBL_PRODUCTS, TBL_RESTOCK, TBL_SUPPLIERS,
+    TBL_PRODUCTS, TBL_RESTOCK, TBL_SUPPLIERS, TBL_CASHBOOK,
     gen_id, fmt_naira, safe_float, safe_int, fmt_qty,
 )
 from shared.theme import (
@@ -1043,6 +1043,7 @@ def page_products():
                                 )
                                 if ok:
                                     db_delete(TBL_RESTOCK, "restock_id", restock_id)
+                                    db_delete(TBL_CASHBOOK, "source_ref", restock_id)
                                     st.session_state["inv_msg"] = (
                                         f"↩️ Reversed! {product_name} stock: "
                                         f"{fmt_qty(current_stock)} → {fmt_qty(restored_qty)}"
