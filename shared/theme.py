@@ -62,24 +62,22 @@ toolbarMode = "minimal"
 
 def _write_config(mode: str) -> None:
     """
-    DEPRECATED — no longer called. .streamlit/config.toml is one file
-    shared by the whole running server process, not per-session state.
-    Rewriting it at runtime meant one user's theme toggle flipped
-    Streamlit's native base theme for every other connected session too
-    (server-wide hot-reload), while custom CSS stayed correctly scoped
-    per-session — the mismatch between the two is what showed up as
-    faded/wrong-themed buttons and dropdowns.
-    Kept only so old call sites don't hard-fail; does nothing.
+    Overwrite .streamlit/config.toml with the correct base theme.
+    Streamlit hot-reloads when it detects this file change.
     """
-    return
+    import pathlib
+    # Walk up from this file to find .streamlit/config.toml
+    config_path = pathlib.Path(__file__).parent.parent / ".streamlit" / "config.toml"
+    try:
+        config_path.write_text(_CONFIG_LIGHT if mode == "light" else _CONFIG_DARK)
+    except Exception:
+        pass  # non-fatal if file is read-only in some deploy environments
 
 
 def set_theme(mode: str) -> None:
     """
-    Set theme in session state and persist preference to Supabase.
-    Deliberately does NOT touch .streamlit/config.toml — see
-    _write_config()'s docstring for why. All visual theming happens
-    through apply_suite_css(), which is correctly session-scoped.
+    Set theme in session state, rewrite config.toml so Streamlit's
+    base theme flips, and persist preference to Supabase.
 
     Args:
         mode: "dark" or "light"
@@ -88,6 +86,10 @@ def set_theme(mode: str) -> None:
         mode = "dark"
 
     st.session_state["theme"] = mode
+
+    # Rewrite config.toml — Streamlit detects the file change and
+    # hot-reloads with the correct base theme for all widgets
+    _write_config(mode)
 
     # Persist to DB so the preference survives logout / re-login
     user = st.session_state.get("user", {})
@@ -397,86 +399,6 @@ html, body, [class*="css"], .stApp {{
 /* ── Tabs ── */
 [data-testid="stTabs"] button[role="tab"]               {{ color:var(--text-muted) !important; font-size:0.875rem; }}
 [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {{ color:var(--gold) !important; border-bottom-color:var(--gold) !important; }}
-
-/* ── Native popovers/menus (selectbox, multiselect, date picker) ──
-   These render via Streamlit/BaseWeb's own theme engine and don't
-   inherit from the .stApp rules above — they need explicit coverage
-   now that config.toml is frozen and no longer flips per session. */
-[data-baseweb="popover"] [data-baseweb="menu"],
-[data-baseweb="popover"] ul,
-[data-baseweb="calendar"],
-[data-baseweb="select"] > div {{
-    background-color: var(--surface) !important;
-    color: var(--text-primary) !important;
-    border-color: var(--border) !important;
-}}
-[data-baseweb="menu"] li,
-[data-baseweb="menu"] li[role="option"] {{
-    background-color: var(--surface) !important;
-    color: var(--text-primary) !important;
-}}
-[data-baseweb="menu"] li[aria-selected="true"],
-[data-baseweb="menu"] li:hover {{
-    background-color: var(--surface2) !important;
-}}
-[data-baseweb="calendar"] * {{
-    color: var(--text-primary) !important;
-}}
-[data-baseweb="calendar"] [aria-selected="true"] {{
-    background-color: var(--gold) !important;
-    color: var(--obsidian) !important;
-}}
-
-/* ── Native text/number/date input boxes ──
-   Painting background and text color on the SAME real element (the
-   actual <input>/<textarea> tag itself, not a guessed wrapper div)
-   guarantees they can never mismatch — which is exactly what broke
-   last time: text color changed on one element while a different,
-   unmatched wrapper kept its old background underneath it. */
-[data-baseweb="input"] input,
-[data-baseweb="input"] textarea,
-[data-baseweb="base-input"] input,
-[data-baseweb="base-input"] textarea,
-[data-testid="stTextArea"] textarea {{
-    background-color: var(--surface) !important;
-    color: var(--text-primary) !important;
-    -webkit-text-fill-color: var(--text-primary) !important;
-    border-color: var(--border) !important;
-}}
-[data-baseweb="input"] input::placeholder,
-[data-testid="stTextArea"] textarea::placeholder {{
-    color: var(--text-muted) !important;
-    -webkit-text-fill-color: var(--text-muted) !important;
-}}
-/* Wrapper divs get the same treatment as a secondary layer — but never
-   the tag chips (the orange "Cash / Bank Transfer" pills), which live
-   inside this same wrapper and already render correctly on their own. */
-[data-baseweb="input"] div:not([data-baseweb="tag"]),
-[data-baseweb="base-input"] div:not([data-baseweb="tag"]) {{
-    background-color: var(--surface) !important;
-    border-color: var(--border) !important;
-}}
-
-/* ── Selectbox / multiselect closed box ──
-   Same guaranteed-pairing approach: paint every div inside the select
-   wrapper except the chip tags, and set text color directly on the
-   value/placeholder element and any inner input (searchable selects).
-   config.toml is permanently frozen dark (see set_theme() above), so
-   nothing here can rely on Streamlit's native theme picking this up —
-   every state has to be spelled out explicitly. */
-[data-baseweb="select"] div:not([data-baseweb="tag"]) {{
-    background-color: var(--surface) !important;
-}}
-[data-baseweb="select"] input,
-[data-baseweb="select"] [role="button"] {{
-    color: var(--text-primary) !important;
-    -webkit-text-fill-color: var(--text-primary) !important;
-}}
-/* Number input's +/- step buttons */
-[data-testid="stNumberInput"] button {{
-    background-color: var(--surface2) !important;
-    color: var(--text-primary) !important;
-}}
 
 """
     return base_css
