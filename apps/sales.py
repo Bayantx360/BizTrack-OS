@@ -143,12 +143,12 @@ def page_dashboard():
     <span style="color:#10B981;font-weight:700;">{fmt_naira(collected)}</span>
   </div>
   <div style="display:flex;justify-content:space-between;margin-bottom:0.3rem;">
-    <span style="color:#4A6080;">📒 Total Credit </span>
+    <span style="color:#4A6080;">📕 Total Credit </span>
     <span style="color:#F59E0B;font-weight:700;">{fmt_naira(credit_extended)}</span>
   </div>
   <div style="border-top:1px solid #1F2D3D;margin-top:0.3rem;padding-top:0.3rem;
     display:flex;justify-content:space-between;">
-    <span style="color:#4A6080;">📊 Total Sales Value</span>
+    <span style="color:#4A6080;">💰 Total Sales Value</span>
     <span style="color:#8BA0B8;font-weight:700;">{fmt_naira(kpis['today_revenue'])}</span>
   </div>
 </div>
@@ -641,7 +641,7 @@ def page_record_sale():
                 format_func=lambda x: {
                     "full":   "✅ Full Payment",
                     "part":   "💳 Part Payment",
-                    "credit": "📒 Credit (Owes Full Amount)",
+                    "credit": "📕 Credit (Owes Full Amount)",
                 }[x],
                 horizontal=True,
                 key="checkout_pay_status",
@@ -661,7 +661,7 @@ def page_record_sale():
                 )
             elif payment_status == "credit":
                 amount_paid_now = 0.0
-                st.info("📒 The full amount will be recorded as a debt for this customer.")
+                st.info("📕 The full amount will be recorded as a debt for this customer.")
             else:
                 amount_paid_now = grand_total_preview
 
@@ -915,7 +915,7 @@ def page_record_sale():
                 lines.append(f"  earliest convenience.")
             elif _ps == "credit":
                 lines.append(f"  {'-'*36}")
-                lines.append(f"  📒 CREDIT SALE")
+                lines.append(f"  📕 CREDIT SALE")
                 lines.append(f"  Paid Today:   {fmt_naira(0)}")
                 lines.append(f"  Balance Owed: {fmt_naira(rd['grand_total'])}")
                 lines.append(f"  {'-'*36}")
