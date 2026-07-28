@@ -748,6 +748,12 @@ def page_products():
                         cy, cn = st.columns(2)
                         if cy.button("✅ Yes, delete", key=f"yes_del_{row['product_id']}", type="primary"):
                             ok = db_delete(TBL_PRODUCTS, "product_id", row["product_id"])
+                            if ok:
+                                # Clean up the Opening Stock cash-out entry so a
+                                # deleted product doesn't leave an orphaned
+                                # ledger row behind (same cleanup restock
+                                # reversal already does via source_ref).
+                                db_delete(TBL_CASHBOOK, "source_ref", row["product_id"])
                             st.session_state.pop(confirm_key, None)
                             st.session_state["prod_del_msg"] = (
                                 f"✅ {row['product_name']} deleted." if ok
@@ -919,8 +925,9 @@ def page_products():
             if not all([prod_name.strip(), category.strip()]) or sell_price <= 0:
                 st.error("Please fill all required fields and ensure selling price > 0.")
             else:
+                _new_product_id = gen_id("PRD")
                 ok = db_insert(TBL_PRODUCTS, {
-                    "product_id":        gen_id("PRD"),
+                    "product_id":        _new_product_id,
                     "business_id":       business_id,
                     "product_name":      prod_name.strip(),
                     "category":          category.strip(),
@@ -937,6 +944,23 @@ def page_products():
                     "created_at":        datetime.now().isoformat(),
                 })
                 if ok:
+                    # Cash-out mirror-write — same pattern as restock. Opening
+                    # stock is funded the same way a restock delivery is: cash
+                    # left the business to acquire it. Without this, every sale
+                    # against this product's opening stock would mirror-write
+                    # its full sale price as "In" with no matching "Out" ever
+                    # recorded, permanently inflating the cashbook balance by
+                    # the unrecorded acquisition cost.
+                    _opening_cost = round(safe_float(stock_qty) * safe_float(cost_price), 2)
+                    if _opening_cost > 0:
+                        log_cashbook_entry(
+                            business_id=business_id, entry_date=datetime.now().date(),
+                            entry_type="Opening Stock", direction="Out",
+                            amount=_opening_cost, payment_method="Cash",
+                            note=f"Opening stock: {prod_name.strip()}",
+                            source_ref=_new_product_id,
+                            recorded_by=user.get("full_name", user.get("email", "")),
+                        )
                     st.session_state["inv_msg"] = (
                         f"✅ '{prod_name}' added! "
                         f"Pack: {fmt_naira(sell_price)} per {base_unit} | "
