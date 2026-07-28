@@ -428,26 +428,49 @@ html, body, [class*="css"], .stApp {{
 }}
 
 /* ── Native text/number/date input boxes ──
-   st.text_input, st.number_input, st.text_area, and the closed box of
-   st.date_input all render through BaseWeb's "input" component, which
-   (like the selectbox above) pulls straight from Streamlit's own frozen
-   native theme unless explicitly overridden here. */
-[data-baseweb="input"],
-[data-baseweb="input"] > div,
-[data-baseweb="base-input"],
+   Painting background and text color on the SAME real element (the
+   actual <input>/<textarea> tag itself, not a guessed wrapper div)
+   guarantees they can never mismatch — which is exactly what broke
+   last time: text color changed on one element while a different,
+   unmatched wrapper kept its old background underneath it. */
+[data-baseweb="input"] input,
+[data-baseweb="input"] textarea,
+[data-baseweb="base-input"] input,
+[data-baseweb="base-input"] textarea,
 [data-testid="stTextArea"] textarea {{
     background-color: var(--surface) !important;
-    border-color: var(--border) !important;
-}}
-[data-baseweb="input"] input,
-[data-baseweb="base-input"] input,
-[data-testid="stTextArea"] textarea {{
     color: var(--text-primary) !important;
     -webkit-text-fill-color: var(--text-primary) !important;
+    border-color: var(--border) !important;
 }}
 [data-baseweb="input"] input::placeholder,
 [data-testid="stTextArea"] textarea::placeholder {{
     color: var(--text-muted) !important;
+    -webkit-text-fill-color: var(--text-muted) !important;
+}}
+/* Wrapper divs get the same treatment as a secondary layer — but never
+   the tag chips (the orange "Cash / Bank Transfer" pills), which live
+   inside this same wrapper and already render correctly on their own. */
+[data-baseweb="input"] div:not([data-baseweb="tag"]),
+[data-baseweb="base-input"] div:not([data-baseweb="tag"]) {{
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+}}
+
+/* ── Selectbox / multiselect closed box ──
+   Same guaranteed-pairing approach: paint every div inside the select
+   wrapper except the chip tags, and set text color directly on the
+   value/placeholder element and any inner input (searchable selects).
+   config.toml is permanently frozen dark (see set_theme() above), so
+   nothing here can rely on Streamlit's native theme picking this up —
+   every state has to be spelled out explicitly. */
+[data-baseweb="select"] div:not([data-baseweb="tag"]) {{
+    background-color: var(--surface) !important;
+}}
+[data-baseweb="select"] input,
+[data-baseweb="select"] [role="button"] {{
+    color: var(--text-primary) !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
 }}
 /* Number input's +/- step buttons */
 [data-testid="stNumberInput"] button {{
