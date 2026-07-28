@@ -50,7 +50,7 @@ def page_cashbook():
     user        = st.session_state.user
     business_id = user["business_id"]
 
-    page_header("📘 Cashbook", "Every cedi/naira in and out — and what's left")
+    page_header("📘 Cash Ledger", "Track every cash coming in and going out of your business — and see what remains")
 
     # No caching gap for the person reading this: get_cashbook_df() pulls
     # fresh on every rerun (its cache is cleared the instant any sale,
