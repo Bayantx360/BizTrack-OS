@@ -62,22 +62,24 @@ toolbarMode = "minimal"
 
 def _write_config(mode: str) -> None:
     """
-    Overwrite .streamlit/config.toml with the correct base theme.
-    Streamlit hot-reloads when it detects this file change.
+    DEPRECATED — no longer called. .streamlit/config.toml is one file
+    shared by the whole running server process, not per-session state.
+    Rewriting it at runtime meant one user's theme toggle flipped
+    Streamlit's native base theme for every other connected session too
+    (server-wide hot-reload), while custom CSS stayed correctly scoped
+    per-session — the mismatch between the two is what showed up as
+    faded/wrong-themed buttons and dropdowns.
+    Kept only so old call sites don't hard-fail; does nothing.
     """
-    import pathlib
-    # Walk up from this file to find .streamlit/config.toml
-    config_path = pathlib.Path(__file__).parent.parent / ".streamlit" / "config.toml"
-    try:
-        config_path.write_text(_CONFIG_LIGHT if mode == "light" else _CONFIG_DARK)
-    except Exception:
-        pass  # non-fatal if file is read-only in some deploy environments
+    return
 
 
 def set_theme(mode: str) -> None:
     """
-    Set theme in session state, rewrite config.toml so Streamlit's
-    base theme flips, and persist preference to Supabase.
+    Set theme in session state and persist preference to Supabase.
+    Deliberately does NOT touch .streamlit/config.toml — see
+    _write_config()'s docstring for why. All visual theming happens
+    through apply_suite_css(), which is correctly session-scoped.
 
     Args:
         mode: "dark" or "light"
@@ -86,10 +88,6 @@ def set_theme(mode: str) -> None:
         mode = "dark"
 
     st.session_state["theme"] = mode
-
-    # Rewrite config.toml — Streamlit detects the file change and
-    # hot-reloads with the correct base theme for all widgets
-    _write_config(mode)
 
     # Persist to DB so the preference survives logout / re-login
     user = st.session_state.get("user", {})
@@ -399,6 +397,35 @@ html, body, [class*="css"], .stApp {{
 /* ── Tabs ── */
 [data-testid="stTabs"] button[role="tab"]               {{ color:var(--text-muted) !important; font-size:0.875rem; }}
 [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {{ color:var(--gold) !important; border-bottom-color:var(--gold) !important; }}
+
+/* ── Native popovers/menus (selectbox, multiselect, date picker) ──
+   These render via Streamlit/BaseWeb's own theme engine and don't
+   inherit from the .stApp rules above — they need explicit coverage
+   now that config.toml is frozen and no longer flips per session. */
+[data-baseweb="popover"] [data-baseweb="menu"],
+[data-baseweb="popover"] ul,
+[data-baseweb="calendar"],
+[data-baseweb="select"] > div {{
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+}}
+[data-baseweb="menu"] li,
+[data-baseweb="menu"] li[role="option"] {{
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+}}
+[data-baseweb="menu"] li[aria-selected="true"],
+[data-baseweb="menu"] li:hover {{
+    background-color: var(--surface2) !important;
+}}
+[data-baseweb="calendar"] * {{
+    color: var(--text-primary) !important;
+}}
+[data-baseweb="calendar"] [aria-selected="true"] {{
+    background-color: var(--gold) !important;
+    color: var(--obsidian) !important;
+}}
 
 """
     return base_css
