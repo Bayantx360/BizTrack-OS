@@ -309,6 +309,7 @@ def page_login():
     <div class="lp-feature-chip"><span>🧾</span> PDF Receipts</div>
     <div class="lp-feature-chip"><span>⛔️</span> Product Expiry Alert</div>
     <div class="lp-feature-chip"><span>🛎</span> Low Stock Alert</div>
+    <div class="lp-feature-chip"><span>📘</span> Cash Ledger</div>
     <div class="lp-feature-chip"><span>📱</span> Whatsapp Integration</div>
   </div>
 </div>
