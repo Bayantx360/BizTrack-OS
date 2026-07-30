@@ -279,7 +279,14 @@ html, body, [class*="css"], .stApp {{
 .stat-item:last-child {{ border-right: none; }}
 .stat-item-wide {{ flex: 2 1 0; min-width: 220px; }}
 .stat-item-header {{ display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }}
-.stat-item-icon   {{ font-size: 1.1rem; }}
+.stat-item-icon   {{
+  font-size: 1rem;
+  width: 30px; height: 30px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-glow);
+  border-radius: 9px;
+}}
+.stat-item-wide .stat-item-icon {{ background: var(--jade-dim); }}
 .stat-item-label  {{
   font-size: 0.7rem; font-weight: 600;
   color: var(--text-muted);
@@ -301,7 +308,9 @@ html, body, [class*="css"], .stApp {{
 
 @media (max-width: 900px) {{
   .stat-panel {{ flex-direction: column; border-bottom: none; }}
-  .stat-item, .stat-item-wide {{
+
+  /* Simple stats → compact single-line rows: label left, value right */
+  .stat-item {{
     flex: 1 1 100% !important;
     width: 100%;
     min-width: 0;
@@ -317,9 +326,19 @@ html, body, [class*="css"], .stApp {{
   .stat-item-value-group {{ text-align: right; flex-shrink: 0; max-width: 55%; }}
   .stat-item-value {{ font-size: 1.05rem; white-space: normal; word-break: normal; }}
   .stat-item-sub   {{ display: none; }}   /* keep the row compact and scannable */
-  .stat-item-wide .stat-item-value-group {{ max-width: 68%; }}
+
+  /* Net Profit (wide, has a 3-part breakdown) → keeps its own vertical
+     card layout instead of squeezing into a label/value row, which was
+     forcing "NET PROFIT THIS MONTH" to wrap one word per line. */
+  .stat-item-wide {{
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }}
+  .stat-item-wide .stat-item-value-group {{ text-align: left; max-width: 100%; margin-top: 0.5rem; }}
+  .stat-item-wide .stat-item-value {{ font-size: 1.65rem; }}
   .stat-item-wide .stat-item-sub {{
-    display: block; font-size: 0.68rem; margin-top: 0.2rem; line-height: 1.4;
+    display: block; font-size: 0.72rem; margin-top: 0.35rem; line-height: 1.5;
   }}
 }}
 
