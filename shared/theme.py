@@ -294,14 +294,33 @@ html, body, [class*="css"], .stApp {{
 }}
 .stat-item-sub    {{ font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.25rem; }}
 
+/* Grouping wrappers — plain block on desktop (stacked label/value/sub,
+   unchanged from before), switched to a flex row on mobile below. */
+.stat-item-label-group,
+.stat-item-value-group {{ min-width: 0; }}
+
 @media (max-width: 900px) {{
-  .stat-item {{
-    flex: 1 1 50%;
-    border-right: 1px solid var(--border);
+  .stat-panel {{ flex-direction: column; border-bottom: none; }}
+  .stat-item, .stat-item-wide {{
+    flex: 1 1 100% !important;
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-right: none !important;
     border-bottom: 1px solid var(--border);
   }}
-  .stat-item:nth-child(2n) {{ border-right: none; }}
-  .stat-panel {{ border-bottom: none; }}
+  .stat-item:last-child {{ border-bottom: none; }}
+  .stat-item-header {{ margin-bottom: 0; }}
+  .stat-item-value-group {{ text-align: right; flex-shrink: 0; max-width: 55%; }}
+  .stat-item-value {{ font-size: 1.05rem; white-space: normal; word-break: normal; }}
+  .stat-item-sub   {{ display: none; }}   /* keep the row compact and scannable */
+  .stat-item-wide .stat-item-value-group {{ max-width: 68%; }}
+  .stat-item-wide .stat-item-sub {{
+    display: block; font-size: 0.68rem; margin-top: 0.2rem; line-height: 1.4;
+  }}
 }}
 
 /* ── Alert Styles ── */
@@ -616,12 +635,16 @@ def stat_panel(items: list[dict]):
         item_class  = "stat-item stat-item-wide" if it.get("wide") else "stat-item"
         blocks.append(f"""
 <div class="{item_class}">
-  <div class="stat-item-header">
-    {icon_html}
-    <div class="stat-item-label">{it.get("label", "")}</div>
+  <div class="stat-item-label-group">
+    <div class="stat-item-header">
+      {icon_html}
+      <div class="stat-item-label">{it.get("label", "")}</div>
+    </div>
   </div>
-  <div class="stat-item-value {color_class}">{it.get("value", "")}</div>
-  {f'<div class="stat-item-sub {color_class}">{sub}</div>' if sub else ""}
+  <div class="stat-item-value-group">
+    <div class="stat-item-value {color_class}">{it.get("value", "")}</div>
+    {f'<div class="stat-item-sub {color_class}">{sub}</div>' if sub else ""}
+  </div>
 </div>""")
     st.markdown(f'<div class="stat-panel">{"".join(blocks)}</div>', unsafe_allow_html=True)
 
