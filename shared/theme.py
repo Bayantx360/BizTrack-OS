@@ -259,6 +259,51 @@ html, body, [class*="css"], .stApp {{
 .kpi-positive {{ color: var(--jade) !important; }}
 .kpi-negative {{ color: var(--ruby) !important; }}
 
+/* ── Unified Stat Panel (single-card dashboard strip) ── */
+.stat-panel {{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  overflow: hidden;
+}}
+.stat-item {{
+  flex: 1 1 0;
+  min-width: 160px;
+  padding: 1.125rem 1.25rem;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid transparent;
+}}
+.stat-item:last-child {{ border-right: none; }}
+.stat-item-wide {{ flex: 2 1 0; min-width: 220px; }}
+.stat-item-header {{ display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }}
+.stat-item-icon   {{ font-size: 1.1rem; }}
+.stat-item-label  {{
+  font-size: 0.7rem; font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  font-family: var(--font-mono);
+}}
+.stat-item-value  {{
+  font-family: var(--font-display);
+  font-size: 1.4rem; font-weight: 800;
+  color: var(--text-primary); letter-spacing: -0.04em;
+  line-height: 1.15;
+}}
+.stat-item-sub    {{ font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.25rem; }}
+
+@media (max-width: 900px) {{
+  .stat-item {{
+    flex: 1 1 50%;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }}
+  .stat-item:nth-child(2n) {{ border-right: none; }}
+  .stat-panel {{ border-bottom: none; }}
+}}
+
 /* ── Alert Styles ── */
 .alert-critical {{
   background: var(--ruby-dim);
@@ -534,6 +579,51 @@ def kpi_card(label: str, value, sub: str = "",
   {f'<div class="kpi-sub {sub_class}">{sub}</div>' if sub else ""}
 </div>
     """, unsafe_allow_html=True)
+
+
+def stat_panel(items: list[dict]):
+    """
+    Render a single unified dashboard panel holding several stats,
+    instead of separate floating kpi_card() boxes in st.columns.
+
+    One bordered card, internal vertical dividers between stat blocks.
+    Wraps to 2-per-row on narrow screens.
+
+    Args:
+        items: list of dicts, each with:
+            label    (str)              — small caps label
+            value    (str)              — big headline value
+            sub      (str, optional)    — supporting caption
+            icon     (str, optional)    — leading emoji/icon
+            positive (bool|None, opt.)  — colours value + sub jade/ruby
+            wide     (bool, optional)   — gives this block 2x flex-basis
+
+    Usage:
+        stat_panel([
+            {"label": "Net Profit", "value": fmt_naira(50000), "wide": True,
+             "sub": "Revenue: ₦120,000<br>Expenses: ₦70,000", "positive": True, "icon": "💰"},
+            {"label": "Avg Daily Revenue", "value": fmt_naira(1200),
+             "sub": "Based on all recorded days", "icon": "📅"},
+            {"label": "Best Sales Day", "value": "Friday", "icon": "🏆"},
+        ])
+    """
+    blocks = []
+    for it in items:
+        icon_html  = f'<div class="stat-item-icon">{it.get("icon", "")}</div>' if it.get("icon") else ""
+        sub        = it.get("sub", "")
+        positive   = it.get("positive")
+        color_class = "kpi-positive" if positive is True else ("kpi-negative" if positive is False else "")
+        item_class  = "stat-item stat-item-wide" if it.get("wide") else "stat-item"
+        blocks.append(f"""
+<div class="{item_class}">
+  <div class="stat-item-header">
+    {icon_html}
+    <div class="stat-item-label">{it.get("label", "")}</div>
+  </div>
+  <div class="stat-item-value {color_class}">{it.get("value", "")}</div>
+  {f'<div class="stat-item-sub {color_class}">{sub}</div>' if sub else ""}
+</div>""")
+    st.markdown(f'<div class="stat-panel">{"".join(blocks)}</div>', unsafe_allow_html=True)
 
 
 def section_header(title: str):
