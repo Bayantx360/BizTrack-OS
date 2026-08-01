@@ -61,7 +61,7 @@ PAGES = {
     "inventory":     ("Inventory",     "📦", "inventory", page_products),
     # Business Health
     "expenses":      ("Expenses",      "💸", "health",    page_expenses),
-    "insights":      ("Insights",      "💰", "health",    page_insights),
+    "insights":      ("Business Insights",      "📈", "health",    page_insights),
     "debtors":       ("Debtors Ledger","📕", "health",    page_debtors),
     "cashbook":       ("Cash Ledger",  "📘", "health",    page_cashbook),
     # Admin (conditionally shown)
@@ -309,6 +309,7 @@ def page_login():
     <div class="lp-feature-chip"><span>🧾</span> PDF Receipts</div>
     <div class="lp-feature-chip"><span>⛔️</span> Product Expiry Alert</div>
     <div class="lp-feature-chip"><span>🛎</span> Low Stock Alert</div>
+    <div class="lp-feature-chip"><span>📘</span> Cash Ledger</div>
     <div class="lp-feature-chip"><span>📱</span> Whatsapp Integration</div>
   </div>
 </div>

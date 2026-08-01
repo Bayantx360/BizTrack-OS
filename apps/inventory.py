@@ -498,6 +498,9 @@ def page_products():
         _msg = st.session_state.pop("inv_msg")
         (st.success if _msg.startswith(("✅", "↩️")) else st.error)(_msg)
 
+    if "inv_cb_warn" in st.session_state:
+        st.warning(st.session_state.pop("inv_cb_warn"))
+
     tab1, tab2, tab3, tab4, tab5 = st.tabs(
         ["📋 All Products", "➕ Add Product", "🔄 Restock", "📜 Restock History", "🏭 Suppliers"]
     )
@@ -953,14 +956,27 @@ def page_products():
                     # the unrecorded acquisition cost.
                     _opening_cost = round(safe_float(stock_qty) * safe_float(cost_price), 2)
                     if _opening_cost > 0:
-                        log_cashbook_entry(
+                        _cb_ok = log_cashbook_entry(
                             business_id=business_id, entry_date=datetime.now().date(),
-                            entry_type="Opening Stock", direction="Out",
+                            entry_type="Restock", direction="Out",
                             amount=_opening_cost, payment_method="Cash",
                             note=f"Opening stock: {prod_name.strip()}",
                             source_ref=_new_product_id,
                             recorded_by=user.get("full_name", user.get("email", "")),
                         )
+                        if not _cb_ok:
+                            # log_cashbook_entry swallows its own exception and
+                            # just returns False, so the underlying reason is
+                            # never shown — and the st.rerun() right below
+                            # would erase any transient st.error() anyway.
+                            # Persist a warning through the rerun so it's
+                            # actually visible instead of silently vanishing.
+                            st.session_state["inv_cb_warn"] = (
+                                f"⚠️ '{prod_name}' was saved, but the ₦{_opening_cost:,.2f} "
+                                "opening-stock cash-out entry failed to write to the "
+                                "cashbook ledger. Check Supabase logs / constraints on "
+                                "the cashbook_entries table."
+                            )
                     st.session_state["inv_msg"] = (
                         f"✅ '{prod_name}' added! "
                         f"Pack: {fmt_naira(sell_price)} per {base_unit} | "
