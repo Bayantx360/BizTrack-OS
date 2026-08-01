@@ -35,7 +35,7 @@ from shared.db import (
     get_supabase,
 )
 from shared.theme import (
-    apply_suite_css, kpi_card, stat_panel, section_header, page_header,
+    apply_suite_css, kpi_card, section_header, page_header,
     chart_layout, chart_config,
     CHART_GOLD, CHART_JADE, CHART_INDIGO, CHART_RUBY, CHART_PALETTE,
 )
@@ -280,25 +280,45 @@ def page_insights():
         st.info("📭 No data yet. Record some sales to unlock insights.")
         return
 
-    # ── Summary dashboard (one unified panel: Net Profit + KPIs) ──
-    best = (insights["top_products_revenue"].iloc[0]["product_name"]
-            if not insights["top_products_revenue"].empty else "N/A")
+    # ── Summary KPIs ──
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        kpi_card("Avg Daily Revenue", fmt_naira(insights["avg_daily_revenue"]),
+                 "Based on all recorded days", icon="📅")
+    with c2:
+        kpi_card("Best Sales Day", insights.get("best_day","N/A"),
+                 "Highest revenue weekday", icon="🏆")
+    with c3:
+        kpi_card("Slowest Day", insights.get("worst_day","N/A"),
+                 "Lowest revenue weekday", icon="🐢")
+    with c4:
+        best = (insights["top_products_revenue"].iloc[0]["product_name"]
+                if not insights["top_products_revenue"].empty else "N/A")
+        kpi_card("Best Seller", best, "By total revenue", icon="⭐")
+
+    # ── Net Profit Banner ──
     net = kpis["net_profit"]
-    stat_panel([
-        {"label": "Net Profit This Month", "value": fmt_naira(net), "wide": True,
-         "sub": (f"Revenue: {fmt_naira(kpis['month_revenue'])} · "
-                 f"Gross Profit: {fmt_naira(kpis['month_profit'])} · "
-                 f"Expenses: {fmt_naira(kpis['month_expenses'])}"),
-         "positive": (net >= 0), "icon": "💰"},
-        {"label": "Avg Daily Revenue", "value": fmt_naira(insights["avg_daily_revenue"]),
-         "sub": "Based on all recorded days", "icon": "📅"},
-        {"label": "Best Sales Day", "value": insights.get("best_day", "N/A"),
-         "sub": "Highest revenue weekday", "icon": "🏆"},
-        {"label": "Slowest Day", "value": insights.get("worst_day", "N/A"),
-         "sub": "Lowest revenue weekday", "icon": "🐢"},
-        {"label": "Best Seller", "value": best,
-         "sub": "By total revenue", "icon": "⭐"},
-    ])
+    banner_color = "#0a2a1e" if net >= 0 else "#2a0a11"
+    border_color = CHART_JADE if net >= 0 else "#FF4D6D"
+    text_color   = CHART_JADE if net >= 0 else "#FF4D6D"
+    st.markdown(f"""
+<div style="background:{banner_color};border:1px solid {border_color};
+border-radius:12px;padding:1rem 1.25rem;margin:1rem 0;
+display:flex;align-items:center;justify-content:space-between;">
+  <div>
+    <div style="font-size:0.7rem;color:#8BA0B8;text-transform:uppercase;
+    letter-spacing:0.1em;font-family:'DM Mono',monospace;margin-bottom:0.25rem;">
+      Net Profit This Month</div>
+    <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;
+    color:{text_color};letter-spacing:-0.04em;">{fmt_naira(net)}</div>
+  </div>
+  <div style="text-align:right;font-size:0.82rem;color:#8BA0B8;">
+    Revenue: {fmt_naira(kpis['month_revenue'])}<br>
+    Gross Profit: {fmt_naira(kpis['month_profit'])}<br>
+    Expenses: {fmt_naira(kpis['month_expenses'])}
+  </div>
+</div>
+    """, unsafe_allow_html=True)
 
     tab1, tab2, tab3, tab4, tab5 = st.tabs(
         ["📈 Trends", "🏆 Products", "📦 Inventory", "📅 Weekday", "📊 Export"]
@@ -370,17 +390,20 @@ def page_insights():
                     if prev_rev:
                         mom_growth = (last_rev - prev_rev) / prev_rev * 100
 
-                stat_panel([
-                    {"label": "Best Month (Revenue)", "value": best_rev_row["month_label"],
-                     "sub": fmt_naira(best_rev_row["revenue"]), "icon": "🏆"},
-                    {"label": "Best Month (Profit)", "value": best_prof_row["month_label"],
-                     "sub": fmt_naira(best_prof_row["net_profit"]), "icon": "💎"},
-                    {"label": "Latest Month Growth",
-                     "value": f"{'▲' if mom_growth >= 0 else '▼'} {abs(mom_growth):.1f}%",
-                     "sub": "vs previous month", "positive": (mom_growth >= 0), "icon": "📈"},
-                    {"label": "Period Total", "value": fmt_naira(monthly["revenue"].sum()),
-                     "sub": f"{int(monthly['txn_count'].sum())} transactions", "icon": "📊"},
-                ])
+                sk1, sk2, sk3, sk4 = st.columns(4)
+                with sk1:
+                    kpi_card("Best Month (Revenue)", best_rev_row["month_label"],
+                             fmt_naira(best_rev_row["revenue"]), icon="🏆")
+                with sk2:
+                    kpi_card("Best Month (Profit)", best_prof_row["month_label"],
+                             fmt_naira(best_prof_row["net_profit"]), icon="💎")
+                with sk3:
+                    kpi_card("Latest Month Growth",
+                             f"{'▲' if mom_growth >= 0 else '▼'} {abs(mom_growth):.1f}%",
+                             "vs previous month", positive=(mom_growth >= 0), icon="📈")
+                with sk4:
+                    kpi_card("Period Total", fmt_naira(monthly["revenue"].sum()),
+                             f"{int(monthly['txn_count'].sum())} transactions", icon="📊")
 
                 st.markdown("---")
 
