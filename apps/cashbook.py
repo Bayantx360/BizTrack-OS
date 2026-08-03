@@ -203,6 +203,33 @@ def _page_snapshot(df: pd.DataFrame, business_id: str):
             'No entries in this period / method selection.</div>'
         )
 
+    # Alert styling/wording now tracks the OVERALL balance, not a single
+    # payment method: red "negative" only when the total is actually
+    # negative; a calmer note when a specific method is running behind
+    # while the total stays positive (so the message never contradicts
+    # the big number above it).
+    if summary["closing"] < 0:
+        alert_html = (
+            '<div style="background:var(--ruby-dim); color:var(--ruby); border-radius:8px; '
+            'padding:0.5rem 0.75rem; font-size:0.75rem; margin-bottom:0.9rem;">'
+            "⚠️ Cash balance is negative — you've paid out more overall than you've received."
+            "</div>"
+        )
+    elif shortfall_methods:
+        methods_str = '" / "'.join(shortfall_methods)
+        plural = len(shortfall_methods) > 1
+        alert_html = (
+            '<div style="background:var(--surface2); color:var(--text-secondary); border-radius:8px; '
+            'padding:0.5rem 0.75rem; font-size:0.75rem; margin-bottom:0.9rem;">'
+            f'ℹ️ Overall balance is positive, but the "{methods_str}" payment method'
+            f'{"s are" if plural else " is"} running behind — more paid out through '
+            f'{"those methods" if plural else "that method"} than received through '
+            f'{"them" if plural else "it"}.'
+            "</div>"
+        )
+    else:
+        alert_html = ""
+
     delta_color = "var(--jade)" if delta_positive else "var(--ruby)"
     delta_arrow = "↑" if delta_positive else "↓"
 
@@ -237,11 +264,7 @@ def _page_snapshot(df: pd.DataFrame, business_id: str):
     f'<div style="margin-bottom:1rem;">{legend_items}</div>',
   ]) if positive_total > 0 else ''}
 
-  {f'''<div style="background:var(--ruby-dim); color:var(--ruby); border-radius:8px;
-              padding:0.5rem 0.75rem; font-size:0.75rem; margin-bottom:0.9rem;">
-    ⚠️ "{'" / "'.join(shortfall_methods)}" payment method{"s are" if len(shortfall_methods) > 1 else " is"} running negative —
-    more has been paid out through {"those methods" if len(shortfall_methods) > 1 else "that method"} than received through {"them" if len(shortfall_methods) > 1 else "it"}, even though the overall balance is positive.
-  </div>''' if shortfall_methods else ''}
+  {alert_html}
 
   {f'<div style="margin-bottom:0.9rem;">{type_chips}</div>' if type_chips else ''}
 
