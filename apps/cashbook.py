@@ -146,17 +146,19 @@ def _page_snapshot(df: pd.DataFrame, business_id: str):
         "POS": "#00C896", "Mobile Money": "#FF4D6D",
     }
     bar_segments, legend_items = "", ""
-    # A composition bar only makes sense when the overall balance is
-    # positive — percentages of a zero/negative total can't be drawn as
-    # proportional widths. When the balance itself is negative, the big
-    # red number above already carries that signal; no bar is more honest
-    # here than a misleading one.
-    if method_total > 0:
+    # Percentages are based on the sum of POSITIVE method balances only,
+    # not method_total (== overall closing balance). method_total can be
+    # smaller than any single positive method's balance if another method
+    # is negative — dividing by it then produces nonsensical >100% shares.
+    # A negative-balance method isn't "sitting" anywhere, so it's excluded
+    # from the composition entirely; the shortfall warning below covers it.
+    positive_total = sum(b for b in method_balances if b > 0)
+    if positive_total > 0:
         for m in _PAYMENT_METHODS:
             amt = method_balances.get(m, 0)
             if amt <= 0:
                 continue
-            pct = round((amt / method_total) * 100, 1)
+            pct = round((amt / positive_total) * 100, 1)
             color = _method_colors.get(m, "#8BA0B8")
             bar_segments += f'<div style="width:{pct}%; background:{color};"></div>'
             legend_items += (
@@ -233,12 +235,12 @@ def _page_snapshot(df: pd.DataFrame, business_id: str):
     '<div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:6px;">Where the cash sits</div>',
     f'<div style="display:flex; height:8px; border-radius:4px; overflow:hidden; margin-bottom:6px;">{bar_segments}</div>',
     f'<div style="margin-bottom:1rem;">{legend_items}</div>',
-  ]) if method_total > 0 else ''}
+  ]) if positive_total > 0 else ''}
 
   {f'''<div style="background:var(--ruby-dim); color:var(--ruby); border-radius:8px;
               padding:0.5rem 0.75rem; font-size:0.75rem; margin-bottom:0.9rem;">
-    ⚠️ {", ".join(shortfall_methods)} balance{"s are" if len(shortfall_methods) > 1 else " is"} negative —
-    more paid out via that method than received.
+    ⚠️ "{'" / "'.join(shortfall_methods)}" payment method{"s are" if len(shortfall_methods) > 1 else " is"} running negative —
+    more has been paid out through {"those methods" if len(shortfall_methods) > 1 else "that method"} than received through {"them" if len(shortfall_methods) > 1 else "it"}, even though the overall balance is positive.
   </div>''' if shortfall_methods else ''}
 
   {f'<div style="margin-bottom:0.9rem;">{type_chips}</div>' if type_chips else ''}
