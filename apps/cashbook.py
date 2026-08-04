@@ -139,24 +139,25 @@ def _page_snapshot(df: pd.DataFrame, business_id: str):
         if not upto.empty else pd.Series(dtype=float)
     )
     method_total = method_balances.sum()  # equals summary["closing"]
-    shortfall_methods = [m for m in _PAYMENT_METHODS if method_balances.get(m, 0) < 0]
 
     _method_colors = {
         "Cash": "#F5A623", "Bank Transfer": "#3B82C4",
         "POS": "#00C896", "Mobile Money": "#FF4D6D",
     }
     bar_segments, legend_items = "", ""
-    # A composition bar only makes sense when the overall balance is
-    # positive — percentages of a zero/negative total can't be drawn as
-    # proportional widths. When the balance itself is negative, the big
-    # red number above already carries that signal; no bar is more honest
-    # here than a misleading one.
-    if method_total > 0:
+    # Percentages are based on the sum of POSITIVE method balances only,
+    # not method_total (== overall closing balance). method_total can be
+    # smaller than any single positive method's balance if another method
+    # is negative — dividing by it then produces nonsensical >100% shares.
+    # A negative-balance method isn't "sitting" anywhere, so it's excluded
+    # from the composition entirely; the shortfall warning below covers it.
+    positive_total = sum(b for b in method_balances if b > 0)
+    if positive_total > 0:
         for m in _PAYMENT_METHODS:
             amt = method_balances.get(m, 0)
             if amt <= 0:
                 continue
-            pct = round((amt / method_total) * 100, 1)
+            pct = round((amt / positive_total) * 100, 1)
             color = _method_colors.get(m, "#8BA0B8")
             bar_segments += f'<div style="width:{pct}%; background:{color};"></div>'
             legend_items += (
@@ -201,6 +202,23 @@ def _page_snapshot(df: pd.DataFrame, business_id: str):
             'No entries in this period / method selection.</div>'
         )
 
+    # Alert is a direct statement of the overall cash balance's sign —
+    # nothing about individual payment methods.
+    if summary["closing"] < 0:
+        alert_html = (
+            '<div style="background:var(--ruby-dim); color:var(--ruby); border-radius:8px; '
+            'padding:0.5rem 0.75rem; font-size:0.75rem; margin-bottom:0.9rem;">'
+            "⚠️ Cash balance is negative."
+            "</div>"
+        )
+    else:
+        alert_html = (
+            '<div style="background:var(--jade-dim); color:var(--jade); border-radius:8px; '
+            'padding:0.5rem 0.75rem; font-size:0.75rem; margin-bottom:0.9rem;">'
+            "✅ Cash balance is positive."
+            "</div>"
+        )
+
     delta_color = "var(--jade)" if delta_positive else "var(--ruby)"
     delta_arrow = "↑" if delta_positive else "↓"
 
@@ -233,13 +251,9 @@ def _page_snapshot(df: pd.DataFrame, business_id: str):
     '<div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:6px;">Where the cash sits</div>',
     f'<div style="display:flex; height:8px; border-radius:4px; overflow:hidden; margin-bottom:6px;">{bar_segments}</div>',
     f'<div style="margin-bottom:1rem;">{legend_items}</div>',
-  ]) if method_total > 0 else ''}
+  ]) if positive_total > 0 else ''}
 
-  {f'''<div style="background:var(--ruby-dim); color:var(--ruby); border-radius:8px;
-              padding:0.5rem 0.75rem; font-size:0.75rem; margin-bottom:0.9rem;">
-    ⚠️ {", ".join(shortfall_methods)} balance{"s are" if len(shortfall_methods) > 1 else " is"} negative —
-    more paid out via that method than received.
-  </div>''' if shortfall_methods else ''}
+  {alert_html}
 
   {f'<div style="margin-bottom:0.9rem;">{type_chips}</div>' if type_chips else ''}
 
