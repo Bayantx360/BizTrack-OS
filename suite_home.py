@@ -732,6 +732,7 @@ def render_sidebar():
             if days_left <= 7 and not is_admin:
                 expiry_str = f"⚠️ {days_left}d left"
         except Exception:
+            days_left  = None
             expiry_str = ""
 
         st.markdown(f"""
@@ -744,6 +745,45 @@ def render_sidebar():
     {plan_type} {'· ' + expiry_str if expiry_str else ''}</div>
 </div>
         """, unsafe_allow_html=True)
+
+        # ── Expiry alert card ──────────────────────────────────────────
+        # Red 🪫 alert once 5 days or fewer remain (or the plan has already
+        # lapsed); a calmer green 🔋 "Account Active" chip once outside
+        # that window, so renewing makes the warning disappear on its own.
+        if not is_admin and days_left is not None:
+            if days_left < 0:
+                st.markdown(f"""
+<div style="background:var(--ruby-dim);border:1px solid var(--ruby);border-radius:10px;
+  padding:0.7rem 0.875rem;margin-bottom:0.75rem;">
+  <div style="font-size:0.8rem;font-weight:700;color:var(--ruby);margin-bottom:0.15rem;">
+    🪫 Subscription expired</div>
+  <div style="font-size:0.7rem;color:var(--ruby);">
+    Expired {abs(days_left)} day{'s' if abs(days_left) != 1 else ''} ago — renew to restore access.</div>
+</div>
+                """, unsafe_allow_html=True)
+                if st.button("🔁 Renew Now", key="expiry_alert_renew", width="stretch"):
+                    st.session_state.current_page = "settings"
+                    st.rerun()
+            elif days_left <= 5:
+                st.markdown(f"""
+<div style="background:var(--ruby-dim);border:1px solid var(--ruby);border-radius:10px;
+  padding:0.7rem 0.875rem;margin-bottom:0.75rem;">
+  <div style="font-size:0.8rem;font-weight:700;color:var(--ruby);margin-bottom:0.15rem;">
+    🪫 Subscription ending soon</div>
+  <div style="font-size:0.7rem;color:var(--ruby);">
+    {days_left} day{'s' if days_left != 1 else ''} left — renew now to avoid losing access.</div>
+</div>
+                """, unsafe_allow_html=True)
+                if st.button("🔁 Renew Now", key="expiry_alert_renew", width="stretch"):
+                    st.session_state.current_page = "settings"
+                    st.rerun()
+            else:
+                st.markdown("""
+<div style="background:var(--jade-dim);border:1px solid var(--jade);border-radius:10px;
+  padding:0.4rem 0.875rem;margin-bottom:0.75rem;font-size:0.7rem;font-weight:600;
+  color:var(--jade);">
+  🔋 Account Active</div>
+                """, unsafe_allow_html=True)
 
         # ── App switcher + page links ──
         pages_to_show = {**APP_PAGES}
