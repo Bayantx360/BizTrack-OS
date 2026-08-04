@@ -771,7 +771,7 @@ def render_sidebar():
   <div style="font-size:0.8rem;font-weight:700;color:var(--ruby);margin-bottom:0.15rem;">
     🪫 Subscription ending soon</div>
   <div style="font-size:0.7rem;color:var(--ruby);">
-    {days_left} day{'s' if days_left != 1 else ''} left — renew now to avoid losing access.</div>
+    {days_left} day{'s' if days_left != 1 else ''} left — renew and keep tracking your business.</div>
 </div>
                 """, unsafe_allow_html=True)
                 if st.button("🔁 Renew Now", key="expiry_alert_renew", width="stretch"):
