@@ -27,7 +27,7 @@ from shared.db import (
     get_supabase,
     get_sales_df, get_products_df, get_products_df_live, get_expenses_df,
     get_sale_items_df, get_products_by_ids, search_products,
-    get_debts_df,
+    get_debts_df, get_customer_directory,
     compute_kpis,
     db_fetch, db_insert, db_insert_many, db_update, db_delete, clear_table_cache,
     log_activity, log_cashbook_entry,
@@ -665,9 +665,36 @@ def page_record_sale():
             else:
                 amount_paid_now = grand_total_preview
 
+            # ── Customer picker lives OUTSIDE the form so choosing an
+            # existing customer reactively fills their phone in below,
+            # same reactivity pattern as payment_status above ──
+            NEW_CUSTOMER_LABEL = "🆕 New / walk-in customer"
+            customer_directory = get_customer_directory(business_id)
+            customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
+
+            picked_customer = st.selectbox(
+                "Customer",
+                options=customer_options,
+                key="checkout_customer_pick",
+                help="Type to search an existing customer, or pick 'New / walk-in customer' to add one.",
+            )
+
+            if picked_customer == NEW_CUSTOMER_LABEL:
+                customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo",
+                                                key="checkout_new_customer_name")
+                customer_phone = st.text_input("Customer Phone (optional)", placeholder="e.g. +2348012345678",
+                                                key="checkout_new_customer_phone")
+            else:
+                _matched = next((c for c in customer_directory if c["name"] == picked_customer), None)
+                customer_name  = picked_customer
+                customer_phone = st.text_input(
+                    "Customer Phone (optional)",
+                    value=(_matched["phone"] if _matched else ""),
+                    key="checkout_existing_customer_phone",
+                    help="Auto-filled from their last sale — edit if it's changed.",
+                )
+
             with st.form("checkout_form"):
-                customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo")
-                customer_phone = st.text_input("Customer Phone (optional)", placeholder="e.g. +2348012345678")
                 payment_method = st.selectbox("Payment Method",
                                               ["Cash","Bank Transfer","POS","Mobile Money"])
                 sale_note      = st.text_input("Note (optional)", placeholder="e.g. Bulk order")

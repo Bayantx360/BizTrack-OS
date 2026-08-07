@@ -16,7 +16,7 @@ All three page modules import from here:
     from shared.db import (
         get_supabase,
         db_fetch, db_insert, db_update, db_delete,
-        get_sales_df, get_products_df, get_expenses_df,
+        get_sales_df, get_products_df, get_expenses_df, get_customer_directory,
         compute_kpis, compute_insights,
         log_payment, get_payments_df,
         get_debts_df, get_debt_payments_df, record_debt_payment,
@@ -338,6 +338,51 @@ def get_sales_df(business_id: str) -> pd.DataFrame:
     return df
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def get_customer_directory(business_id: str) -> list[dict]:
+    """
+    Build a searchable list of past customers for this business by pulling
+    distinct customer_name/customer_phone pairs out of `sales` and `debts`.
+
+    There's no dedicated `customers` table (by design, for now) — so names
+    are matched case/whitespace-insensitively ("Obi Tayo" and "obi tayo"
+    collapse into one entry) and, when a name has multiple phone numbers on
+    file, the most recent sale/debt wins. This powers the "pick an existing
+    customer" selector on the sales form; it does not fix historical rows
+    that are already inconsistent.
+    """
+    frames = []
+    for getter in (get_sales_df, get_debts_df):
+        df = getter(business_id)
+        if df.empty or "customer_name" not in df.columns:
+            continue
+        f = df[["customer_name"]].copy()
+        f["customer_phone"] = df["customer_phone"] if "customer_phone" in df.columns else ""
+        f["_sort_date"] = df["sale_date"] if "sale_date" in df.columns else pd.NaT
+        frames.append(f)
+
+    if not frames:
+        return []
+
+    combined = pd.concat(frames, ignore_index=True)
+    combined["customer_name"] = combined["customer_name"].fillna("").astype(str).str.strip()
+    combined["customer_phone"] = combined["customer_phone"].fillna("").astype(str).str.strip()
+    combined = combined[combined["customer_name"] != ""]
+    if combined.empty:
+        return []
+
+    combined["_key"] = combined["customer_name"].str.casefold()
+    combined = combined.sort_values("_sort_date", ascending=False)
+    deduped = combined.drop_duplicates(subset="_key", keep="first")
+
+    return (
+        deduped[["customer_name", "customer_phone"]]
+        .rename(columns={"customer_name": "name", "customer_phone": "phone"})
+        .sort_values("name", key=lambda s: s.str.casefold())
+        .to_dict("records")
+    )
+
+
 @st.cache_data(ttl=15, show_spinner=False)
 def get_products_df_live(business_id: str) -> pd.DataFrame:
     """
@@ -548,13 +593,13 @@ def get_debt_payments_df(business_id: str) -> pd.DataFrame:
 # which point the whole module has finished loading.
 _TABLE_CACHE_MAP: dict[str, tuple] = {
     TBL_PAYMENTS:      (get_payments_df,),
-    TBL_SALES:         (get_sales_df,),
+    TBL_SALES:         (get_sales_df, get_customer_directory),
     TBL_PRODUCTS:      (get_products_df_live, get_products_df),
     TBL_EXPENSES:      (get_expenses_df,),
     TBL_RESTOCK:       (get_restock_df,),
     TBL_SUPPLIERS:     (get_suppliers_df,),
     TBL_SALE_ITEMS:    (get_sale_items_df,),
-    TBL_DEBTS:         (get_debts_df,),
+    TBL_DEBTS:         (get_debts_df, get_customer_directory),
     TBL_DEBT_PAYMENTS: (get_debt_payments_df,),
     TBL_CASHBOOK:      (get_cashbook_df,),
 }
