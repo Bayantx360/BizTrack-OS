@@ -668,12 +668,10 @@ def page_record_sale():
             # ── Customer picker lives OUTSIDE the form so choosing an
             # existing customer reactively fills their phone in below,
             # same reactivity pattern as payment_status above ──
-            NEW_CUSTOMER_LABEL = "🆕 New / walk-in customer"
+            NEW_CUSTOMER_LABEL = "👤 select or type customer name"
             customer_directory = get_customer_directory(business_id)
             customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
           
-            st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
-
             picked_customer = st.selectbox(
                 "Customer: Type or Select Customer",
                 options=customer_options,
