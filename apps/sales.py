@@ -675,7 +675,7 @@ def page_record_sale():
             customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
 
             picked_customer = st.selectbox(
-                "👨‍👩‍👧‍👧 Customers: Select & Sell to an Existing Customers",
+                "👨‍👩‍👧‍👧 Customers: Select & Sell to an Existing Customer",
                 options=customer_options,
                 key="checkout_customer_pick",
             )
