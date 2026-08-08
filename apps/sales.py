@@ -675,7 +675,7 @@ def page_record_sale():
             st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
 
             picked_customer = st.selectbox(
-                "Customer",
+                "Customer: Type or Select Customer",
                 options=customer_options,
                 key="checkout_customer_pick",
             )
