@@ -665,7 +665,7 @@ def page_record_sale():
             else:
                 amount_paid_now = grand_total_preview
 
-            st.markdown("---")
+            #st.markdown("---")
             # ── Customer picker lives OUTSIDE the form so choosing an
             # existing customer reactively fills their phone in below,
             # same reactivity pattern as payment_status above ──
