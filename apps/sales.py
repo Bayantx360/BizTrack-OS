@@ -679,7 +679,7 @@ def page_record_sale():
                 options=customer_options,
                 key="checkout_customer_pick",
             )
-            st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
+            #st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
 
             if picked_customer == NEW_CUSTOMER_LABEL:
                 customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo",
