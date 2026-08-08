@@ -636,7 +636,7 @@ def page_record_sale():
                 st.session_state.checkout_pay_status = "full"
 
             payment_status = st.radio(
-                "👇Select how customer is paying for the product",
+                "Payment Status: 👇Select how customer is paying for the product",
                 options=["full", "part", "credit"],
                 format_func=lambda x: {
                     "full":   "✅ Full Payment",
@@ -670,12 +670,12 @@ def page_record_sale():
             # ── Customer picker lives OUTSIDE the form so choosing an
             # existing customer reactively fills their phone in below,
             # same reactivity pattern as payment_status above ──
-            NEW_CUSTOMER_LABEL = "👤 select or type customer name"
+            NEW_CUSTOMER_LABEL = "🧑‍🌾 select or type customer name"
             customer_directory = get_customer_directory(business_id)
             customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
 
             picked_customer = st.selectbox(
-                "👨‍👩‍👧‍👧 Customer: Select From your Existing Customers",
+                "👨‍👩‍👧‍👧 Customers: Select & Sell to an Existing Customers",
                 options=customer_options,
                 key="checkout_customer_pick",
             )
