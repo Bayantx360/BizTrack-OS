@@ -441,7 +441,7 @@ def _build_cart_fragment(business_id):
         pricing_mode = st.radio(
             "How do you want to enter the price?",
             options=["per_unit", "total"],
-            format_func=lambda x: "Price per unit" if x == "per_unit" else "Total price for this line",
+            format_func=lambda x: "💸Price per unit" if x == "per_unit" else "💶Total price for this line",
             horizontal=True,
             key="cart_pricing_mode",
             help=(
@@ -467,7 +467,7 @@ def _build_cart_fragment(business_id):
                 sel_price = None
                 listed_total = round(default_price * sel_qty, 2)
                 if sel_total_price > listed_total:
-                    st.warning(f"⚠️ Above listed total ({fmt_naira(listed_total)} for {sel_qty} {unit_label}s). Confirm?")
+                   st.warning(f"⚠️ Above listed total ({fmt_naira(listed_total)} for {sel_qty} {unit_label}s). Confirm?")
             else:
                 sel_price = ac2.number_input(
                     f"Price per " + unit_label + " (" + currency_sym + ")",
@@ -475,8 +475,8 @@ def _build_cart_fragment(business_id):
                     help="Change to override listed price",
                 )
                 sel_total_price = None
-                if sel_price > default_price:
-                    st.warning(f"⚠️ Above listed price ({fmt_naira(default_price)}). Confirm?")
+                #if sel_price > default_price:
+                    #st.warning(f"⚠️ Above listed price ({fmt_naira(default_price)}). Confirm?")
 
             add_btn = st.form_submit_button("➕ Add to Cart", type="primary",
                                             width='stretch')
@@ -636,7 +636,7 @@ def page_record_sale():
                 st.session_state.checkout_pay_status = "full"
 
             payment_status = st.radio(
-                "Payment Status",
+                "Payment Status: 👇Select how customer is paying for the product",
                 options=["full", "part", "credit"],
                 format_func=lambda x: {
                     "full":   "✅ Full Payment",
@@ -664,20 +664,22 @@ def page_record_sale():
                 st.info("📕 The full amount will be recorded as a debt for this customer.")
             else:
                 amount_paid_now = grand_total_preview
+            
+            st.markdown("---")
 
             # ── Customer picker lives OUTSIDE the form so choosing an
             # existing customer reactively fills their phone in below,
             # same reactivity pattern as payment_status above ──
-            NEW_CUSTOMER_LABEL = "🆕 New / walk-in customer"
+            NEW_CUSTOMER_LABEL = "🧑‍🌾 select or type customer name"
             customer_directory = get_customer_directory(business_id)
             customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
 
             picked_customer = st.selectbox(
-                "Customer",
+                "👨‍👩‍👧‍👧 Customers: Select & Sell to an Existing Customer",
                 options=customer_options,
                 key="checkout_customer_pick",
-                help="Type to search an existing customer, or pick 'New / walk-in customer' to add one.",
             )
+            #st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
 
             if picked_customer == NEW_CUSTOMER_LABEL:
                 customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo",
@@ -690,9 +692,9 @@ def page_record_sale():
                 customer_phone = st.text_input(
                     "Customer Phone (optional)",
                     value=(_matched["phone"] if _matched else ""),
-                    key="checkout_existing_customer_phone",
-                    help="Auto-filled from their last sale — edit if it's changed.",
+                    key=f"checkout_existing_customer_phone_{picked_customer}",
                 )
+                st.caption("Auto-filled from their last sale — edit if it's changed.")
 
             with st.form("checkout_form"):
                 payment_method = st.selectbox("Payment Method",
