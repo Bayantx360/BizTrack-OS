@@ -676,8 +676,8 @@ def page_record_sale():
                 "Customer",
                 options=customer_options,
                 key="checkout_customer_pick",
-                help="Type to search an existing customer, or pick 'New / walk-in customer' to add one.",
             )
+            st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
 
             if picked_customer == NEW_CUSTOMER_LABEL:
                 customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo",
@@ -691,8 +691,8 @@ def page_record_sale():
                     "Customer Phone (optional)",
                     value=(_matched["phone"] if _matched else ""),
                     key="checkout_existing_customer_phone",
-                    help="Auto-filled from their last sale — edit if it's changed.",
                 )
+                st.caption("Auto-filled from their last sale — edit if it's changed.")
 
             with st.form("checkout_form"):
                 payment_method = st.selectbox("Payment Method",
