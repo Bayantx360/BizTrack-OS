@@ -671,13 +671,15 @@ def page_record_sale():
             NEW_CUSTOMER_LABEL = "🆕 New / walk-in customer"
             customer_directory = get_customer_directory(business_id)
             customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
+          
+            st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
 
             picked_customer = st.selectbox(
                 "Customer",
                 options=customer_options,
                 key="checkout_customer_pick",
             )
-            st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
+            #st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
 
             if picked_customer == NEW_CUSTOMER_LABEL:
                 customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo",
