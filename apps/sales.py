@@ -636,7 +636,7 @@ def page_record_sale():
                 st.session_state.checkout_pay_status = "full"
 
             payment_status = st.radio(
-                "Payment Status: 👇Select how customer is paying for the product",
+                "👇Select how customer is paying for the product",
                 options=["full", "part", "credit"],
                 format_func=lambda x: {
                     "full":   "✅ Full Payment",
@@ -675,7 +675,7 @@ def page_record_sale():
             customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
 
             picked_customer = st.selectbox(
-                "📄 Customer: Select From your Existing Customers",
+                "👨‍👩‍👧‍👧 Customer: Select From your Existing Customers",
                 options=customer_options,
                 key="checkout_customer_pick",
             )
