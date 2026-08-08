@@ -636,7 +636,7 @@ def page_record_sale():
                 st.session_state.checkout_pay_status = "full"
 
             payment_status = st.radio(
-                "Payment Status",
+                "Payment Status: select how customer is paying for the product",
                 options=["full", "part", "credit"],
                 format_func=lambda x: {
                     "full":   "✅ Full Payment",
