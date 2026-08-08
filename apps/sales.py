@@ -441,7 +441,7 @@ def _build_cart_fragment(business_id):
         pricing_mode = st.radio(
             "How do you want to enter the price?",
             options=["per_unit", "total"],
-            format_func=lambda x: "Price per unit" if x == "per_unit" else "Total price for this line",
+            format_func=lambda x: "💸Price per unit" if x == "per_unit" else "💶Total price for this line",
             horizontal=True,
             key="cart_pricing_mode",
             help=(
