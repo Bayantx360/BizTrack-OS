@@ -664,21 +664,22 @@ def page_record_sale():
                 st.info("📕 The full amount will be recorded as a debt for this customer.")
             else:
                 amount_paid_now = grand_total_preview
-
+            
             st.markdown("---")
+
             # ── Customer picker lives OUTSIDE the form so choosing an
             # existing customer reactively fills their phone in below,
             # same reactivity pattern as payment_status above ──
             NEW_CUSTOMER_LABEL = "👤 select or type customer name"
             customer_directory = get_customer_directory(business_id)
             customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
-          
+
             picked_customer = st.selectbox(
                 "📄 Customer: Select From your Existing Customers",
                 options=customer_options,
                 key="checkout_customer_pick",
             )
-            #st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
+            st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
 
             if picked_customer == NEW_CUSTOMER_LABEL:
                 customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo",
@@ -691,7 +692,7 @@ def page_record_sale():
                 customer_phone = st.text_input(
                     "Customer Phone (optional)",
                     value=(_matched["phone"] if _matched else ""),
-                    key="checkout_existing_customer_phone",
+                    key=f"checkout_existing_customer_phone_{picked_customer}",
                 )
                 st.caption("Auto-filled from their last sale — edit if it's changed.")
 
