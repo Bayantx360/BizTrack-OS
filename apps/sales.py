@@ -475,8 +475,8 @@ def _build_cart_fragment(business_id):
                     help="Change to override listed price",
                 )
                 sel_total_price = None
-                if sel_price > default_price:
-                    st.warning(f"⚠️ Above listed price ({fmt_naira(default_price)}). Confirm?")
+                #if sel_price > default_price:
+                    #st.warning(f"⚠️ Above listed price ({fmt_naira(default_price)}). Confirm?")
 
             add_btn = st.form_submit_button("➕ Add to Cart", type="primary",
                                             width='stretch')
