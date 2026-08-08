@@ -673,7 +673,7 @@ def page_record_sale():
             customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
           
             picked_customer = st.selectbox(
-                "Customer: Type or Select Customer",
+                "📄 Customer: Select From your Existing Customers",
                 options=customer_options,
                 key="checkout_customer_pick",
             )
