@@ -1268,79 +1268,79 @@ def page_admin():
         users_df = db_fetch(TBL_USERS)  # reload only if something changed
     # ──────────────────────────────────────────────────────────────────────────
 
-    # Platform stats
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1:
-        kpi_card("Total Businesses", str(len(users_df)), "Registered accounts", icon="🏢")
-    with c2:
-        active = len(users_df[users_df["plan_status"] == "active"])
-        kpi_card("Active Subscriptions", str(active), "Paying or trial users", icon="✅")
-    with c3:
-        pending = len(users_df[users_df["plan_status"] == "pending_payment"])
-        kpi_card("Pending Payment", str(pending), "Awaiting manual activation", icon="⏳")
-    with c4:
-        active_paid = users_df[(users_df["plan_status"] == "active") &
-                                (users_df["plan_type"].isin(["monthly", "yearly"]))]
-        mrr_ngn = 0.0
-        mrr_usd = 0.0
-        for _, _u in active_paid.iterrows():
-            _plan = get_payment_plan(_u.get("country_code") or "NG")
-            _monthly_equiv = (_plan["monthly_price"] if _u["plan_type"] == "monthly"
-                              else _plan["yearly_price"] / 12)
-            if _plan["currency_label"] == "₦":
-                mrr_ngn += _monthly_equiv
-            else:
-                mrr_usd += _monthly_equiv
-        kpi_card("Est. MRR (NGN)", f"₦{mrr_ngn:,.0f}",
-                 "From active Nigerian plans", icon="📈")
-    with c5:
-        kpi_card("Est. MRR (USD)", f"${mrr_usd:,.0f}",
-                 "From active global plans", icon="🌍")
+    # ── Snapshot switcher: General / NGN Revenue / Global USD ──
+    # Only one panel renders at a time (was 13 KPI cards stacked
+    # vertically before this — brutal on mobile scroll).
+    snapshot_view = st.radio(
+        "Snapshot",
+        options=["🏠 General", "🇳🇬 NGN Revenue", "🌍 Global USD"],
+        horizontal=True,
+        key="admin_snapshot_view",
+        label_visibility="collapsed",
+    )
 
-    # Revenue ledger KPIs — split by currency, never blended
     payments_df = get_payments_df()
-    if not payments_df.empty:
-        now_dt      = datetime.now()
-        month_start = datetime(now_dt.year, now_dt.month, 1)
-        year_start  = datetime(now_dt.year, 1, 1)
 
-        if "currency_code" not in payments_df.columns:
-            payments_df["currency_code"] = "NGN"
-        payments_df["currency_code"] = payments_df["currency_code"].fillna("NGN")
+    if snapshot_view == "🏠 General":
+        c1, c2, c3, c4, c5 = st.columns(5)
+        with c1:
+            kpi_card("Total Businesses", str(len(users_df)), "Registered accounts", icon="🏢")
+        with c2:
+            active = len(users_df[users_df["plan_status"] == "active"])
+            kpi_card("Active Subscriptions", str(active), "Paying or trial users", icon="✅")
+        with c3:
+            pending = len(users_df[users_df["plan_status"] == "pending_payment"])
+            kpi_card("Pending Payment", str(pending), "Awaiting manual activation", icon="⏳")
+        with c4:
+            active_paid = users_df[(users_df["plan_status"] == "active") &
+                                    (users_df["plan_type"].isin(["monthly", "yearly"]))]
+            mrr_ngn = 0.0
+            mrr_usd = 0.0
+            for _, _u in active_paid.iterrows():
+                _plan = get_payment_plan(_u.get("country_code") or "NG")
+                _monthly_equiv = (_plan["monthly_price"] if _u["plan_type"] == "monthly"
+                                  else _plan["yearly_price"] / 12)
+                if _plan["currency_label"] == "₦":
+                    mrr_ngn += _monthly_equiv
+                else:
+                    mrr_usd += _monthly_equiv
+            kpi_card("Est. MRR (NGN)", f"₦{mrr_ngn:,.0f}",
+                     "From active Nigerian plans", icon="📈")
+        with c5:
+            kpi_card("Est. MRR (USD)", f"${mrr_usd:,.0f}",
+                     "From active global plans", icon="🌍")
 
-        ngn_df = payments_df[payments_df["currency_code"] == "NGN"]
-        usd_df = payments_df[payments_df["currency_code"] != "NGN"]
-
-        st.markdown("---")
-        st.markdown("#### 💰 Platform Revenue — Actual Collected")
-
-        st.markdown("##### 🇳🇬 Nigeria (NGN)")
-        r1, r2, r3, r4 = st.columns(4)
-        ngn_total   = ngn_df["amount"].sum()
-        ngn_month   = ngn_df[ngn_df["payment_date"] >= month_start]["amount"].sum()
-        ngn_year    = ngn_df[ngn_df["payment_date"] >= year_start]["amount"].sum()
-        ngn_txns    = len(ngn_df)
-        with r1: kpi_card("All-Time Revenue", f"₦{ngn_total:,.0f}", f"{ngn_txns} payments", icon="💰")
-        with r2: kpi_card("This Month",       f"₦{ngn_month:,.0f}", now_dt.strftime("%B %Y"), icon="📅")
-        with r3: kpi_card("This Year",        f"₦{ngn_year:,.0f}",  str(now_dt.year),         icon="🗓️")
-        with r4:
-            ngn_avg = ngn_total / ngn_txns if ngn_txns else 0
-            kpi_card("Avg. per Payment", f"₦{ngn_avg:,.0f}", "Across NGN activations", icon="🧾")
-
-        st.markdown("##### 🌍 Global (USD)")
-        g1, g2, g3, g4 = st.columns(4)
-        usd_total   = usd_df["amount"].sum()
-        usd_month   = usd_df[usd_df["payment_date"] >= month_start]["amount"].sum()
-        usd_year    = usd_df[usd_df["payment_date"] >= year_start]["amount"].sum()
-        usd_txns    = len(usd_df)
-        with g1: kpi_card("All-Time Revenue", f"${usd_total:,.0f}", f"{usd_txns} payments", icon="💰")
-        with g2: kpi_card("This Month",       f"${usd_month:,.0f}", now_dt.strftime("%B %Y"), icon="📅")
-        with g3: kpi_card("This Year",        f"${usd_year:,.0f}",  str(now_dt.year),         icon="🗓️")
-        with g4:
-            usd_avg = usd_total / usd_txns if usd_txns else 0
-            kpi_card("Avg. per Payment", f"${usd_avg:,.0f}", "Across USD activations", icon="🧾")
     else:
-        st.info("💡 No payment records yet.")
+        # Revenue ledger KPIs — split by currency, never blended
+        if payments_df.empty:
+            st.info("💡 No payment records yet.")
+        else:
+            now_dt      = datetime.now()
+            month_start = datetime(now_dt.year, now_dt.month, 1)
+            year_start  = datetime(now_dt.year, 1, 1)
+
+            if "currency_code" not in payments_df.columns:
+                payments_df["currency_code"] = "NGN"
+            payments_df["currency_code"] = payments_df["currency_code"].fillna("NGN")
+
+            is_ngn = snapshot_view == "🇳🇬 NGN Revenue"
+            d      = payments_df[payments_df["currency_code"] == "NGN"] if is_ngn \
+                     else payments_df[payments_df["currency_code"] != "NGN"]
+            symbol = "₦" if is_ngn else "$"
+            label  = "NGN" if is_ngn else "USD"
+
+            st.markdown(f"##### {'🇳🇬 Nigeria (NGN)' if is_ngn else '🌍 Global (USD)'} — Actual Collected")
+            r1, r2, r3, r4 = st.columns(4)
+            total = d["amount"].sum()
+            month = d[d["payment_date"] >= month_start]["amount"].sum()
+            year  = d[d["payment_date"] >= year_start]["amount"].sum()
+            txns  = len(d)
+            with r1: kpi_card("All-Time Revenue", f"{symbol}{total:,.0f}", f"{txns} payments", icon="💰")
+            with r2: kpi_card("This Month",       f"{symbol}{month:,.0f}", now_dt.strftime("%B %Y"), icon="📅")
+            with r3: kpi_card("This Year",        f"{symbol}{year:,.0f}",  str(now_dt.year),         icon="🗓️")
+            with r4:
+                avg = total / txns if txns else 0
+                kpi_card("Avg. per Payment", f"{symbol}{avg:,.0f}", f"Across {label} activations", icon="🧾")
 
     st.markdown("---")
     tab1, tab1b, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
