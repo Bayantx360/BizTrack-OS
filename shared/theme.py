@@ -536,6 +536,37 @@ def kpi_card(label: str, value, sub: str = "",
     """, unsafe_allow_html=True)
 
 
+def kpi_dashboard(metrics: list[dict], columns: int = 2, title: str = ""):
+    """
+    Render several KPIs inside ONE bordered dashboard card, laid out in a
+    CSS grid — instead of N separate kpi_card boxes, which stack full-width
+    and scroll forever on mobile. Each metric dict: {"icon","label","value","sub"}.
+    """
+    title_html = f'<div class="kpi-header" style="margin-bottom:0.9rem;"><div class="kpi-label">{title}</div></div>' if title else ""
+    cells = ""
+    for m in metrics:
+        icon_html = f"{m['icon']} " if m.get("icon") else ""
+        sub_html = f'<div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.25rem;">{m["sub"]}</div>' if m.get("sub") else ""
+        # NOTE: built as one unbroken string with no leading whitespace on
+        # any line — st.markdown treats 4-space-indented lines as a literal
+        # code block, so a multi-line indented f-string here would render
+        # as raw HTML text instead of an actual card (bit us once already).
+        cells += (
+            '<div style="background:var(--surface2); border-radius:10px; padding:0.75rem 0.9rem;">'
+            f'<div style="font-size:0.7rem; color:var(--text-secondary); letter-spacing:0.03em; text-transform:uppercase; margin-bottom:0.35rem;">{icon_html}{m["label"]}</div>'
+            f'<div style="font-family:var(--font-display); font-size:1.3rem; font-weight:800; color:var(--text-primary); line-height:1.15; word-break:break-word;">{m["value"]}</div>'
+            f'{sub_html}'
+            '</div>'
+        )
+    st.markdown(
+        '<div style="background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.1rem 1.1rem 1.1rem;">'
+        f'{title_html}'
+        f'<div style="display:grid; grid-template-columns:repeat({columns}, 1fr); gap:10px;">{cells}</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def section_header(title: str):
     """Gold vertical-bar section divider."""
     st.markdown(f"""
