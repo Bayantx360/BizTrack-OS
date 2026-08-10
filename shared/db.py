@@ -694,6 +694,57 @@ def search_products(business_id: str, query: str, limit: int = 30,
 _TABLE_CACHE_MAP[TBL_PRODUCTS] = _TABLE_CACHE_MAP[TBL_PRODUCTS] + (search_products,)
 
 
+@st.cache_data(ttl=30, show_spinner=False)
+def search_restock(business_id: str, query: str = "", supplier: str = "",
+                    entry_type: str = "All", limit: int = 20,
+                    offset: int = 0) -> tuple[pd.DataFrame, int]:
+    """
+    Bounded, server-side filtered/paginated restock history — same pattern
+    as search_products(). get_restock_df() pulls the ENTIRE all-time restock
+    log every call; that's fine for small per-product lookups but was being
+    used to back the Restock History tab, which rendered every row in a
+    Python loop on every page rerun. Unlike catalogue size, restock history
+    only grows, so that cost never plateaus.
+
+    This does the filtering, ordering, and paging in Postgres and returns
+    just the one page the user is looking at, plus a total count for the
+    pager UI. Cached 30s per unique (business, filters, page) combination.
+    """
+    try:
+        sb = get_supabase()
+        q = (
+            sb.table(TBL_RESTOCK)
+            .select("*", count="exact")
+            .eq("business_id", business_id)
+        )
+        query = (query or "").strip()
+        if query:
+            q = q.ilike("product_name", f"%{query}%")
+        if supplier and supplier != "All suppliers":
+            q = q.eq("supplier_name", supplier)
+        if entry_type == "Deliveries only":
+            q = q.eq("entry_type", "delivery")
+        elif entry_type == "Corrections only":
+            q = q.eq("entry_type", "correction")
+        q = q.order("restock_date", desc=True).range(offset, offset + limit - 1)
+        res   = q.execute()
+        df    = pd.DataFrame(res.data or [])
+        total = res.count or 0
+        if not df.empty:
+            df["restock_date"] = pd.to_datetime(
+                df["restock_date"], errors="coerce", utc=True
+            ).dt.tz_localize(None)
+        return df, total
+    except Exception as e:
+        st.error(f"❌ Error searching restock history: {e}")
+        return pd.DataFrame(), 0
+
+
+# Registered after _TABLE_CACHE_MAP for the same reason search_products is —
+# a restock write should invalidate this cache too.
+_TABLE_CACHE_MAP[TBL_RESTOCK] = _TABLE_CACHE_MAP[TBL_RESTOCK] + (search_restock,)
+
+
 def get_recent_restocks_for_product(business_id: str, product_id: str, limit: int = 5) -> pd.DataFrame:
     """
     Fetch only the last `limit` restock entries for ONE product — used by the
