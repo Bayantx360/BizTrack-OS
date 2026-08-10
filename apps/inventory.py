@@ -23,7 +23,7 @@ import streamlit as st
 
 from shared.db import (
     get_products_df, get_products_df_live, get_sales_df, get_expenses_df,
-    search_products, get_products_by_ids,
+    search_products, search_restock, get_products_by_ids,
     compute_insights, get_insights_cached,
     db_fetch, db_insert, db_update, db_delete, clear_table_cache,
     get_restock_df, get_recent_restocks_for_product, get_suppliers_df,
@@ -49,6 +49,13 @@ def _restock_tab_fragment(business_id, user):
     — only pure typing stays scoped to this fragment.
     """
     st.markdown("#### 🔄 Restock a Product")
+
+    # ── Persistent status message, local to this fragment ──
+    # Uses its own key (not the page-level "inv_msg") so a fragment-scoped
+    # rerun can show it without needing the whole page to rerun.
+    if "restock_msg" in st.session_state:
+        _rmsg = st.session_state.pop("restock_msg")
+        (st.success if _rmsg.startswith(("✅", "↩️")) else st.error)(_rmsg)
 
     # ── Product search + selector (outside form for reactivity) ──
     restock_search = st.text_input(
@@ -430,10 +437,337 @@ def _restock_tab_fragment(business_id, user):
                         f"Pack: {fmt_naira(new_sell_pack)}, "
                         f"Unit: {fmt_naira(new_sell_unit)}"
                     )
-                st.session_state["inv_msg"] = msg
-                st.rerun()
+                st.session_state["restock_msg"] = msg
+                # Fragment-scoped rerun — only this fragment re-executes.
+                # The products cache was already invalidated above (inside
+                # db_update), so All Products / Restock History will pick up
+                # the change next time THEY actually run — we just don't
+                # force that full-catalogue refetch to happen synchronously
+                # as part of this restock action. See biztrack-os latency
+                # notes: this was the main cause of restock feeling slow on
+                # large (3000+ SKU) catalogues.
+                st.rerun(scope="fragment")
             else:
                 st.error("Failed to update stock.")
+
+
+@st.fragment
+def _add_product_tab_fragment(business_id, user):
+    """
+    Add Product tab, isolated in its own fragment for the same reason the
+    Restock tab is: adding a product used to trigger a full-page rerun,
+    which forced All Products (full catalogue refetch) and Restock History
+    (full unpaginated history refetch) to re-run too — even though neither
+    was visible. Success/warning messages use their own local session-state
+    keys and st.rerun(scope="fragment") so this action never leaves this
+    fragment.
+    """
+    if "add_product_msg" in st.session_state:
+        _amsg = st.session_state.pop("add_product_msg")
+        (st.success if _amsg.startswith("✅") else st.error)(_amsg)
+    if "add_product_cb_warn" in st.session_state:
+        st.warning(st.session_state.pop("add_product_cb_warn"))
+
+    with st.form("add_product_form", clear_on_submit=True):
+
+        # ── Basic Info ───────────────────────────────────────
+        st.markdown("#### 🏷️ Basic Information")
+        cur = st.session_state.get("currency_symbol", "₦")
+        f1, f2      = st.columns(2)
+        prod_name   = f1.text_input("Product Name *", placeholder="e.g. Coca-Cola")
+        category    = f2.text_input("Category *",     placeholder="e.g. Beverages")
+
+        f3, f4      = st.columns(2)
+        f3.markdown(f"**Cost Price ({cur}) \\***")
+        f3.caption("What you paid per pack/unit when buying from supplier")
+        cost_price  = f3.number_input("Cost Price", min_value=0.0, step=50.0,
+                                      label_visibility="collapsed")
+
+        f4.markdown("**Reorder Level \\***")
+        f4.caption("Alert me when stock falls to this level")
+        reorder_lvl = f4.number_input("Reorder Level", min_value=0, step=1,
+                                      label_visibility="collapsed")
+
+        st.markdown("---")
+
+        # ── Pack Section ─────────────────────────────────────
+        st.markdown("#### 📦 Pack (Bulk) Details")
+        st.caption("This is how you BUY the product from supplier— e.g. by carton, bag, crate.")
+        p1, p2, p3  = st.columns(3)
+        p1.markdown("**Pack Unit \\***")
+        p1.caption("e.g. carton, bag, crate")
+        base_unit      = p1.text_input("Pack Unit", value="unit",
+                                       label_visibility="collapsed")
+
+        p2.markdown("**Units per Pack \\***")
+        p2.caption("Pieces/bottles/kg in one pack/bag/carton")
+        units_per_pack = p2.number_input("Units per Pack", min_value=1, step=1, value=1,
+                                         label_visibility="collapsed")
+
+        p3.markdown("**Opening Stock \\***")
+        p3.caption("How many packs/bags/carton you have now")
+        stock_qty      = p3.number_input("Opening Stock", min_value=0, step=1,
+                                         label_visibility="collapsed")
+
+        st.markdown(f"**Selling Price per Pack ({cur}) \\***")
+        st.caption("Price charged when selling a full pack/carton/bag")
+        sell_price     = st.number_input(
+            "Selling Price per Pack", min_value=0.0, step=50.0,
+            label_visibility="collapsed",
+        )
+        if cost_price > 0 and sell_price > 0:
+            pack_margin     = sell_price - cost_price
+            pack_margin_pct = (pack_margin / sell_price) * 100
+            color = "green" if pack_margin >= 0 else "red"
+            st.markdown(
+                f"💡 Pack margin: **{fmt_naira(pack_margin)}** ({pack_margin_pct:.1f}%)",
+            )
+
+        st.markdown("---")
+
+        # ── Unit Section ─────────────────────────────────────
+        st.markdown("#### 🔢 Unit (Individual) Details")
+        st.caption(
+            "This is how you SELL individually — e.g. per piece, bottle, kg. "
+            "If you only sell in packs, leave Units per Pack as 1 above and set "
+            "selling price per unit same as pack price."
+        )
+        st.markdown("**Unit Name \\***")
+        st.caption("e.g. piece, bottle, sachet, kg")
+        sub_unit       = st.text_input("Unit Name", value="unit",
+                                       label_visibility="collapsed")
+
+        # Suggest unit price based on pack price ÷ units_per_pack
+        suggested_unit_price = round(sell_price / units_per_pack, 2) if (
+            units_per_pack > 1 and sell_price > 0
+        ) else sell_price
+        st.markdown(f"**Selling Price per Unit ({cur}) \\***")
+        st.caption(
+            f"Suggested: {fmt_naira(suggested_unit_price)} (pack price ÷ {units_per_pack}). "
+            f"You can set higher for unit-sale profit."
+            if units_per_pack > 1 else "Price per individual item"
+        )
+        sell_price_sub = st.number_input(
+            "Selling Price per Unit", min_value=0.0, step=50.0,
+            value=float(suggested_unit_price),
+            label_visibility="collapsed",
+        )
+        if units_per_pack > 1 and sell_price_sub > 0 and cost_price > 0:
+            unit_cost   = cost_price / units_per_pack
+            unit_margin = sell_price_sub - unit_cost
+            unit_margin_pct = (unit_margin / sell_price_sub * 100) if sell_price_sub else 0
+            st.markdown(
+                f"💡 Unit margin: **{fmt_naira(unit_margin)}** ({unit_margin_pct:.1f}%) "
+                f"| Selling {units_per_pack} units = **{fmt_naira(sell_price_sub * units_per_pack)}** "
+                f"vs pack price **{fmt_naira(sell_price)}**"
+            )
+
+        st.markdown("---")
+
+        # ── Dates (optional — for perishable goods only) ──────────────────
+        st.markdown("#### 📅 Product Dates *(optional)*")
+        st.caption("Only for perishable goods — food, drugs, cosmetics. Leave blank if not applicable.")
+        pd1, pd2 = st.columns(2)
+        mfg_date_input    = pd1.date_input("Manufacturing Date",    value=None, key="add_mfg_date")
+        expiry_date_input = pd2.date_input("Expiry / Best-Before Date", value=None, key="add_expiry_date")
+
+        submitted = st.form_submit_button("➕ Add Product", width='stretch', type="primary")
+
+    if submitted:
+        if not all([prod_name.strip(), category.strip()]) or sell_price <= 0:
+            st.error("Please fill all required fields and ensure selling price > 0.")
+        else:
+            _new_product_id = gen_id("PRD")
+            ok = db_insert(TBL_PRODUCTS, {
+                "product_id":        _new_product_id,
+                "business_id":       business_id,
+                "product_name":      prod_name.strip(),
+                "category":          category.strip(),
+                "cost_price":        cost_price,
+                "selling_price":     sell_price,
+                "selling_price_sub": sell_price_sub,
+                "stock_quantity":    stock_qty,
+                "reorder_level":     reorder_lvl,
+                "base_unit":         base_unit.strip() or "unit",
+                "sub_unit":          sub_unit.strip()  or "unit",
+                "units_per_pack":    int(units_per_pack),
+                "mfg_date":          mfg_date_input.isoformat()    if mfg_date_input    else None,
+                "expiry_date":       expiry_date_input.isoformat()  if expiry_date_input else None,
+                "created_at":        datetime.now().isoformat(),
+            })
+            if ok:
+                # Cash-out mirror-write — same pattern as restock. Opening
+                # stock is funded the same way a restock delivery is: cash
+                # left the business to acquire it. Without this, every sale
+                # against this product's opening stock would mirror-write
+                # its full sale price as "In" with no matching "Out" ever
+                # recorded, permanently inflating the cashbook balance by
+                # the unrecorded acquisition cost.
+                _opening_cost = round(safe_float(stock_qty) * safe_float(cost_price), 2)
+                if _opening_cost > 0:
+                    _cb_ok = log_cashbook_entry(
+                        business_id=business_id, entry_date=datetime.now().date(),
+                        entry_type="Restock", direction="Out",
+                        amount=_opening_cost, payment_method="Cash",
+                        note=f"Opening stock: {prod_name.strip()}",
+                        source_ref=_new_product_id,
+                        recorded_by=user.get("full_name", user.get("email", "")),
+                    )
+                    if not _cb_ok:
+                        # log_cashbook_entry swallows its own exception and
+                        # just returns False, so the underlying reason is
+                        # never shown — and the rerun right below would
+                        # erase any transient st.error() anyway. Persist a
+                        # warning through the rerun so it's actually visible
+                        # instead of silently vanishing.
+                        st.session_state["add_product_cb_warn"] = (
+                            f"⚠️ '{prod_name}' was saved, but the ₦{_opening_cost:,.2f} "
+                            "opening-stock cash-out entry failed to write to the "
+                            "cashbook ledger. Check Supabase logs / constraints on "
+                            "the cashbook_entries table."
+                        )
+                st.session_state["add_product_msg"] = (
+                    f"✅ '{prod_name}' added! "
+                    f"Pack: {fmt_naira(sell_price)} per {base_unit} | "
+                    f"Unit: {fmt_naira(sell_price_sub)} per {sub_unit}"
+                )
+                # Fragment-scoped — see _restock_tab_fragment for why this
+                # matters at 3000+ SKUs: it avoids forcing All Products /
+                # Restock History to refetch their full tables just because
+                # one product was added.
+                st.rerun(scope="fragment")
+            else:
+                st.error("Failed to add product. Please try again.")
+
+
+@st.fragment
+def _restock_history_tab_fragment(business_id, user):
+    """
+    Restock History tab, isolated in its own fragment and backed by
+    search_restock() (bounded, server-side filtered + paginated) instead of
+    get_restock_df() (the entire all-time log, fetched and rendered as one
+    unbounded Python loop). This log only grows over time — unlike the
+    product catalogue, it never plateaus — so pulling and rendering all of
+    it on every rerun was the worst-scaling part of the Inventory page.
+    Fragment isolation also means typing in the search box, changing a
+    filter, or reversing an entry no longer forces All Products / Add
+    Product / Suppliers to re-run.
+    """
+    section_header("📜 Restock History")
+
+    if "rst_hist_msg" in st.session_state:
+        _hmsg = st.session_state.pop("rst_hist_msg")
+        (st.success if _hmsg.startswith(("✅", "↩️")) else st.error)(_hmsg)
+
+    PAGE_SIZE = 20
+
+    # ── Filters ──
+    f1, f2, f3 = st.columns(3)
+    search_rst = f1.text_input("🔍 Search by product name", key="restock_search",
+                               placeholder="Type to filter…")
+    # Supplier options come from the (small, already-cached) supplier
+    # directory rather than from restock rows — correct regardless of which
+    # page of history is currently loaded.
+    suppliers_df = get_suppliers_df(business_id)
+    sup_names    = sorted(suppliers_df["name"].dropna().unique().tolist()) if not suppliers_df.empty else []
+    sup_filter   = f2.selectbox("🏭 Filter by supplier", ["All suppliers"] + sup_names,
+                                key="restock_sup_filter") if sup_names else "All suppliers"
+    type_filter  = f3.selectbox(
+        "📋 Type", ["All", "Deliveries only", "Corrections only"],
+        key="restock_type_filter",
+    )
+
+    # Reset to page 1 whenever a filter changes, same pattern as All Products.
+    if "rst_hist_page" not in st.session_state:
+        st.session_state.rst_hist_page = 1
+    _filter_key = (search_rst, sup_filter, type_filter)
+    if st.session_state.get("_last_rst_hist_filter") != _filter_key:
+        st.session_state.rst_hist_page = 1
+    st.session_state["_last_rst_hist_filter"] = _filter_key
+
+    pg     = st.session_state.rst_hist_page
+    offset = (pg - 1) * PAGE_SIZE
+    restock_df, total = search_restock(
+        business_id, query=search_rst, supplier=sup_filter,
+        entry_type=type_filter, limit=PAGE_SIZE, offset=offset,
+    )
+    total_pages = max(1, -(-total // PAGE_SIZE))
+
+    if total == 0:
+        if search_rst or sup_filter != "All suppliers" or type_filter != "All":
+            st.warning("No restock entries match your filters.")
+        else:
+            st.info("No restock history yet. Every restock will be logged here automatically.")
+        return
+
+    st.caption(f"Showing {len(restock_df)} of {total} entries  •  Page {pg} of {total_pages}")
+
+    # ── Per-row display with Reverse button ──
+    for _, row in restock_df.iterrows():
+        restock_id     = row.get("restock_id", "")
+        product_id     = row.get("product_id", "")
+        product_name   = row.get("product_name", "")
+        entry_type     = row.get("entry_type", "delivery") or "delivery"
+        qty_added      = safe_float(row.get("qty_added", 0))
+        qty_before     = safe_float(row.get("qty_before", 0))
+        qty_after      = safe_float(row.get("qty_after",  0))
+        note           = row.get("note", "") or ""
+        recorded_by    = row.get("recorded_by", "") or ""
+        supplier_name  = row.get("supplier_name", "") or ""
+        r_date         = row.get("restock_date", "")
+        date_str       = str(r_date)[:16] if r_date else "—"
+
+        with st.container(border=True):
+            c1, c2 = st.columns([5, 1])
+            with c1:
+                type_badge = "🛠️ Correction" if entry_type == "correction" else "📦 Delivery"
+                qty_sign   = "+" if qty_added >= 0 else ""
+                st.markdown(
+                    f"**{product_name}** &nbsp;|&nbsp; {type_badge} &nbsp;|&nbsp; "
+                    f"📅 {date_str} &nbsp;|&nbsp; "
+                    f"{qty_sign}{fmt_qty(qty_added)} units &nbsp;|&nbsp; "
+                    f"{fmt_qty(qty_before)} → {fmt_qty(qty_after)}"
+                )
+                meta_parts = []
+                if supplier_name:
+                    meta_parts.append(f"🏭 {supplier_name}")
+                if note:
+                    meta_parts.append(f"📝 {note}")
+                meta_parts.append(f"👤 {recorded_by}")
+                st.caption("  •  ".join(meta_parts))
+            with c2:
+                if st.button("↩️ Reverse", key=f"rev_{restock_id}", type="secondary"):
+                    current_df  = get_products_by_ids(business_id, [product_id])
+                    product_row = current_df[current_df["product_id"] == product_id]
+                    if product_row.empty:
+                        st.error("Product not found.")
+                    else:
+                        current_stock = safe_float(product_row.iloc[0]["stock_quantity"])
+                        restored_qty  = max(0, current_stock - qty_added)
+                        ok = db_update(
+                            TBL_PRODUCTS, "product_id", product_id,
+                            {"stock_quantity": restored_qty}
+                        )
+                        if ok:
+                            db_delete(TBL_RESTOCK, "restock_id", restock_id)
+                            db_delete(TBL_CASHBOOK, "source_ref", restock_id)
+                            st.session_state["rst_hist_msg"] = (
+                                f"↩️ Reversed! {product_name} stock: "
+                                f"{fmt_qty(current_stock)} → {fmt_qty(restored_qty)}"
+                            )
+                            st.rerun(scope="fragment")
+
+    if total_pages > 1:
+        st.markdown("---")
+        pc1, pc2, pc3 = st.columns([1, 3, 1])
+        if pc1.button("◀ Prev", disabled=(pg <= 1), key="rst_hist_prev"):
+            st.session_state.rst_hist_page = max(1, pg - 1)
+            st.rerun(scope="fragment")
+        pc2.markdown(f"<div style='text-align:center;padding-top:0.5rem;color:#8BA0B8;'>Page {pg} of {total_pages}</div>",
+                     unsafe_allow_html=True)
+        if pc3.button("Next ▶", disabled=(pg >= total_pages), key="rst_hist_next"):
+            st.session_state.rst_hist_page = min(total_pages, pg + 1)
+            st.rerun(scope="fragment")
 
 
 def _inventory_pin_gate(user: dict) -> bool:
@@ -819,172 +1153,7 @@ def page_products():
     # Tab 2 — Add Product
     # ══════════════════════════════════════
     with tab2:
-        with st.form("add_product_form", clear_on_submit=True):
-
-            # ── Basic Info ───────────────────────────────────────
-            st.markdown("#### 🏷️ Basic Information")
-            cur = st.session_state.get("currency_symbol", "₦")
-            f1, f2      = st.columns(2)
-            prod_name   = f1.text_input("Product Name *", placeholder="e.g. Coca-Cola")
-            category    = f2.text_input("Category *",     placeholder="e.g. Beverages")
-
-            f3, f4      = st.columns(2)
-            f3.markdown(f"**Cost Price ({cur}) \\***")
-            f3.caption("What you paid per pack/unit when buying from supplier")
-            cost_price  = f3.number_input("Cost Price", min_value=0.0, step=50.0,
-                                          label_visibility="collapsed")
-
-            f4.markdown("**Reorder Level \\***")
-            f4.caption("Alert me when stock falls to this level")
-            reorder_lvl = f4.number_input("Reorder Level", min_value=0, step=1,
-                                          label_visibility="collapsed")
-
-            st.markdown("---")
-
-            # ── Pack Section ─────────────────────────────────────
-            st.markdown("#### 📦 Pack (Bulk) Details")
-            st.caption("This is how you BUY the product from supplier— e.g. by carton, bag, crate.")
-            p1, p2, p3  = st.columns(3)
-            p1.markdown("**Pack Unit \\***")
-            p1.caption("e.g. carton, bag, crate")
-            base_unit      = p1.text_input("Pack Unit", value="unit",
-                                           label_visibility="collapsed")
-
-            p2.markdown("**Units per Pack \\***")
-            p2.caption("Pieces/bottles/kg in one pack/bag/carton")
-            units_per_pack = p2.number_input("Units per Pack", min_value=1, step=1, value=1,
-                                             label_visibility="collapsed")
-
-            p3.markdown("**Opening Stock \\***")
-            p3.caption("How many packs/bags/carton you have now")
-            stock_qty      = p3.number_input("Opening Stock", min_value=0, step=1,
-                                             label_visibility="collapsed")
-
-            st.markdown(f"**Selling Price per Pack ({cur}) \\***")
-            st.caption("Price charged when selling a full pack/carton/bag")
-            sell_price     = st.number_input(
-                "Selling Price per Pack", min_value=0.0, step=50.0,
-                label_visibility="collapsed",
-            )
-            if cost_price > 0 and sell_price > 0:
-                pack_margin     = sell_price - cost_price
-                pack_margin_pct = (pack_margin / sell_price) * 100
-                color = "green" if pack_margin >= 0 else "red"
-                st.markdown(
-                    f"💡 Pack margin: **{fmt_naira(pack_margin)}** ({pack_margin_pct:.1f}%)",
-                )
-
-            st.markdown("---")
-
-            # ── Unit Section ─────────────────────────────────────
-            st.markdown("#### 🔢 Unit (Individual) Details")
-            st.caption(
-                "This is how you SELL individually — e.g. per piece, bottle, kg. "
-                "If you only sell in packs, leave Units per Pack as 1 above and set "
-                "selling price per unit same as pack price."
-            )
-            st.markdown("**Unit Name \\***")
-            st.caption("e.g. piece, bottle, sachet, kg")
-            sub_unit       = st.text_input("Unit Name", value="unit",
-                                           label_visibility="collapsed")
-
-            # Suggest unit price based on pack price ÷ units_per_pack
-            suggested_unit_price = round(sell_price / units_per_pack, 2) if (
-                units_per_pack > 1 and sell_price > 0
-            ) else sell_price
-            st.markdown(f"**Selling Price per Unit ({cur}) \\***")
-            st.caption(
-                f"Suggested: {fmt_naira(suggested_unit_price)} (pack price ÷ {units_per_pack}). "
-                f"You can set higher for unit-sale profit."
-                if units_per_pack > 1 else "Price per individual item"
-            )
-            sell_price_sub = st.number_input(
-                "Selling Price per Unit", min_value=0.0, step=50.0,
-                value=float(suggested_unit_price),
-                label_visibility="collapsed",
-            )
-            if units_per_pack > 1 and sell_price_sub > 0 and cost_price > 0:
-                unit_cost   = cost_price / units_per_pack
-                unit_margin = sell_price_sub - unit_cost
-                unit_margin_pct = (unit_margin / sell_price_sub * 100) if sell_price_sub else 0
-                st.markdown(
-                    f"💡 Unit margin: **{fmt_naira(unit_margin)}** ({unit_margin_pct:.1f}%) "
-                    f"| Selling {units_per_pack} units = **{fmt_naira(sell_price_sub * units_per_pack)}** "
-                    f"vs pack price **{fmt_naira(sell_price)}**"
-                )
-
-            st.markdown("---")
-
-            # ── Dates (optional — for perishable goods only) ──────────────────
-            st.markdown("#### 📅 Product Dates *(optional)*")
-            st.caption("Only for perishable goods — food, drugs, cosmetics. Leave blank if not applicable.")
-            pd1, pd2 = st.columns(2)
-            mfg_date_input    = pd1.date_input("Manufacturing Date",    value=None, key="add_mfg_date")
-            expiry_date_input = pd2.date_input("Expiry / Best-Before Date", value=None, key="add_expiry_date")
-
-            submitted = st.form_submit_button("➕ Add Product", width='stretch', type="primary")
-
-        if submitted:
-            if not all([prod_name.strip(), category.strip()]) or sell_price <= 0:
-                st.error("Please fill all required fields and ensure selling price > 0.")
-            else:
-                _new_product_id = gen_id("PRD")
-                ok = db_insert(TBL_PRODUCTS, {
-                    "product_id":        _new_product_id,
-                    "business_id":       business_id,
-                    "product_name":      prod_name.strip(),
-                    "category":          category.strip(),
-                    "cost_price":        cost_price,
-                    "selling_price":     sell_price,
-                    "selling_price_sub": sell_price_sub,
-                    "stock_quantity":    stock_qty,
-                    "reorder_level":     reorder_lvl,
-                    "base_unit":         base_unit.strip() or "unit",
-                    "sub_unit":          sub_unit.strip()  or "unit",
-                    "units_per_pack":    int(units_per_pack),
-                    "mfg_date":          mfg_date_input.isoformat()    if mfg_date_input    else None,
-                    "expiry_date":       expiry_date_input.isoformat()  if expiry_date_input else None,
-                    "created_at":        datetime.now().isoformat(),
-                })
-                if ok:
-                    # Cash-out mirror-write — same pattern as restock. Opening
-                    # stock is funded the same way a restock delivery is: cash
-                    # left the business to acquire it. Without this, every sale
-                    # against this product's opening stock would mirror-write
-                    # its full sale price as "In" with no matching "Out" ever
-                    # recorded, permanently inflating the cashbook balance by
-                    # the unrecorded acquisition cost.
-                    _opening_cost = round(safe_float(stock_qty) * safe_float(cost_price), 2)
-                    if _opening_cost > 0:
-                        _cb_ok = log_cashbook_entry(
-                            business_id=business_id, entry_date=datetime.now().date(),
-                            entry_type="Restock", direction="Out",
-                            amount=_opening_cost, payment_method="Cash",
-                            note=f"Opening stock: {prod_name.strip()}",
-                            source_ref=_new_product_id,
-                            recorded_by=user.get("full_name", user.get("email", "")),
-                        )
-                        if not _cb_ok:
-                            # log_cashbook_entry swallows its own exception and
-                            # just returns False, so the underlying reason is
-                            # never shown — and the st.rerun() right below
-                            # would erase any transient st.error() anyway.
-                            # Persist a warning through the rerun so it's
-                            # actually visible instead of silently vanishing.
-                            st.session_state["inv_cb_warn"] = (
-                                f"⚠️ '{prod_name}' was saved, but the ₦{_opening_cost:,.2f} "
-                                "opening-stock cash-out entry failed to write to the "
-                                "cashbook ledger. Check Supabase logs / constraints on "
-                                "the cashbook_entries table."
-                            )
-                    st.session_state["inv_msg"] = (
-                        f"✅ '{prod_name}' added! "
-                        f"Pack: {fmt_naira(sell_price)} per {base_unit} | "
-                        f"Unit: {fmt_naira(sell_price_sub)} per {sub_unit}"
-                    )
-                    st.rerun()
-                else:
-                    st.error("Failed to add product. Please try again.")
+        _add_product_tab_fragment(business_id, user)
 
     # ══════════════════════════════════════
     # Tab 3 — Restock
@@ -996,99 +1165,7 @@ def page_products():
     # Tab 4 — Restock History
     # ══════════════════════════════════════
     with tab4:
-        section_header("📜 Restock History")
-        restock_df = get_restock_df(business_id)
-        if restock_df.empty:
-            st.info("No restock history yet. Every restock will be logged here automatically.")
-        else:
-            restock_df = restock_df.sort_values("restock_date", ascending=False)
-
-            # ── Filters ──
-            f1, f2, f3 = st.columns(3)
-            search_rst = f1.text_input("🔍 Search by product name", key="restock_search",
-                                       placeholder="Type to filter…")
-            # Supplier filter — only shown when supplier_name column exists and has data
-            sup_filter = ""
-            if "supplier_name" in restock_df.columns:
-                sup_names   = sorted(restock_df["supplier_name"].dropna().unique().tolist())
-                sup_names   = [s for s in sup_names if s.strip()]
-                if sup_names:
-                    sup_options = ["All suppliers"] + sup_names
-                    sup_filter  = f2.selectbox("🏭 Filter by supplier", sup_options,
-                                               key="restock_sup_filter")
-            # Entry-type filter — only shown once corrections exist alongside deliveries
-            type_filter = "All"
-            if "entry_type" in restock_df.columns:
-                type_filter = f3.selectbox(
-                    "📋 Type", ["All", "Deliveries only", "Corrections only"],
-                    key="restock_type_filter",
-                )
-
-            if search_rst:
-                restock_df = restock_df[
-                    restock_df["product_name"].str.contains(search_rst, case=False, na=False)
-                ]
-            if sup_filter and sup_filter != "All suppliers":
-                restock_df = restock_df[restock_df["supplier_name"] == sup_filter]
-            if type_filter == "Deliveries only":
-                restock_df = restock_df[restock_df.get("entry_type", "delivery") != "correction"]
-            elif type_filter == "Corrections only":
-                restock_df = restock_df[restock_df.get("entry_type", "delivery") == "correction"]
-
-            # ── Per-row display with Reverse button ──
-            for _, row in restock_df.iterrows():
-                restock_id     = row.get("restock_id", "")
-                product_id     = row.get("product_id", "")
-                product_name   = row.get("product_name", "")
-                entry_type     = row.get("entry_type", "delivery") or "delivery"
-                qty_added      = safe_float(row.get("qty_added", 0))
-                qty_before     = safe_float(row.get("qty_before", 0))
-                qty_after      = safe_float(row.get("qty_after",  0))
-                note           = row.get("note", "") or ""
-                recorded_by    = row.get("recorded_by", "") or ""
-                supplier_name  = row.get("supplier_name", "") or ""
-                r_date         = row.get("restock_date", "")
-                date_str       = str(r_date)[:16] if r_date else "—"
-
-                with st.container(border=True):
-                    c1, c2 = st.columns([5, 1])
-                    with c1:
-                        type_badge = "🛠️ Correction" if entry_type == "correction" else "📦 Delivery"
-                        qty_sign   = "+" if qty_added >= 0 else ""
-                        st.markdown(
-                            f"**{product_name}** &nbsp;|&nbsp; {type_badge} &nbsp;|&nbsp; "
-                            f"📅 {date_str} &nbsp;|&nbsp; "
-                            f"{qty_sign}{fmt_qty(qty_added)} units &nbsp;|&nbsp; "
-                            f"{fmt_qty(qty_before)} → {fmt_qty(qty_after)}"
-                        )
-                        meta_parts = []
-                        if supplier_name:
-                            meta_parts.append(f"🏭 {supplier_name}")
-                        if note:
-                            meta_parts.append(f"📝 {note}")
-                        meta_parts.append(f"👤 {recorded_by}")
-                        st.caption("  •  ".join(meta_parts))
-                    with c2:
-                        if st.button("↩️ Reverse", key=f"rev_{restock_id}", type="secondary"):
-                            current_df  = get_products_by_ids(business_id, [product_id])
-                            product_row = current_df[current_df["product_id"] == product_id]
-                            if product_row.empty:
-                                st.error("Product not found.")
-                            else:
-                                current_stock = safe_float(product_row.iloc[0]["stock_quantity"])
-                                restored_qty  = max(0, current_stock - qty_added)
-                                ok = db_update(
-                                    TBL_PRODUCTS, "product_id", product_id,
-                                    {"stock_quantity": restored_qty}
-                                )
-                                if ok:
-                                    db_delete(TBL_RESTOCK, "restock_id", restock_id)
-                                    db_delete(TBL_CASHBOOK, "source_ref", restock_id)
-                                    st.session_state["inv_msg"] = (
-                                        f"↩️ Reversed! {product_name} stock: "
-                                        f"{fmt_qty(current_stock)} → {fmt_qty(restored_qty)}"
-                                    )
-                                    st.rerun()
+        _restock_history_tab_fragment(business_id, user)
 
     # ══════════════════════════════════════
     # Tab 5 — Suppliers
