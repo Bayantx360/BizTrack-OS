@@ -27,6 +27,7 @@ from shared.db import (
     get_supabase,
     get_sales_df, get_products_df, get_products_df_live, get_expenses_df,
     get_sale_items_df, get_products_by_ids, search_products,
+    get_low_stock_summary,
     get_debts_df, get_customer_directory,
     compute_kpis,
     db_fetch, db_insert, db_insert_many, db_update, db_delete, clear_table_cache,
@@ -158,13 +159,13 @@ def _dashboard_body_fragment(business_id):
         expenses_df = get_expenses_df(business_id)
         kpis        = compute_kpis(sales_df, expenses_df)
 
-    # Low-stock rows (cross-app bridge to Inventory)
-    if not products_df.empty:
-        low_stock_df = products_df[products_df["stock_quantity"] <= products_df["reorder_level"]]
-        low_count    = len(low_stock_df)
-    else:
-        low_stock_df = pd.DataFrame()
-        low_count    = 0
+    # Low-stock preview — server-side (see get_low_stock_summary docstring
+    # for why this no longer needs products_df at all). products_df above
+    # is still fetched in full because Expiry Alerts below still needs it;
+    # that's a separate, not-yet-closed piece of the same latency issue.
+    low_stock_preview_df, low_count = get_low_stock_summary(
+        business_id, limit=ALERT_PREVIEW_LIMIT
+    )
 
     growth = kpis["week_growth"]
     c1, c2 = st.columns(2)
@@ -331,11 +332,10 @@ def _dashboard_body_fragment(business_id):
     else:
         st.info("📭 No sales yet. Record your first sale to see analytics here.")
 
-    # ── Low-Stock Alerts (capped preview — see fragment docstring) ──
-    if not low_stock_df.empty:
+    # ── Low-Stock Alerts (server-side preview — see get_low_stock_summary) ──
+    if not low_stock_preview_df.empty:
         section_header("⚠️ Low Stock Alerts")
-        _low_preview = low_stock_df.sort_values("stock_quantity").head(ALERT_PREVIEW_LIMIT)
-        for _, row in _low_preview.iterrows():
+        for _, row in low_stock_preview_df.iterrows():
             qty = safe_int(row["stock_quantity"])
             css = "alert-critical" if qty <= 0 else "alert-low"
             st.markdown(
@@ -343,9 +343,9 @@ def _dashboard_body_fragment(business_id):
                 f'{qty} units left (reorder level: {safe_int(row["reorder_level"])})</div>',
                 unsafe_allow_html=True,
             )
-        if low_count > len(_low_preview):
+        if low_count > len(low_stock_preview_df):
             st.caption(
-                f"Showing the {len(_low_preview)} most urgent of {low_count} "
+                f"Showing the {len(low_stock_preview_df)} most urgent of {low_count} "
                 f"products needing restock."
             )
             if st.button(f"→ View all {low_count} in Inventory",
