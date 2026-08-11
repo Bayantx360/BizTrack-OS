@@ -113,17 +113,50 @@ def page_dashboard():
 </div>
     """, unsafe_allow_html=True)
 
+    _dashboard_body_fragment(business_id)
+
+
+# Most urgent alerts shown before the list is capped and a "view all" link
+# takes over — see _dashboard_body_fragment for why this exists.
+ALERT_PREVIEW_LIMIT = 10
+
+
+@st.fragment
+def _dashboard_body_fragment(business_id):
+    """
+    KPI cards, charts, and low-stock/expiry alerts.
+
+    Isolated in its own fragment so incidental clicks on this page (opening
+    a chart expander, etc.) don't force the whole dashboard — including a
+    full product-table fetch and the alert lists below — to re-run. Before
+    this, ANY click anywhere on the dashboard re-executed the entire
+    function on every rerun.
+
+    Low-stock and expiry alerts are capped to ALERT_PREVIEW_LIMIT most
+    urgent items instead of rendering every matching row. At 1,500+ products
+    needing restock, the old unbounded version rendered 1,500+ individual
+    HTML blocks on every single login — this shows the most urgent ones
+    plus a count, with a link to the full (already paginated) list in
+    Inventory.
+
+    Note: buttons in here that navigate to another page (current_page)
+    must call st.rerun(scope="app") explicitly — the default rerun from
+    inside a fragment only reruns the fragment itself, which would leave
+    the page switch invisible.
+    """
     with st.spinner("Loading your data…"):
         sales_df    = get_sales_df(business_id)
         products_df = get_products_df_live(business_id)  # live — alerts must be accurate
         expenses_df = get_expenses_df(business_id)
         kpis        = compute_kpis(sales_df, expenses_df)
 
-    # Low-stock count (cross-app bridge to Inventory)
+    # Low-stock rows (cross-app bridge to Inventory)
     if not products_df.empty:
-        low_count = len(products_df[products_df["stock_quantity"] <= products_df["reorder_level"]])
+        low_stock_df = products_df[products_df["stock_quantity"] <= products_df["reorder_level"]]
+        low_count    = len(low_stock_df)
     else:
-        low_count = 0
+        low_stock_df = pd.DataFrame()
+        low_count    = 0
 
     growth = kpis["week_growth"]
     c1, c2 = st.columns(2)
@@ -185,7 +218,7 @@ def page_dashboard():
         if low_count > 0:
             if st.button("→ Go to Inventory", key="dash_goto_inv", width='stretch'):
                 st.session_state.current_page = "inventory"
-                st.rerun()
+                st.rerun(scope="app")  # explicit — must escape the fragment to navigate
 
     # ── Charts ──
     if not sales_df.empty:
@@ -290,34 +323,48 @@ def page_dashboard():
     else:
         st.info("📭 No sales yet. Record your first sale to see analytics here.")
 
-    # ── Low-Stock Alerts ──
-    if not products_df.empty:
-        low_stock = products_df[products_df["stock_quantity"] <= products_df["reorder_level"]]
-        if not low_stock.empty:
-            section_header("⚠️ Low Stock Alerts")
-            for _, row in low_stock.iterrows():
-                qty = safe_int(row["stock_quantity"])
-                css = "alert-critical" if qty <= 0 else "alert-low"
-                st.markdown(
-                    f'<div class="{css}">🔔 <strong>{row["product_name"]}</strong> — '
-                    f'{qty} units left (reorder level: {safe_int(row["reorder_level"])})</div>',
-                    unsafe_allow_html=True,
-                )
+    # ── Low-Stock Alerts (capped preview — see fragment docstring) ──
+    if not low_stock_df.empty:
+        section_header("⚠️ Low Stock Alerts")
+        _low_preview = low_stock_df.sort_values("stock_quantity").head(ALERT_PREVIEW_LIMIT)
+        for _, row in _low_preview.iterrows():
+            qty = safe_int(row["stock_quantity"])
+            css = "alert-critical" if qty <= 0 else "alert-low"
+            st.markdown(
+                f'<div class="{css}">🔔 <strong>{row["product_name"]}</strong> — '
+                f'{qty} units left (reorder level: {safe_int(row["reorder_level"])})</div>',
+                unsafe_allow_html=True,
+            )
+        if low_count > len(_low_preview):
+            st.caption(
+                f"Showing the {len(_low_preview)} most urgent of {low_count} "
+                f"products needing restock."
+            )
+            if st.button(f"→ View all {low_count} in Inventory",
+                         key="dash_low_stock_viewall", width='stretch'):
+                st.session_state.current_page = "inventory"
+                st.rerun(scope="app")
 
-    # ── Expiry Alerts (dashboard banner — critical & imminent only) ──────────
+    # ── Expiry Alerts (dashboard banner — capped preview) ────────────────────
     if not products_df.empty and "expiry_date" in products_df.columns:
         from datetime import datetime as _dt
         _today    = pd.Timestamp(_dt.now().date())
         _dated    = products_df[products_df["expiry_date"].notna()].copy()
         if not _dated.empty:
             _dated["days_to_expiry"] = (_dated["expiry_date"] - _today).dt.days
-            _banner_expired  = _dated[_dated["days_to_expiry"] < 0]
+            _banner_expired  = _dated[_dated["days_to_expiry"] < 0].sort_values("days_to_expiry")
             _banner_soon     = _dated[
                 (_dated["days_to_expiry"] >= 0) & (_dated["days_to_expiry"] <= 60)
-            ]
-            if not _banner_expired.empty or not _banner_soon.empty:
+            ].sort_values("days_to_expiry")
+            _total_expiry_alerts = len(_banner_expired) + len(_banner_soon)
+
+            if _total_expiry_alerts > 0:
                 section_header("🚨 Expiry Alerts")
-            for _, r in _banner_expired.iterrows():
+
+            # Expired items are more urgent than soon-to-expire, so they get
+            # first claim on the shared preview budget.
+            _expired_preview = _banner_expired.head(ALERT_PREVIEW_LIMIT)
+            for _, r in _expired_preview.iterrows():
                 days_ago = abs(int(r["days_to_expiry"]))
                 exp_str  = pd.Timestamp(r["expiry_date"]).strftime("%d %b %Y")
                 st.markdown(
@@ -326,7 +373,10 @@ def page_dashboard():
                     f'Remove from shelves immediately.</div>',
                     unsafe_allow_html=True,
                 )
-            for _, r in _banner_soon.iterrows():
+
+            _remaining_slots = max(0, ALERT_PREVIEW_LIMIT - len(_expired_preview))
+            _soon_preview    = _banner_soon.head(_remaining_slots)
+            for _, r in _soon_preview.iterrows():
                 days_left = int(r["days_to_expiry"])
                 exp_str   = pd.Timestamp(r["expiry_date"]).strftime("%d %b %Y")
                 urgency   = "alert-critical" if days_left <= 14 else "alert-low"
@@ -335,6 +385,17 @@ def page_dashboard():
                     f'expires in {days_left} day{"s" if days_left != 1 else ""} ({exp_str}).</div>',
                     unsafe_allow_html=True,
                 )
+
+            _shown_expiry = len(_expired_preview) + len(_soon_preview)
+            if _total_expiry_alerts > _shown_expiry:
+                st.caption(
+                    f"Showing the {_shown_expiry} most urgent of "
+                    f"{_total_expiry_alerts} expiry alerts."
+                )
+                if st.button(f"→ View all {_total_expiry_alerts} in Inventory",
+                             key="dash_expiry_viewall", width='stretch'):
+                    st.session_state.current_page = "inventory"
+                    st.rerun(scope="app")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
