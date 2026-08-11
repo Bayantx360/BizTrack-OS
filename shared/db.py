@@ -694,6 +694,66 @@ def search_products(business_id: str, query: str, limit: int = 30,
 _TABLE_CACHE_MAP[TBL_PRODUCTS] = _TABLE_CACHE_MAP[TBL_PRODUCTS] + (search_products,)
 
 
+@st.cache_data(ttl=15, show_spinner=False)
+def get_low_stock_summary(business_id: str, limit: int = 10) -> tuple[pd.DataFrame, int]:
+    """
+    The `limit` most urgent (lowest stock_quantity) low-stock products for
+    this business, plus the total low-stock count — computed server-side
+    via the `is_low_stock` generated column from
+    supabase/migrations/002_products_low_stock_generated_column.sql.
+
+    Why this needs a generated column at all: stock_quantity <= reorder_level
+    is a column-vs-column comparison, which PostgREST's filter builder can
+    only do against a column vs. a literal — not against another live
+    column. Without a stored column to filter on, the only way to evaluate
+    it is get_products_df_live() + a full pandas comparison, which means
+    pulling every SKU just to answer "which ones are low" — the cost scales
+    with total catalogue size instead of with how many products are
+    actually low.
+
+    Falls back to that old full-fetch + pandas-filter approach if the
+    migration hasn't been applied yet (column not found) or on any other
+    query error, so this is safe to deploy before or after the migration,
+    in either order — behavior is identical either way, just faster once
+    the column exists.
+    """
+    try:
+        sb  = get_supabase()
+        res = (
+            sb.table(TBL_PRODUCTS)
+            .select("product_id,product_name,stock_quantity,reorder_level", count="exact")
+            .eq("business_id", business_id)
+            .eq("is_low_stock", True)
+            .order("stock_quantity", desc=False)
+            .limit(limit)
+            .execute()
+        )
+        df    = pd.DataFrame(res.data or [])
+        total = res.count or 0
+        if not df.empty:
+            df["stock_quantity"] = pd.to_numeric(df["stock_quantity"], errors="coerce").fillna(0)
+            df["reorder_level"]  = pd.to_numeric(df["reorder_level"],  errors="coerce").fillna(0)
+        return df, total
+    except Exception:
+        # Migration not applied yet (unknown column "is_low_stock") or some
+        # other transient error — fall back to the pre-migration behavior
+        # rather than breaking the dashboard.
+        full_df = get_products_df_live(business_id)
+        if full_df.empty:
+            return pd.DataFrame(), 0
+        low_df  = full_df[full_df["stock_quantity"] <= full_df["reorder_level"]]
+        total   = len(low_df)
+        preview = low_df.sort_values("stock_quantity").head(limit)
+        cols    = [c for c in ["product_id", "product_name", "stock_quantity", "reorder_level"]
+                   if c in preview.columns]
+        return preview[cols].reset_index(drop=True), total
+
+
+# Registered after _TABLE_CACHE_MAP for the same reason search_products is —
+# a product write should invalidate this cache too.
+_TABLE_CACHE_MAP[TBL_PRODUCTS] = _TABLE_CACHE_MAP[TBL_PRODUCTS] + (get_low_stock_summary,)
+
+
 @st.cache_data(ttl=30, show_spinner=False)
 def search_restock(business_id: str, query: str = "", supplier: str = "",
                     entry_type: str = "All", limit: int = 20,
