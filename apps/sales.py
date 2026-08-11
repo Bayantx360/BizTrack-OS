@@ -144,6 +144,14 @@ def _dashboard_body_fragment(business_id):
     inside a fragment only reruns the fragment itself, which would leave
     the page switch invisible.
     """
+    # datetime.now() is defined fresh here, not reused from page_dashboard()'s
+    # `now` — that was the bug (NameError: name 'now' is not defined). It
+    # lived in the outer function while the code using it (the 30-day trend
+    # chart below) got moved into this fragment. Computing it locally also
+    # means it stays current across fragment-only reruns instead of freezing
+    # at whatever it was on the last full page load.
+    now = datetime.now()
+
     with st.spinner("Loading your data…"):
         sales_df    = get_sales_df(business_id)
         products_df = get_products_df_live(business_id)  # live — alerts must be accurate
