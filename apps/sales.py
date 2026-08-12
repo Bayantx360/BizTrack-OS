@@ -215,7 +215,7 @@ def _dashboard_body_fragment(business_id):
                  "Sales recorded today", icon="🗒")
     c3, c4 = st.columns(2)
     with c3:
-        kpi_card("This Week", fmt_naira(kpis["week_revenue"]),
+        kpi_card("This Week Revenue", fmt_naira(kpis["week_revenue"]),
                  f"{'▲' if growth >= 0 else '▼'} {abs(growth):.1f}% vs last week",
                  positive=(growth >= 0), icon="📈")
         
