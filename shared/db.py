@@ -694,6 +694,94 @@ def search_products(business_id: str, query: str, limit: int = 30,
 _TABLE_CACHE_MAP[TBL_PRODUCTS] = _TABLE_CACHE_MAP[TBL_PRODUCTS] + (search_products,)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def search_sales(business_id: str, start_date, end_date,
+                  query: str = "") -> pd.DataFrame:
+    """
+    Date-range + text-filtered sales query, done in Postgres instead of
+    pandas. Replaces the old get_sales_df(business_id) + client-side
+    date/search filter in Sales History — that pulled the ENTIRE all-time
+    sales table (unbounded, only ever grows) just to display a 30-day
+    window. This pushes the date range (and product/customer search) into
+    the query itself, so cost scales with how wide a range is selected,
+    not with total sales history size.
+
+    Returns the full matching set for the range (not just one page) —
+    unlike search_products/search_restock this deliberately isn't
+    LIMIT/OFFSET-paginated at the query level, because Sales History shows
+    period KPIs (revenue, profit, avg sale, discounts) that are SUMS over
+    the entire filtered range, not just the displayed page. Row-level
+    pagination for display still happens in Python on this result, same as
+    before — just over a dataframe that's date-bounded instead of all-time.
+
+    Cached 60s per (business, start_date, end_date, query) combination.
+    """
+    try:
+        sb = get_supabase()
+        q = (
+            sb.table(TBL_SALES)
+            .select("*")
+            .eq("business_id", business_id)
+            .gte("sale_date", start_date.isoformat())
+            .lt("sale_date", (end_date + timedelta(days=1)).isoformat())
+        )
+        query = (query or "").strip()
+        if query:
+            q = q.or_(f"product_name.ilike.%{query}%,customer_name.ilike.%{query}%")
+        q = q.order("sale_date", desc=True)
+        res = q.execute()
+        df  = pd.DataFrame(res.data or [])
+        if not df.empty:
+            df["sale_date"] = pd.to_datetime(
+                df["sale_date"], errors="coerce", utc=True
+            ).dt.tz_localize(None)
+            for col in ("total_amount", "gross_profit", "discount_total"):
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        return df
+    except Exception as e:
+        st.error(f"❌ Error searching sales history: {e}")
+        return pd.DataFrame()
+
+
+# Registered after _TABLE_CACHE_MAP for the same reason search_products is —
+# a sale write should invalidate this cache too.
+_TABLE_CACHE_MAP[TBL_SALES] = _TABLE_CACHE_MAP[TBL_SALES] + (search_sales,)
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def get_sale_items_for_sales(business_id: str,
+                              sale_ids: tuple[str, ...]) -> pd.DataFrame:
+    """
+    Line items for a specific, bounded set of sale_ids — e.g. just the
+    ~20 sales on the currently displayed Sales History page. Replaces the
+    old get_sale_items_df(business_id) call there, which pulled EVERY line
+    item ever recorded (typically several per sale, so larger than the
+    sales table itself) just to look up items for the 20 rows on screen.
+
+    Pass a tuple (not a list) so this is hashable and cacheable — the
+    caller converts the current page's sale_ids before calling.
+    """
+    if not sale_ids:
+        return pd.DataFrame()
+    try:
+        sb  = get_supabase()
+        res = (
+            sb.table(TBL_SALE_ITEMS)
+            .select("*")
+            .eq("business_id", business_id)
+            .in_("sale_id", list(sale_ids))
+            .execute()
+        )
+        return pd.DataFrame(res.data or [])
+    except Exception as e:
+        st.error(f"❌ Error loading sale items: {e}")
+        return pd.DataFrame()
+
+
+_TABLE_CACHE_MAP[TBL_SALE_ITEMS] = _TABLE_CACHE_MAP[TBL_SALE_ITEMS] + (get_sale_items_for_sales,)
+
+
 @st.cache_data(ttl=15, show_spinner=False)
 def get_low_stock_summary(business_id: str, limit: int = 10) -> tuple[pd.DataFrame, int]:
     """
