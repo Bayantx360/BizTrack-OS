@@ -224,7 +224,7 @@ def _dashboard_body_fragment(business_id):
         # in the Today's Revenue caption at the top of this function), so
         # this needs no extra data fetch.
         kpi_card("Transactions Today", str(kpis["today_txn"]),
-                 "Sales recorded today", icon="🧾")
+                 "Sales recorded today", icon="🗒")
     with c4:
         kpi_card("Low Stock Alerts", str(low_count),
                  "Products need restocking" if low_count > 0 else "All products stocked",
