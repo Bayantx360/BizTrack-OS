@@ -1722,12 +1722,23 @@ def page_admin():
 
         activity_df = pd.DataFrame(rows)
 
-        # Summary KPIs
-        k1, k2, k3, k4 = st.columns(4)
-        with k1: kpi_card("Total Users",  str(len(activity_df)),                                   "All registered",   icon="👥")
-        with k2: kpi_card("Active Today", str(len(activity_df[activity_df["Health"] == "🟢 Active"])), "Logged in ≤1 day", icon="🟢")
-        with k3: kpi_card("At Risk",      str(len(activity_df[activity_df["Health"] == "🔴 At Risk"])), "Silent 4+ days",  icon="🔴")
-        with k4: kpi_card("Ghosts",       str(len(activity_df[activity_df["Health"] == "👻 Ghost"])),  "Never logged in",  icon="👻")
+        # Snapshot KPIs — one bordered card in a 2×2 grid instead of four
+        # separate full-width kpi_card() boxes. The old version required
+        # scrolling through four screen-heights of stacked cards on mobile
+        # just to see the four numbers that summarize this whole page;
+        # kpi_dashboard() (shared/theme.py) already exists for exactly this
+        # — same helper used for the Business Overview / Revenue snapshots
+        # above on this same admin page.
+        kpi_dashboard([
+            {"icon": "👥", "label": "Total Users",  "value": str(len(activity_df)),
+             "sub": "All registered"},
+            {"icon": "🟢", "label": "Active Today", "value": str(len(activity_df[activity_df["Health"] == "🟢 Active"])),
+             "sub": "Logged in ≤1 day"},
+            {"icon": "🔴", "label": "At Risk",      "value": str(len(activity_df[activity_df["Health"] == "🔴 At Risk"])),
+             "sub": "Silent 4+ days"},
+            {"icon": "👻", "label": "Ghosts",       "value": str(len(activity_df[activity_df["Health"] == "👻 Ghost"])),
+             "sub": "Never logged in"},
+        ], columns=2)
 
         st.markdown("---")
 
