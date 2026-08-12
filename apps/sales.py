@@ -171,7 +171,7 @@ def _dashboard_body_fragment(business_id):
     c1, c2 = st.columns(2)
     with c1:
         kpi_card("Today's Revenue", fmt_naira(kpis["today_revenue"]),
-                 f"{kpis['today_txn']} transactions today", icon="💰")
+                 f"Based on every product you have sold out", icon="💰")
         # Cash transparency breakdown
         collected       = kpis["today_collected"]
         credit_extended = kpis["today_credit_extended"]
