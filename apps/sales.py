@@ -27,7 +27,7 @@ from shared.db import (
     get_supabase,
     get_sales_df, get_products_df, get_products_df_live, get_expenses_df,
     get_sale_items_df, get_products_by_ids, search_products,
-    get_low_stock_summary,
+    get_low_stock_summary, search_sales, get_sale_items_for_sales,
     get_debts_df, get_customer_directory,
     compute_kpis,
     db_fetch, db_insert, db_insert_many, db_update, db_delete, clear_table_cache,
@@ -695,599 +695,7 @@ def page_record_sale():
 
     # ── RIGHT: Checkout + receipt ──
     with col2:
-        section_header("💳 Checkout")
-
-        if st.session_state.cart:
-            # ── Payment status lives OUTSIDE the form so it re-renders reactively ──
-            grand_total_preview = sum(i["line_total"] for i in st.session_state.cart)
-
-            if "checkout_pay_status" not in st.session_state:
-                st.session_state.checkout_pay_status = "full"
-
-            payment_status = st.radio(
-                "Payment Status: 👇Select how customer is paying for the product",
-                options=["full", "part", "credit"],
-                format_func=lambda x: {
-                    "full":   "✅ Full Payment",
-                    "part":   "💳 Part Payment",
-                    "credit": "📕 Credit (Owes Full Amount)",
-                }[x],
-                horizontal=True,
-                key="checkout_pay_status",
-                help="Select whether the customer paid in full, partially, or owes the full amount.",
-            )
-
-            # Amount paid input — only shown for part payment, also outside the form
-            if payment_status == "part":
-                amount_paid_now = st.number_input(
-                    "Amount Paid Now (" + st.session_state.get("currency_symbol","₦") + ")",
-                    min_value=0.0,
-                    max_value=float(grand_total_preview),
-                    value=0.0,
-                    step=100.0,
-                    key="checkout_amount_paid",
-                    help="Enter how much the customer is paying now. The rest becomes a debt.",
-                )
-            elif payment_status == "credit":
-                amount_paid_now = 0.0
-                st.info("📕 The full amount will be recorded as a debt for this customer.")
-            else:
-                amount_paid_now = grand_total_preview
-            
-            st.markdown("---")
-
-            # ── Customer picker lives OUTSIDE the form so choosing an
-            # existing customer reactively fills their phone in below,
-            # same reactivity pattern as payment_status above ──
-            NEW_CUSTOMER_LABEL = "🧑‍🌾 select or type customer name"
-            customer_directory = get_customer_directory(business_id)
-            customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
-
-            picked_customer = st.selectbox(
-                "👨‍👩‍👧‍👧 Customers: Select & Sell to an Existing Customer",
-                options=customer_options,
-                key="checkout_customer_pick",
-            )
-            #st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
-
-            if picked_customer == NEW_CUSTOMER_LABEL:
-                customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo",
-                                                key="checkout_new_customer_name")
-                customer_phone = st.text_input("Customer Phone (optional)", placeholder="e.g. +2348012345678",
-                                                key="checkout_new_customer_phone")
-            else:
-                _matched = next((c for c in customer_directory if c["name"] == picked_customer), None)
-                customer_name  = picked_customer
-                customer_phone = st.text_input(
-                    "Customer Phone (optional)",
-                    value=(_matched["phone"] if _matched else ""),
-                    key=f"checkout_existing_customer_phone_{picked_customer}",
-                )
-                st.caption("Auto-filled from their last sale — edit if it's changed.")
-
-            with st.form("checkout_form"):
-                payment_method = st.selectbox("Payment Method",
-                                              ["Cash","Bank Transfer","POS","Mobile Money"])
-                sale_note      = st.text_input("Note (optional)", placeholder="e.g. Bulk order")
-                total_display  = fmt_naira(grand_total_preview)
-                confirm_sale   = st.form_submit_button(
-                    f"✅ Record Sale — {total_display}",
-                    type="primary", width='stretch',
-                )
-
-            if confirm_sale:
-                sale_id    = gen_id("SL")
-                sale_time  = datetime.now().isoformat()
-                cart       = st.session_state.cart
-                grand_total    = sum(i["line_total"]   for i in cart)
-                total_discount = sum(i["discount_amt"] for i in cart)
-                total_cost     = sum(i["cost_total"]   for i in cart)
-                total_profit   = sum(i["gross_profit"] for i in cart)
-                # payment_status and amount_paid_now are set above outside the form
-                _pay_status = st.session_state.get("checkout_pay_status", "full")
-                _paid_now   = st.session_state.get("checkout_amount_paid", grand_total) \
-                              if _pay_status == "part" else \
-                              (0.0 if _pay_status == "credit" else grand_total)
-                _cust_phone = customer_phone.strip()
-
-                sale_ok = db_insert(TBL_SALES, {
-                    "sale_id":        sale_id,
-                    "business_id":    business_id,
-                    "product_id":     cart[0]["product_id"],
-                    "product_name":   ", ".join(i["product_name"] for i in cart),
-                    "quantity":       sum(i["quantity"] for i in cart),
-                    "unit_price":     cart[0]["unit_price"],
-                    "total_amount":   grand_total,
-                    "amount_paid":    round(_paid_now, 2),
-                    "payment_status": _pay_status,
-                    "cost_total":     total_cost,
-                    "gross_profit":   total_profit,
-                    "payment_method": payment_method,
-                    "sale_date":      sale_time,
-                    "customer_name":  customer_name.strip(),
-                    "discount_total": total_discount,
-                    "item_count":     len(cart),
-                })
-
-                if sale_ok:
-                    # Bulk-insert all cart lines in one request instead of
-                    # looping db_insert() per item (was N round-trips + N
-                    # cache invalidations for an N-item cart).
-                    db_insert_many(TBL_SALE_ITEMS, [
-                        {
-                            "item_id":      gen_id("ITM"),
-                            "sale_id":      sale_id,
-                            "business_id":  business_id,
-                            "product_id":   item["product_id"],
-                            "product_name": item["product_name"],
-                            "quantity":     item["quantity"],
-                            "unit_price":   item["unit_price"],
-                            "discount_pct": item["discount_pct"],
-                            "discount_amt": item["discount_amt"],
-                            "line_total":   item["line_total"],
-                            "cost_total":   item["cost_total"],
-                            "gross_profit": item["gross_profit"],
-                            # Stock was deducted in BASE units (may be fractional,
-                            # e.g. 0.5 of a 12-pack bag). We must persist this so a
-                            # future void restores the exact same base-unit amount
-                            # instead of guessing from the sold quantity (which is
-                            # in whatever unit — base or sub — the sale was made in).
-                            "stock_deduct": item["stock_deduct"],
-                            "sell_mode":    item["sell_mode"],
-                        }
-                        for item in cart
-                    ])
-                    # Deduct stock — business_id filter satisfies RLS.
-                    # stock_quantity is float8 in Supabase to support sub-unit sales
-                    # (e.g. selling 3 out of a 12-unit bag deducts 0.25 bags).
-                    # ── Pre-commit stock guard (concurrent-use safety) ──────
-                    # Fetch live stock for just the cart's products (not the
-                    # whole catalogue) at commit time and validate every cart
-                    # item before writing anything. If another device sold the
-                    # same product between cart-build and checkout, we catch it
-                    # here and abort cleanly instead of writing negative stock.
-                    live_products = get_products_by_ids(
-                        business_id, [item["product_id"] for item in cart]
-                    )
-                    stock_conflicts = []
-                    if not live_products.empty:
-                        for item in cart:
-                            pr = live_products[
-                                live_products["product_id"] == item["product_id"]
-                            ]
-                            if not pr.empty:
-                                current = safe_float(pr.iloc[0]["stock_quantity"])
-                                deduct  = safe_float(item.get("stock_deduct", item["quantity"]))
-                                if deduct > current:
-                                    upp_chk = safe_int(pr.iloc[0].get("units_per_pack", 1)) or 1
-                                    avail_display = current * upp_chk if item.get("sell_mode") == "sub" else current
-                                    unit_lbl = item.get("unit_label", "unit")
-                                    stock_conflicts.append(
-                                        f"**{item['product_name']}** — only "
-                                        f"{avail_display:.0f} {unit_lbl}(s) left "
-                                        f"(another sale may have just gone through)"
-                                    )
-
-                    if stock_conflicts:
-                        st.error(
-                            "⚠️ **Stock conflict — sale not saved.**\n\n"
-                            "The following items no longer have enough stock:\n\n"
-                            + "\n".join(f"• {c}" for c in stock_conflicts)
-                            + "\n\nPlease remove or reduce those items and try again."
-                        )
-                    else:
-                        # clear_cache=False on each write here — one write per
-                        # cart item is unavoidable (each needs a different new
-                        # stock value), but we only need to invalidate the
-                        # products cache once, after the loop, not N times.
-                        for item in cart:
-                            if not live_products.empty:
-                                pr = live_products[
-                                    live_products["product_id"] == item["product_id"]
-                                ]
-                                if not pr.empty:
-                                    current   = safe_float(pr.iloc[0]["stock_quantity"])
-                                    deduct    = safe_float(item.get("stock_deduct", item["quantity"]))
-                                    raw       = current - deduct
-                                    # Keep fractional stock for sub-unit products (upp > 1),
-                                    # whole numbers only for products sold in full packs only.
-                                    upp       = safe_int(pr.iloc[0].get("units_per_pack", 1)) or 1
-                                    if upp > 1:
-                                        new_stock = round(max(0.0, raw), 4)  # float, e.g. 9.75 bags
-                                    else:
-                                        new_stock = int(max(0, round(raw)))  # integer, e.g. 7 units
-                                    db_update(TBL_PRODUCTS, "product_id", item["product_id"],
-                                              {"stock_quantity": new_stock}, clear_cache=False)
-                        clear_table_cache(TBL_PRODUCTS)
-
-                    # ── Debt recording (part payment or full credit) ──
-                    _balance = round(grand_total - _paid_now, 2)
-                    if _pay_status in ("part", "credit") and _balance > 0:
-                        db_insert(TBL_DEBTS, {
-                            "debt_id":       gen_id("DBT"),
-                            "business_id":   business_id,
-                            "sale_id":       sale_id,
-                            "customer_name": customer_name.strip(),
-                            "customer_phone": _cust_phone,
-                            "total_amount":  grand_total,
-                            "amount_paid":   round(_paid_now, 2),
-                            "balance":       _balance,
-                            "sale_date":     sale_time,
-                            "status":        "partial" if _pay_status == "part" else "unpaid",
-                            "note":          sale_note.strip(),
-                        })
-
-                    st.session_state.sale_done = {
-                        "sale_id":       sale_id,
-                        "sale_time":     sale_time,
-                        "customer_name": customer_name.strip(),
-                        "payment":       payment_method,
-                        "payment_status": _pay_status,
-                        "amount_paid_now": _paid_now,
-                        "balance_owed":  round(grand_total - _paid_now, 2),
-                        "note":          sale_note.strip(),
-                        "items":         cart,
-                        "grand_total":   grand_total,
-                        "discount":      total_discount,
-                        "profit":        total_profit,
-                        "business_name": user.get("business_name", ""),
-                    }
-                    st.session_state.cart = []
-                    # Reset checkout payment state for next sale
-                    st.session_state.pop("checkout_pay_status", None)
-                    st.session_state.pop("checkout_amount_paid", None)
-
-                    # ── Cashbook mirror-write ────────────────────────────
-                    # Only the amount actually collected today counts as cash in —
-                    # a credit balance isn't cash until it's later collected via
-                    # record_debt_payment(), which writes its own entry.
-                    if _paid_now > 0:
-                        log_cashbook_entry(
-                            business_id=business_id, entry_date=sale_time,
-                            entry_type="Sale", direction="In",
-                            amount=_paid_now, payment_method=payment_method,
-                            note=f"Sale to {customer_name.strip() or 'walk-in customer'}",
-                            source_ref=sale_id,
-                            recorded_by=user.get("full_name", user.get("email", "")),
-                        )
-
-                    # ── Activity logging ───────────────────────────────
-                    _sub = user.get("plan_status", "active")
-                    log_activity(business_id, "sale_recorded", _sub)
-                    db_update(
-                        "users", "business_id", business_id,
-                        {"total_transactions": (user.get("total_transactions") or 0) + 1}
-                    )
-                    # ──────────────────────────────────────────────────
-
-                    st.rerun()
-                else:
-                    st.error("Failed to record sale. Please try again.")
-
-            if st.button("🗑️ Clear Cart", width='stretch'):
-                st.session_state.cart      = []
-                st.session_state.sale_done = None
-                st.rerun()
-        else:
-            st.info("Add items to the cart to checkout.")
-
-        # ── Receipt ──
-        if st.session_state.get("sale_done"):
-            rd = st.session_state.sale_done
-            st.markdown("---")
-            section_header("🧾 Receipt")
-
-            _ps      = rd.get("payment_status", "full")
-            _paid    = rd.get("amount_paid_now", rd["grand_total"])
-            _balance = rd.get("balance_owed", 0)
-
-            lines = [
-                f"{'='*38}",
-                f"  {rd['business_name'].upper()}",
-                f"  {datetime.fromisoformat(rd['sale_time']).strftime('%d %b %Y  %H:%M')}",
-                f"  Sale ID: {rd['sale_id']}",
-            ]
-            if rd["customer_name"]:
-                lines.append(f"  Customer: {rd['customer_name']}")
-            lines.append(f"{'='*38}")
-
-            # Items
-            for item in rd["items"]:
-                neg  = item.get("negotiated_price", item["unit_price"])
-                ulbl = item.get("unit_label", "unit")
-                lines.append(f"  {item['product_name'][:22]:<22}")
-                lines.append(f"  {item['quantity']} {ulbl}(s) x {fmt_naira(neg)} = {fmt_naira(item['line_total'])}")
-
-            lines.append(f"{'='*38}")
-            lines.append(f"  TOTAL:        {fmt_naira(rd['grand_total'])}")
-            lines.append(f"  Payment:      {rd['payment']}")
-
-            # Debt / part payment section
-            if _ps == "part":
-                lines.append(f"  {'-'*36}")
-                lines.append(f"  💳 PART PAYMENT")
-                lines.append(f"  Paid Today:   {fmt_naira(_paid)}")
-                lines.append(f"  Balance Owed: {fmt_naira(_balance)}")
-                lines.append(f"  {'-'*36}")
-                lines.append(f"  Please settle the balance at your")
-                lines.append(f"  earliest convenience.")
-            elif _ps == "credit":
-                lines.append(f"  {'-'*36}")
-                lines.append(f"  📕 CREDIT SALE")
-                lines.append(f"  Paid Today:   {fmt_naira(0)}")
-                lines.append(f"  Balance Owed: {fmt_naira(rd['grand_total'])}")
-                lines.append(f"  {'-'*36}")
-                lines.append(f"  Full amount is owed.")
-
-            if rd["note"]:
-                lines.append(f"  Note: {rd['note']}")
-            lines += [
-                f"{'='*38}",
-                "  Thank you for your purchase!",
-                f"{'='*38}",
-            ]
-            st.code("\n".join(lines), language=None)
-
-            # PDF Receipt
-            try:
-                from reportlab.lib.pagesizes import A6
-                from reportlab.lib import colors
-                from reportlab.lib.units import mm
-                from reportlab.platypus import (SimpleDocTemplate, Paragraph,
-                                                Spacer, HRFlowable, Table, TableStyle)
-                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-                from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-                from reportlab.pdfbase import pdfmetrics
-                from reportlab.pdfbase.ttfonts import TTFont
-                import os
-
-                # ── Fonts ──────────────────────────────────────────────────────────
-                _assets     = os.path.join(os.path.dirname(__file__), "..", "assets")
-                _font_path  = os.path.join(_assets, "DejaVuSans.ttf")
-                _fontb_path = os.path.join(_assets, "DejaVuSans-Bold.ttf")
-                try:
-                    pdfmetrics.registerFont(TTFont("DejaVuSans",      _font_path))
-                    pdfmetrics.registerFont(TTFont("DejaVuSans-Bold",  _fontb_path))
-                    _body_font = "DejaVuSans"
-                    _bold_font = "DejaVuSans-Bold"
-                except Exception:
-                    _body_font = "Helvetica"
-                    _bold_font = "Helvetica-Bold"
-
-                # ── Colors ─────────────────────────────────────────────────────────
-                DARK_BG   = colors.HexColor("#0D1117")
-                GOLD      = colors.HexColor("#F5A623")
-                SLATE     = colors.HexColor("#8BA0B8")
-                ROW_ALT   = colors.HexColor("#F7F9FB")
-                RED_DARK  = colors.HexColor("#991B1B")
-                RED_LIGHT = colors.HexColor("#FEF2F2")
-                RED_BORD  = colors.HexColor("#FCA5A5")
-                RULE      = colors.HexColor("#E2E8F0")
-                INK       = colors.HexColor("#0F172A")
-
-                # ── Page ───────────────────────────────────────────────────────────
-                buf = io.BytesIO()
-                doc = SimpleDocTemplate(
-                    buf, pagesize=A6,
-                    leftMargin=10*mm, rightMargin=10*mm,
-                    topMargin=0*mm,   bottomMargin=8*mm,
-                )
-                styl = getSampleStyleSheet()
-
-                def _p(name, font=_body_font, size=8, align=TA_CENTER,
-                       color=INK, sa=1, leading=None):
-                    return ParagraphStyle(
-                        name, parent=styl["Normal"],
-                        fontName=font, fontSize=size,
-                        alignment=align, textColor=color,
-                        spaceAfter=sa, leading=leading or size * 1.4,
-                    )
-
-                S_BIZ    = _p("biz",   _bold_font, 13, TA_CENTER, GOLD,     sa=2)
-                S_META   = _p("meta",  _body_font,  8, TA_CENTER, SLATE,    sa=1)
-                S_NC     = _p("nc",    _body_font,  8, TA_CENTER, INK,      sa=1)
-                S_SMALL  = _p("small", _body_font,  7, TA_CENTER, SLATE,    sa=1)
-                S_ID_L   = _p("idl",   _body_font,  7, TA_LEFT,   SLATE,    sa=0)
-                S_ID_V   = _p("idv",   _bold_font,  7, TA_RIGHT,  INK,      sa=0)
-                S_TH     = _p("th",    _bold_font,  8, TA_LEFT,   SLATE,    sa=0)
-                S_TH_R   = _p("thr",   _bold_font,  8, TA_RIGHT,  SLATE,    sa=0)
-                S_TD     = _p("td",    _body_font,  8, TA_LEFT,   INK,      sa=0)
-                S_TD_R   = _p("tdr",   _body_font,  8, TA_RIGHT,  INK,      sa=0)
-                S_LBL    = _p("lbl",   _body_font,  8, TA_LEFT,   SLATE,    sa=2)
-                S_VAL    = _p("val",   _bold_font,  8, TA_RIGHT,  INK,      sa=2)
-                S_TOTAL  = _p("tot",   _bold_font, 11, TA_CENTER, INK,      sa=2)
-                S_DEBT_H = _p("dh",    _bold_font,  9, TA_CENTER, RED_DARK, sa=2)
-                S_DEBT_B = _p("db",    _bold_font,  8, TA_CENTER, RED_DARK, sa=2)
-                S_DEBT_N = _p("dn",    _body_font,  7, TA_CENTER, SLATE,    sa=1)
-                S_THANKS = _p("thx",   _body_font,  8, TA_CENTER, SLATE,    sa=1)
-                S_POWER  = _p("pwr",   _body_font,  7, TA_CENTER, SLATE,    sa=0)
-
-                story = []
-
-                # ── Dark header band ────────────────────────────────────────────────
-                sale_dt = datetime.fromisoformat(rd["sale_time"]).strftime("%d %b %Y  ·  %H:%M")
-                hdr_rows = [[Paragraph(rd["business_name"].upper(), S_BIZ)],
-                             [Paragraph(sale_dt, S_META)]]
-                if rd.get("customer_name"):
-                    hdr_rows.append([Paragraph(f"Customer: {rd['customer_name']}", S_META)])
-                hdr_tbl = Table(hdr_rows, colWidths=[86*mm])
-                hdr_tbl.setStyle(TableStyle([
-                    ("BACKGROUND",    (0,0), (-1,-1), DARK_BG),
-                    ("TOPPADDING",    (0,0), (-1, 0), 7),
-                    ("BOTTOMPADDING", (0,-1),(-1,-1), 7),
-                    ("TOPPADDING",    (0,1), (-1,-1), 1),
-                    ("BOTTOMPADDING", (0,0), (-1,-2), 1),
-                    ("LEFTPADDING",   (0,0), (-1,-1), 6),
-                    ("RIGHTPADDING",  (0,0), (-1,-1), 6),
-                ]))
-                story.append(hdr_tbl)
-
-                # ── Currency symbol for this receipt ────────────────────────────────
-                _cs = st.session_state.get("currency_symbol", "₦")
-
-                # ── Sale ID row ─────────────────────────────────────────────────────
-                id_tbl = Table(
-                    [[Paragraph("Sale ID", S_ID_L), Paragraph(rd["sale_id"], S_ID_V)]],
-                    colWidths=[43*mm, 43*mm],
-                )
-                id_tbl.setStyle(TableStyle([
-                    ("BACKGROUND",    (0,0), (-1,-1), ROW_ALT),
-                    ("TOPPADDING",    (0,0), (-1,-1), 4),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-                    ("LEFTPADDING",   (0,0), (-1,-1), 6),
-                    ("RIGHTPADDING",  (0,0), (-1,-1), 6),
-                    ("LINEBELOW",     (0,0), (-1,-1), 0.5, RULE),
-                ]))
-                story.append(id_tbl)
-                story.append(Spacer(1, 3*mm))
-
-                # ── Items table ─────────────────────────────────────────────────────
-                tdata = [[
-                    Paragraph("Item",  S_TH),
-                    Paragraph("Qty",   S_TH_R),
-                    Paragraph("Price", S_TH_R),
-                    Paragraph("Total", S_TH_R),
-                ]]
-                for item in rd["items"]:
-                    neg = item.get("negotiated_price", item["unit_price"])
-                    tdata.append([
-                        Paragraph(item["product_name"][:20], S_TD),
-                        Paragraph(str(item["quantity"]),     S_TD_R),
-                        Paragraph(f"{_cs}{neg:,.0f}",           S_TD_R),
-                        Paragraph(f"{_cs}{item['line_total']:,.0f}", S_TD_R),
-                    ])
-                items_tbl = Table(tdata, colWidths=[42*mm, 10*mm, 17*mm, 17*mm])
-                items_tbl.setStyle(TableStyle([
-                    ("FONTSIZE",       (0,0), (-1,-1), 8),
-                    ("LINEBELOW",      (0,0), (-1, 0), 0.5, RULE),
-                    ("LINEBELOW",      (0,1), (-1,-1), 0.3, RULE),
-                    ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, ROW_ALT]),
-                    ("TOPPADDING",     (0,0), (-1,-1), 4),
-                    ("BOTTOMPADDING",  (0,0), (-1,-1), 4),
-                    ("LEFTPADDING",    (0,0), (-1,-1), 0),
-                    ("RIGHTPADDING",   (0,0), (-1,-1), 0),
-                ]))
-                story.append(items_tbl)
-                story.append(Spacer(1, 3*mm))
-
-                # ── Totals ──────────────────────────────────────────────────────────
-                tot_rows = [[Paragraph("Payment method", S_LBL),
-                              Paragraph(rd["payment"], S_VAL)]]
-                if rd.get("discount", 0) > 0:
-                    tot_rows.append([Paragraph("Discount", S_LBL),
-                                     Paragraph(f"–{_cs}{rd['discount']:,.0f}", S_VAL)])
-                tot_tbl = Table(tot_rows, colWidths=[50*mm, 36*mm])
-                tot_tbl.setStyle(TableStyle([
-                    ("TOPPADDING",    (0,0), (-1,-1), 3),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 3),
-                    ("LEFTPADDING",   (0,0), (-1,-1), 0),
-                    ("RIGHTPADDING",  (0,0), (-1,-1), 0),
-                ]))
-                story.append(tot_tbl)
-                story.append(HRFlowable(width="100%", thickness=0.5, color=RULE))
-                story.append(Spacer(1, 2*mm))
-                story.append(Paragraph(f"Total  {_cs}{rd['grand_total']:,.0f}", S_TOTAL))
-                story.append(Spacer(1, 3*mm))
-
-                # ── Part payment / credit block ─────────────────────────────────────
-                _ps_pdf   = rd.get("payment_status", "full")
-                _paid_pdf = float(rd.get("amount_paid_now", rd["grand_total"]) or 0)
-                _bal_pdf  = float(rd.get("balance_owed", 0) or 0)
-
-                if _ps_pdf in ("part", "credit"):
-                    if _ps_pdf == "part":
-                        _label     = "PART PAYMENT"
-                        _paid_line = f"Paid Today:   {_cs}{_paid_pdf:,.0f}"
-                        _bal_line  = f"Balance Owed: {_cs}{_bal_pdf:,.0f}"
-                    else:
-                        _label     = "CREDIT SALE"
-                        _paid_line = f"Paid Today:   {_cs}0"
-                        _bal_line  = f"Balance Owed: {_cs}{rd['grand_total']:,.0f}"
-                    _note_line = "Please settle the balance as soon as possible."
-
-                    debt_rows = [
-                        [Paragraph(_label,     S_DEBT_H)],
-                        [Paragraph(_paid_line, S_DEBT_B)],
-                        [Paragraph(_bal_line,  S_DEBT_B)],
-                        [Paragraph(_note_line, S_DEBT_N)],
-                    ]
-                    debt_tbl = Table(debt_rows, colWidths=[86*mm])
-                    debt_tbl.setStyle(TableStyle([
-                        ("BACKGROUND",    (0,0), (-1,-1), RED_LIGHT),
-                        ("BOX",           (0,0), (-1,-1), 0.5, RED_BORD),
-                        ("LINEBELOW",     (0,2), (-1, 2), 0.5, RED_BORD),
-                        ("TOPPADDING",    (0,0), (-1, 0), 6),
-                        ("BOTTOMPADDING", (0,-1),(-1,-1), 6),
-                        ("TOPPADDING",    (0,1), (-1,-1), 2),
-                        ("BOTTOMPADDING", (0,0), (-1,-2), 2),
-                        ("LEFTPADDING",   (0,0), (-1,-1), 6),
-                        ("RIGHTPADDING",  (0,0), (-1,-1), 6),
-                    ]))
-                    story.append(debt_tbl)
-                    story.append(Spacer(1, 3*mm))
-
-                # ── Note ────────────────────────────────────────────────────────────
-                _note = rd.get("note") or ""
-                if _note.strip():
-                    story.append(Paragraph(f"Note: {_note}", S_SMALL))
-                    story.append(Spacer(1, 2*mm))
-
-                # ── Footer ──────────────────────────────────────────────────────────
-                story.append(HRFlowable(width="100%", thickness=0.5, color=RULE))
-                story.append(Spacer(1, 2*mm))
-                story.append(Paragraph("Thank you for your purchase!", S_THANKS))
-                story.append(Paragraph("Powered by BizTrack-OS", S_POWER))
-
-                doc.build(story)
-                pdf_bytes = buf.getvalue()
-                fname = (f"receipt_{rd['sale_id']}_"
-                         f"{datetime.fromisoformat(rd['sale_time']).strftime('%Y%m%d_%H%M')}.pdf")
-                st.download_button("📄 Download PDF Receipt", data=pdf_bytes,
-                                   file_name=fname, mime="application/pdf",
-                                   width='stretch', type="primary")
-
-                item_lines = ", ".join(
-                    f"{i['product_name']} x{i['quantity']}" for i in rd["items"]
-                )
-                _wa_ps   = rd.get("payment_status", "full")
-                _wa_paid = rd.get("amount_paid_now", rd["grand_total"])
-                _wa_bal  = rd.get("balance_owed", 0)
-
-                _wa_cs  = st.session_state.get("currency_symbol", "₦")
-                wa_text = (
-                    f"Receipt from {rd['business_name']}\n"
-                    f"Date: {datetime.fromisoformat(rd['sale_time']).strftime('%d %b %Y %H:%M')}\n"
-                    f"Items: {item_lines}\n"
-                    f"Total: {_wa_cs}{rd['grand_total']:,.0f}\n"
-                    f"Payment: {rd['payment']}\n"
-                )
-                if _wa_ps == "part":
-                    wa_text += (
-                        f"--- PART PAYMENT ---\n"
-                        f"Paid Today: {_wa_cs}{_wa_paid:,.0f}\n"
-                        f"Balance Owed: {_wa_cs}{_wa_bal:,.0f}\n"
-                        f"Please settle the balance as soon as possible.\n"
-                    )
-                elif _wa_ps == "credit":
-                    wa_text += (
-                        f"--- CREDIT SALE ---\n"
-                        f"Balance Owed: {_wa_cs}{rd['grand_total']:,.0f}\n"
-                        f"Full amount is owed. Please settle the balance as soon as possible.\n"
-                    )
-                wa_text += "Thank you!"
-                wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
-                st.markdown(
-                    f"""<a href="{wa_url}" target="_blank"
-                        style="display:block;text-align:center;background:#25D366;
-                               color:white;padding:0.6rem;border-radius:8px;
-                               font-weight:600;text-decoration:none;margin-top:0.5rem;">
-                        💬 Share via WhatsApp</a>""",
-                    unsafe_allow_html=True,
-                )
-            except ImportError:
-                st.warning("Install reportlab for PDF receipts: pip install reportlab")
-            except Exception as _pdf_err:
-                st.error(f"PDF receipt error: {_pdf_err}")
+        _checkout_fragment(business_id, user)
 
     # ── Today's Sales ──
     st.markdown("---")
@@ -1307,6 +715,622 @@ def page_record_sale():
             st.markdown(f"• **{r['product_name']}** = {fmt_naira(r['total_amount'])} _{r['payment_method']}_")
 
 
+@st.fragment
+def _checkout_fragment(business_id, user):
+    """
+    Checkout (right-hand column of Record Sale), isolated in its own
+    fragment. Before this, every interaction here — payment status,
+    customer picker, amount paid — reran the entire page, which forced
+    get_customer_directory() (an all-time sales+debts rebuild — see its
+    docstring) to recompute on every click, not just when a sale actually
+    completes.
+
+    Two actions here deliberately escape the fragment with
+    st.rerun(scope="app") instead of the (fragment-scoped-by-default)
+    plain st.rerun(): completing a sale and clearing the cart both reset
+    st.session_state.cart, which the SEPARATE cart-builder fragment in
+    col1 (_build_cart_fragment) needs to see reflected — a fragment-scoped
+    rerun here would leave col1 showing stale cart contents until it
+    happened to rerun for some unrelated reason. Every other interaction
+    in this fragment (payment method, customer selection, etc.) stays
+    fragment-scoped by Streamlit's default behavior, no code change
+    needed for those.
+    """
+    section_header("💳 Checkout")
+
+    if st.session_state.cart:
+        # ── Payment status lives OUTSIDE the form so it re-renders reactively ──
+        grand_total_preview = sum(i["line_total"] for i in st.session_state.cart)
+
+        if "checkout_pay_status" not in st.session_state:
+            st.session_state.checkout_pay_status = "full"
+
+        payment_status = st.radio(
+            "Payment Status: 👇Select how customer is paying for the product",
+            options=["full", "part", "credit"],
+            format_func=lambda x: {
+                "full":   "✅ Full Payment",
+                "part":   "💳 Part Payment",
+                "credit": "📕 Credit (Owes Full Amount)",
+            }[x],
+            horizontal=True,
+            key="checkout_pay_status",
+            help="Select whether the customer paid in full, partially, or owes the full amount.",
+        )
+
+        # Amount paid input — only shown for part payment, also outside the form
+        if payment_status == "part":
+            amount_paid_now = st.number_input(
+                "Amount Paid Now (" + st.session_state.get("currency_symbol","₦") + ")",
+                min_value=0.0,
+                max_value=float(grand_total_preview),
+                value=0.0,
+                step=100.0,
+                key="checkout_amount_paid",
+                help="Enter how much the customer is paying now. The rest becomes a debt.",
+            )
+        elif payment_status == "credit":
+            amount_paid_now = 0.0
+            st.info("📕 The full amount will be recorded as a debt for this customer.")
+        else:
+            amount_paid_now = grand_total_preview
+
+        st.markdown("---")
+
+        # ── Customer picker lives OUTSIDE the form so choosing an
+        # existing customer reactively fills their phone in below,
+        # same reactivity pattern as payment_status above ──
+        NEW_CUSTOMER_LABEL = "🧑‍🌾 select or type customer name"
+        customer_directory = get_customer_directory(business_id)
+        customer_options   = [NEW_CUSTOMER_LABEL] + [c["name"] for c in customer_directory]
+
+        picked_customer = st.selectbox(
+            "👨‍👩‍👧‍👧 Customers: Select & Sell to an Existing Customer",
+            options=customer_options,
+            key="checkout_customer_pick",
+        )
+        #st.caption("Type to search an existing customer, or pick 'New / walk-in customer' to add one.")
+
+        if picked_customer == NEW_CUSTOMER_LABEL:
+            customer_name  = st.text_input("Customer Name (optional)", placeholder="e.g. Obi Tayo",
+                                            key="checkout_new_customer_name")
+            customer_phone = st.text_input("Customer Phone (optional)", placeholder="e.g. +2348012345678",
+                                            key="checkout_new_customer_phone")
+        else:
+            _matched = next((c for c in customer_directory if c["name"] == picked_customer), None)
+            customer_name  = picked_customer
+            customer_phone = st.text_input(
+                "Customer Phone (optional)",
+                value=(_matched["phone"] if _matched else ""),
+                key=f"checkout_existing_customer_phone_{picked_customer}",
+            )
+            st.caption("Auto-filled from their last sale — edit if it's changed.")
+
+        with st.form("checkout_form"):
+            payment_method = st.selectbox("Payment Method",
+                                          ["Cash","Bank Transfer","POS","Mobile Money"])
+            sale_note      = st.text_input("Note (optional)", placeholder="e.g. Bulk order")
+            total_display  = fmt_naira(grand_total_preview)
+            confirm_sale   = st.form_submit_button(
+                f"✅ Record Sale — {total_display}",
+                type="primary", width='stretch',
+            )
+
+        if confirm_sale:
+            sale_id    = gen_id("SL")
+            sale_time  = datetime.now().isoformat()
+            cart       = st.session_state.cart
+            grand_total    = sum(i["line_total"]   for i in cart)
+            total_discount = sum(i["discount_amt"] for i in cart)
+            total_cost     = sum(i["cost_total"]   for i in cart)
+            total_profit   = sum(i["gross_profit"] for i in cart)
+            # payment_status and amount_paid_now are set above outside the form
+            _pay_status = st.session_state.get("checkout_pay_status", "full")
+            _paid_now   = st.session_state.get("checkout_amount_paid", grand_total) \
+                          if _pay_status == "part" else \
+                          (0.0 if _pay_status == "credit" else grand_total)
+            _cust_phone = customer_phone.strip()
+
+            sale_ok = db_insert(TBL_SALES, {
+                "sale_id":        sale_id,
+                "business_id":    business_id,
+                "product_id":     cart[0]["product_id"],
+                "product_name":   ", ".join(i["product_name"] for i in cart),
+                "quantity":       sum(i["quantity"] for i in cart),
+                "unit_price":     cart[0]["unit_price"],
+                "total_amount":   grand_total,
+                "amount_paid":    round(_paid_now, 2),
+                "payment_status": _pay_status,
+                "cost_total":     total_cost,
+                "gross_profit":   total_profit,
+                "payment_method": payment_method,
+                "sale_date":      sale_time,
+                "customer_name":  customer_name.strip(),
+                "discount_total": total_discount,
+                "item_count":     len(cart),
+            })
+
+            if sale_ok:
+                # Bulk-insert all cart lines in one request instead of
+                # looping db_insert() per item (was N round-trips + N
+                # cache invalidations for an N-item cart).
+                db_insert_many(TBL_SALE_ITEMS, [
+                    {
+                        "item_id":      gen_id("ITM"),
+                        "sale_id":      sale_id,
+                        "business_id":  business_id,
+                        "product_id":   item["product_id"],
+                        "product_name": item["product_name"],
+                        "quantity":     item["quantity"],
+                        "unit_price":   item["unit_price"],
+                        "discount_pct": item["discount_pct"],
+                        "discount_amt": item["discount_amt"],
+                        "line_total":   item["line_total"],
+                        "cost_total":   item["cost_total"],
+                        "gross_profit": item["gross_profit"],
+                        # Stock was deducted in BASE units (may be fractional,
+                        # e.g. 0.5 of a 12-pack bag). We must persist this so a
+                        # future void restores the exact same base-unit amount
+                        # instead of guessing from the sold quantity (which is
+                        # in whatever unit — base or sub — the sale was made in).
+                        "stock_deduct": item["stock_deduct"],
+                        "sell_mode":    item["sell_mode"],
+                    }
+                    for item in cart
+                ])
+                # Deduct stock — business_id filter satisfies RLS.
+                # stock_quantity is float8 in Supabase to support sub-unit sales
+                # (e.g. selling 3 out of a 12-unit bag deducts 0.25 bags).
+                # ── Pre-commit stock guard (concurrent-use safety) ──────
+                # Fetch live stock for just the cart's products (not the
+                # whole catalogue) at commit time and validate every cart
+                # item before writing anything. If another device sold the
+                # same product between cart-build and checkout, we catch it
+                # here and abort cleanly instead of writing negative stock.
+                live_products = get_products_by_ids(
+                    business_id, [item["product_id"] for item in cart]
+                )
+                stock_conflicts = []
+                if not live_products.empty:
+                    for item in cart:
+                        pr = live_products[
+                            live_products["product_id"] == item["product_id"]
+                        ]
+                        if not pr.empty:
+                            current = safe_float(pr.iloc[0]["stock_quantity"])
+                            deduct  = safe_float(item.get("stock_deduct", item["quantity"]))
+                            if deduct > current:
+                                upp_chk = safe_int(pr.iloc[0].get("units_per_pack", 1)) or 1
+                                avail_display = current * upp_chk if item.get("sell_mode") == "sub" else current
+                                unit_lbl = item.get("unit_label", "unit")
+                                stock_conflicts.append(
+                                    f"**{item['product_name']}** — only "
+                                    f"{avail_display:.0f} {unit_lbl}(s) left "
+                                    f"(another sale may have just gone through)"
+                                )
+
+                if stock_conflicts:
+                    st.error(
+                        "⚠️ **Stock conflict — sale not saved.**\n\n"
+                        "The following items no longer have enough stock:\n\n"
+                        + "\n".join(f"• {c}" for c in stock_conflicts)
+                        + "\n\nPlease remove or reduce those items and try again."
+                    )
+                else:
+                    # clear_cache=False on each write here — one write per
+                    # cart item is unavoidable (each needs a different new
+                    # stock value), but we only need to invalidate the
+                    # products cache once, after the loop, not N times.
+                    for item in cart:
+                        if not live_products.empty:
+                            pr = live_products[
+                                live_products["product_id"] == item["product_id"]
+                            ]
+                            if not pr.empty:
+                                current   = safe_float(pr.iloc[0]["stock_quantity"])
+                                deduct    = safe_float(item.get("stock_deduct", item["quantity"]))
+                                raw       = current - deduct
+                                # Keep fractional stock for sub-unit products (upp > 1),
+                                # whole numbers only for products sold in full packs only.
+                                upp       = safe_int(pr.iloc[0].get("units_per_pack", 1)) or 1
+                                if upp > 1:
+                                    new_stock = round(max(0.0, raw), 4)  # float, e.g. 9.75 bags
+                                else:
+                                    new_stock = int(max(0, round(raw)))  # integer, e.g. 7 units
+                                db_update(TBL_PRODUCTS, "product_id", item["product_id"],
+                                          {"stock_quantity": new_stock}, clear_cache=False)
+                    clear_table_cache(TBL_PRODUCTS)
+
+                # ── Debt recording (part payment or full credit) ──
+                _balance = round(grand_total - _paid_now, 2)
+                if _pay_status in ("part", "credit") and _balance > 0:
+                    db_insert(TBL_DEBTS, {
+                        "debt_id":       gen_id("DBT"),
+                        "business_id":   business_id,
+                        "sale_id":       sale_id,
+                        "customer_name": customer_name.strip(),
+                        "customer_phone": _cust_phone,
+                        "total_amount":  grand_total,
+                        "amount_paid":   round(_paid_now, 2),
+                        "balance":       _balance,
+                        "sale_date":     sale_time,
+                        "status":        "partial" if _pay_status == "part" else "unpaid",
+                        "note":          sale_note.strip(),
+                    })
+
+                st.session_state.sale_done = {
+                    "sale_id":       sale_id,
+                    "sale_time":     sale_time,
+                    "customer_name": customer_name.strip(),
+                    "payment":       payment_method,
+                    "payment_status": _pay_status,
+                    "amount_paid_now": _paid_now,
+                    "balance_owed":  round(grand_total - _paid_now, 2),
+                    "note":          sale_note.strip(),
+                    "items":         cart,
+                    "grand_total":   grand_total,
+                    "discount":      total_discount,
+                    "profit":        total_profit,
+                    "business_name": user.get("business_name", ""),
+                }
+                st.session_state.cart = []
+                # Reset checkout payment state for next sale
+                st.session_state.pop("checkout_pay_status", None)
+                st.session_state.pop("checkout_amount_paid", None)
+
+                # ── Cashbook mirror-write ────────────────────────────
+                # Only the amount actually collected today counts as cash in —
+                # a credit balance isn't cash until it's later collected via
+                # record_debt_payment(), which writes its own entry.
+                if _paid_now > 0:
+                    log_cashbook_entry(
+                        business_id=business_id, entry_date=sale_time,
+                        entry_type="Sale", direction="In",
+                        amount=_paid_now, payment_method=payment_method,
+                        note=f"Sale to {customer_name.strip() or 'walk-in customer'}",
+                        source_ref=sale_id,
+                        recorded_by=user.get("full_name", user.get("email", "")),
+                    )
+
+                # ── Activity logging ───────────────────────────────
+                _sub = user.get("plan_status", "active")
+                log_activity(business_id, "sale_recorded", _sub)
+                db_update(
+                    "users", "business_id", business_id,
+                    {"total_transactions": (user.get("total_transactions") or 0) + 1}
+                )
+                # ──────────────────────────────────────────────────
+
+                st.rerun(scope="app")  # cart state (col1) must reflect this
+            else:
+                st.error("Failed to record sale. Please try again.")
+
+        if st.button("🗑️ Clear Cart", width='stretch'):
+            st.session_state.cart      = []
+            st.session_state.sale_done = None
+            st.rerun(scope="app")  # cart state (col1) must reflect this
+    else:
+        st.info("Add items to the cart to checkout.")
+
+    # ── Receipt ──
+    if st.session_state.get("sale_done"):
+        rd = st.session_state.sale_done
+        st.markdown("---")
+        section_header("🧾 Receipt")
+
+        _ps      = rd.get("payment_status", "full")
+        _paid    = rd.get("amount_paid_now", rd["grand_total"])
+        _balance = rd.get("balance_owed", 0)
+
+        lines = [
+            f"{'='*38}",
+            f"  {rd['business_name'].upper()}",
+            f"  {datetime.fromisoformat(rd['sale_time']).strftime('%d %b %Y  %H:%M')}",
+            f"  Sale ID: {rd['sale_id']}",
+        ]
+        if rd["customer_name"]:
+            lines.append(f"  Customer: {rd['customer_name']}")
+        lines.append(f"{'='*38}")
+
+        # Items
+        for item in rd["items"]:
+            neg  = item.get("negotiated_price", item["unit_price"])
+            ulbl = item.get("unit_label", "unit")
+            lines.append(f"  {item['product_name'][:22]:<22}")
+            lines.append(f"  {item['quantity']} {ulbl}(s) x {fmt_naira(neg)} = {fmt_naira(item['line_total'])}")
+
+        lines.append(f"{'='*38}")
+        lines.append(f"  TOTAL:        {fmt_naira(rd['grand_total'])}")
+        lines.append(f"  Payment:      {rd['payment']}")
+
+        # Debt / part payment section
+        if _ps == "part":
+            lines.append(f"  {'-'*36}")
+            lines.append(f"  💳 PART PAYMENT")
+            lines.append(f"  Paid Today:   {fmt_naira(_paid)}")
+            lines.append(f"  Balance Owed: {fmt_naira(_balance)}")
+            lines.append(f"  {'-'*36}")
+            lines.append(f"  Please settle the balance at your")
+            lines.append(f"  earliest convenience.")
+        elif _ps == "credit":
+            lines.append(f"  {'-'*36}")
+            lines.append(f"  📕 CREDIT SALE")
+            lines.append(f"  Paid Today:   {fmt_naira(0)}")
+            lines.append(f"  Balance Owed: {fmt_naira(rd['grand_total'])}")
+            lines.append(f"  {'-'*36}")
+            lines.append(f"  Full amount is owed.")
+
+        if rd["note"]:
+            lines.append(f"  Note: {rd['note']}")
+        lines += [
+            f"{'='*38}",
+            "  Thank you for your purchase!",
+            f"{'='*38}",
+        ]
+        st.code("\n".join(lines), language=None)
+
+        # PDF Receipt
+        try:
+            from reportlab.lib.pagesizes import A6
+            from reportlab.lib import colors
+            from reportlab.lib.units import mm
+            from reportlab.platypus import (SimpleDocTemplate, Paragraph,
+                                            Spacer, HRFlowable, Table, TableStyle)
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+            from reportlab.pdfbase import pdfmetrics
+            from reportlab.pdfbase.ttfonts import TTFont
+            import os
+
+            # ── Fonts ──────────────────────────────────────────────────────────
+            _assets     = os.path.join(os.path.dirname(__file__), "..", "assets")
+            _font_path  = os.path.join(_assets, "DejaVuSans.ttf")
+            _fontb_path = os.path.join(_assets, "DejaVuSans-Bold.ttf")
+            try:
+                pdfmetrics.registerFont(TTFont("DejaVuSans",      _font_path))
+                pdfmetrics.registerFont(TTFont("DejaVuSans-Bold",  _fontb_path))
+                _body_font = "DejaVuSans"
+                _bold_font = "DejaVuSans-Bold"
+            except Exception:
+                _body_font = "Helvetica"
+                _bold_font = "Helvetica-Bold"
+
+            # ── Colors ─────────────────────────────────────────────────────────
+            DARK_BG   = colors.HexColor("#0D1117")
+            GOLD      = colors.HexColor("#F5A623")
+            SLATE     = colors.HexColor("#8BA0B8")
+            ROW_ALT   = colors.HexColor("#F7F9FB")
+            RED_DARK  = colors.HexColor("#991B1B")
+            RED_LIGHT = colors.HexColor("#FEF2F2")
+            RED_BORD  = colors.HexColor("#FCA5A5")
+            RULE      = colors.HexColor("#E2E8F0")
+            INK       = colors.HexColor("#0F172A")
+
+            # ── Page ───────────────────────────────────────────────────────────
+            buf = io.BytesIO()
+            doc = SimpleDocTemplate(
+                buf, pagesize=A6,
+                leftMargin=10*mm, rightMargin=10*mm,
+                topMargin=0*mm,   bottomMargin=8*mm,
+            )
+            styl = getSampleStyleSheet()
+
+            def _p(name, font=_body_font, size=8, align=TA_CENTER,
+                   color=INK, sa=1, leading=None):
+                return ParagraphStyle(
+                    name, parent=styl["Normal"],
+                    fontName=font, fontSize=size,
+                    alignment=align, textColor=color,
+                    spaceAfter=sa, leading=leading or size * 1.4,
+                )
+
+            S_BIZ    = _p("biz",   _bold_font, 13, TA_CENTER, GOLD,     sa=2)
+            S_META   = _p("meta",  _body_font,  8, TA_CENTER, SLATE,    sa=1)
+            S_NC     = _p("nc",    _body_font,  8, TA_CENTER, INK,      sa=1)
+            S_SMALL  = _p("small", _body_font,  7, TA_CENTER, SLATE,    sa=1)
+            S_ID_L   = _p("idl",   _body_font,  7, TA_LEFT,   SLATE,    sa=0)
+            S_ID_V   = _p("idv",   _bold_font,  7, TA_RIGHT,  INK,      sa=0)
+            S_TH     = _p("th",    _bold_font,  8, TA_LEFT,   SLATE,    sa=0)
+            S_TH_R   = _p("thr",   _bold_font,  8, TA_RIGHT,  SLATE,    sa=0)
+            S_TD     = _p("td",    _body_font,  8, TA_LEFT,   INK,      sa=0)
+            S_TD_R   = _p("tdr",   _body_font,  8, TA_RIGHT,  INK,      sa=0)
+            S_LBL    = _p("lbl",   _body_font,  8, TA_LEFT,   SLATE,    sa=2)
+            S_VAL    = _p("val",   _bold_font,  8, TA_RIGHT,  INK,      sa=2)
+            S_TOTAL  = _p("tot",   _bold_font, 11, TA_CENTER, INK,      sa=2)
+            S_DEBT_H = _p("dh",    _bold_font,  9, TA_CENTER, RED_DARK, sa=2)
+            S_DEBT_B = _p("db",    _bold_font,  8, TA_CENTER, RED_DARK, sa=2)
+            S_DEBT_N = _p("dn",    _body_font,  7, TA_CENTER, SLATE,    sa=1)
+            S_THANKS = _p("thx",   _body_font,  8, TA_CENTER, SLATE,    sa=1)
+            S_POWER  = _p("pwr",   _body_font,  7, TA_CENTER, SLATE,    sa=0)
+
+            story = []
+
+            # ── Dark header band ────────────────────────────────────────────────
+            sale_dt = datetime.fromisoformat(rd["sale_time"]).strftime("%d %b %Y  ·  %H:%M")
+            hdr_rows = [[Paragraph(rd["business_name"].upper(), S_BIZ)],
+                         [Paragraph(sale_dt, S_META)]]
+            if rd.get("customer_name"):
+                hdr_rows.append([Paragraph(f"Customer: {rd['customer_name']}", S_META)])
+            hdr_tbl = Table(hdr_rows, colWidths=[86*mm])
+            hdr_tbl.setStyle(TableStyle([
+                ("BACKGROUND",    (0,0), (-1,-1), DARK_BG),
+                ("TOPPADDING",    (0,0), (-1, 0), 7),
+                ("BOTTOMPADDING", (0,-1),(-1,-1), 7),
+                ("TOPPADDING",    (0,1), (-1,-1), 1),
+                ("BOTTOMPADDING", (0,0), (-1,-2), 1),
+                ("LEFTPADDING",   (0,0), (-1,-1), 6),
+                ("RIGHTPADDING",  (0,0), (-1,-1), 6),
+            ]))
+            story.append(hdr_tbl)
+
+            # ── Currency symbol for this receipt ────────────────────────────────
+            _cs = st.session_state.get("currency_symbol", "₦")
+
+            # ── Sale ID row ─────────────────────────────────────────────────────
+            id_tbl = Table(
+                [[Paragraph("Sale ID", S_ID_L), Paragraph(rd["sale_id"], S_ID_V)]],
+                colWidths=[43*mm, 43*mm],
+            )
+            id_tbl.setStyle(TableStyle([
+                ("BACKGROUND",    (0,0), (-1,-1), ROW_ALT),
+                ("TOPPADDING",    (0,0), (-1,-1), 4),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+                ("LEFTPADDING",   (0,0), (-1,-1), 6),
+                ("RIGHTPADDING",  (0,0), (-1,-1), 6),
+                ("LINEBELOW",     (0,0), (-1,-1), 0.5, RULE),
+            ]))
+            story.append(id_tbl)
+            story.append(Spacer(1, 3*mm))
+
+            # ── Items table ─────────────────────────────────────────────────────
+            tdata = [[
+                Paragraph("Item",  S_TH),
+                Paragraph("Qty",   S_TH_R),
+                Paragraph("Price", S_TH_R),
+                Paragraph("Total", S_TH_R),
+            ]]
+            for item in rd["items"]:
+                neg = item.get("negotiated_price", item["unit_price"])
+                tdata.append([
+                    Paragraph(item["product_name"][:20], S_TD),
+                    Paragraph(str(item["quantity"]),     S_TD_R),
+                    Paragraph(f"{_cs}{neg:,.0f}",           S_TD_R),
+                    Paragraph(f"{_cs}{item['line_total']:,.0f}", S_TD_R),
+                ])
+            items_tbl = Table(tdata, colWidths=[42*mm, 10*mm, 17*mm, 17*mm])
+            items_tbl.setStyle(TableStyle([
+                ("FONTSIZE",       (0,0), (-1,-1), 8),
+                ("LINEBELOW",      (0,0), (-1, 0), 0.5, RULE),
+                ("LINEBELOW",      (0,1), (-1,-1), 0.3, RULE),
+                ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, ROW_ALT]),
+                ("TOPPADDING",     (0,0), (-1,-1), 4),
+                ("BOTTOMPADDING",  (0,0), (-1,-1), 4),
+                ("LEFTPADDING",    (0,0), (-1,-1), 0),
+                ("RIGHTPADDING",   (0,0), (-1,-1), 0),
+            ]))
+            story.append(items_tbl)
+            story.append(Spacer(1, 3*mm))
+
+            # ── Totals ──────────────────────────────────────────────────────────
+            tot_rows = [[Paragraph("Payment method", S_LBL),
+                          Paragraph(rd["payment"], S_VAL)]]
+            if rd.get("discount", 0) > 0:
+                tot_rows.append([Paragraph("Discount", S_LBL),
+                                 Paragraph(f"–{_cs}{rd['discount']:,.0f}", S_VAL)])
+            tot_tbl = Table(tot_rows, colWidths=[50*mm, 36*mm])
+            tot_tbl.setStyle(TableStyle([
+                ("TOPPADDING",    (0,0), (-1,-1), 3),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+                ("LEFTPADDING",   (0,0), (-1,-1), 0),
+                ("RIGHTPADDING",  (0,0), (-1,-1), 0),
+            ]))
+            story.append(tot_tbl)
+            story.append(HRFlowable(width="100%", thickness=0.5, color=RULE))
+            story.append(Spacer(1, 2*mm))
+            story.append(Paragraph(f"Total  {_cs}{rd['grand_total']:,.0f}", S_TOTAL))
+            story.append(Spacer(1, 3*mm))
+
+            # ── Part payment / credit block ─────────────────────────────────────
+            _ps_pdf   = rd.get("payment_status", "full")
+            _paid_pdf = float(rd.get("amount_paid_now", rd["grand_total"]) or 0)
+            _bal_pdf  = float(rd.get("balance_owed", 0) or 0)
+
+            if _ps_pdf in ("part", "credit"):
+                if _ps_pdf == "part":
+                    _label     = "PART PAYMENT"
+                    _paid_line = f"Paid Today:   {_cs}{_paid_pdf:,.0f}"
+                    _bal_line  = f"Balance Owed: {_cs}{_bal_pdf:,.0f}"
+                else:
+                    _label     = "CREDIT SALE"
+                    _paid_line = f"Paid Today:   {_cs}0"
+                    _bal_line  = f"Balance Owed: {_cs}{rd['grand_total']:,.0f}"
+                _note_line = "Please settle the balance as soon as possible."
+
+                debt_rows = [
+                    [Paragraph(_label,     S_DEBT_H)],
+                    [Paragraph(_paid_line, S_DEBT_B)],
+                    [Paragraph(_bal_line,  S_DEBT_B)],
+                    [Paragraph(_note_line, S_DEBT_N)],
+                ]
+                debt_tbl = Table(debt_rows, colWidths=[86*mm])
+                debt_tbl.setStyle(TableStyle([
+                    ("BACKGROUND",    (0,0), (-1,-1), RED_LIGHT),
+                    ("BOX",           (0,0), (-1,-1), 0.5, RED_BORD),
+                    ("LINEBELOW",     (0,2), (-1, 2), 0.5, RED_BORD),
+                    ("TOPPADDING",    (0,0), (-1, 0), 6),
+                    ("BOTTOMPADDING", (0,-1),(-1,-1), 6),
+                    ("TOPPADDING",    (0,1), (-1,-1), 2),
+                    ("BOTTOMPADDING", (0,0), (-1,-2), 2),
+                    ("LEFTPADDING",   (0,0), (-1,-1), 6),
+                    ("RIGHTPADDING",  (0,0), (-1,-1), 6),
+                ]))
+                story.append(debt_tbl)
+                story.append(Spacer(1, 3*mm))
+
+            # ── Note ────────────────────────────────────────────────────────────
+            _note = rd.get("note") or ""
+            if _note.strip():
+                story.append(Paragraph(f"Note: {_note}", S_SMALL))
+                story.append(Spacer(1, 2*mm))
+
+            # ── Footer ──────────────────────────────────────────────────────────
+            story.append(HRFlowable(width="100%", thickness=0.5, color=RULE))
+            story.append(Spacer(1, 2*mm))
+            story.append(Paragraph("Thank you for your purchase!", S_THANKS))
+            story.append(Paragraph("Powered by BizTrack-OS", S_POWER))
+
+            doc.build(story)
+            pdf_bytes = buf.getvalue()
+            fname = (f"receipt_{rd['sale_id']}_"
+                     f"{datetime.fromisoformat(rd['sale_time']).strftime('%Y%m%d_%H%M')}.pdf")
+            st.download_button("📄 Download PDF Receipt", data=pdf_bytes,
+                               file_name=fname, mime="application/pdf",
+                               width='stretch', type="primary")
+
+            item_lines = ", ".join(
+                f"{i['product_name']} x{i['quantity']}" for i in rd["items"]
+            )
+            _wa_ps   = rd.get("payment_status", "full")
+            _wa_paid = rd.get("amount_paid_now", rd["grand_total"])
+            _wa_bal  = rd.get("balance_owed", 0)
+
+            _wa_cs  = st.session_state.get("currency_symbol", "₦")
+            wa_text = (
+                f"Receipt from {rd['business_name']}\n"
+                f"Date: {datetime.fromisoformat(rd['sale_time']).strftime('%d %b %Y %H:%M')}\n"
+                f"Items: {item_lines}\n"
+                f"Total: {_wa_cs}{rd['grand_total']:,.0f}\n"
+                f"Payment: {rd['payment']}\n"
+            )
+            if _wa_ps == "part":
+                wa_text += (
+                    f"--- PART PAYMENT ---\n"
+                    f"Paid Today: {_wa_cs}{_wa_paid:,.0f}\n"
+                    f"Balance Owed: {_wa_cs}{_wa_bal:,.0f}\n"
+                    f"Please settle the balance as soon as possible.\n"
+                )
+            elif _wa_ps == "credit":
+                wa_text += (
+                    f"--- CREDIT SALE ---\n"
+                    f"Balance Owed: {_wa_cs}{rd['grand_total']:,.0f}\n"
+                    f"Full amount is owed. Please settle the balance as soon as possible.\n"
+                )
+            wa_text += "Thank you!"
+            wa_url = f"https://wa.me/?text={urllib.parse.quote(wa_text)}"
+            st.markdown(
+                f"""<a href="{wa_url}" target="_blank"
+                    style="display:block;text-align:center;background:#25D366;
+                           color:white;padding:0.6rem;border-radius:8px;
+                           font-weight:600;text-decoration:none;margin-top:0.5rem;">
+                    💬 Share via WhatsApp</a>""",
+                unsafe_allow_html=True,
+            )
+        except ImportError:
+            st.warning("Install reportlab for PDF receipts: pip install reportlab")
+        except Exception as _pdf_err:
+            st.error(f"PDF receipt error: {_pdf_err}")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SALES HISTORY
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1318,36 +1342,56 @@ def page_sales_history():
 
     page_header("📋 Sales History", "View, edit or void past transactions")
 
+    _sales_history_fragment(business_id)
+
+
+@st.fragment
+def _sales_history_fragment(business_id):
+    """
+    Sales History, isolated in its own fragment and backed by
+    search_sales() (date-range + text filtered server-side) and
+    get_sale_items_for_sales() (bounded to just the current page's
+    sale_ids) instead of get_sales_df()/get_sale_items_df() pulling the
+    ENTIRE all-time sales and line-item history. Same shape of fix as
+    Restock History earlier — unlike catalogue size, sales history only
+    grows, so the old approach got slower every month regardless of
+    anything else about the business.
+
+    All actions here (date/search filter changes, pagination, edit, void)
+    use a local session-state key for feedback and st.rerun(scope=
+    "fragment"), so none of them force anything outside this page to
+    re-run either — this page has no siblings today, but staying
+    consistent with the Restock History / Add Product pattern keeps this
+    page from becoming the odd one out if that changes later.
+    """
     if st.session_state.get("sale_feedback"):
         msg = st.session_state.pop("sale_feedback")
         (st.success if msg.startswith("✅") else st.error)(msg)
 
-    sales_df = get_sales_df(business_id)
-    if sales_df.empty:
-        st.info("📭 No sales recorded yet.")
-        return
-
-    # Load all sale items once — filtered per-row inside the loop (no N+1 queries)
-    all_items_df = get_sale_items_df(business_id)
-
     # ── Filters ──
     col1, col2, col3 = st.columns(3)
-    start_date = col1.date_input("From", value=(datetime.now() - timedelta(days=30)).date())
-    end_date   = col2.date_input("To",   value=datetime.now().date())
-    search_q   = col3.text_input("🔍 Search", placeholder="Product or customer name…")
+    start_date = col1.date_input("From", value=(datetime.now() - timedelta(days=30)).date(),
+                                  key="sh_start")
+    end_date   = col2.date_input("To",   value=datetime.now().date(), key="sh_end")
+    search_q   = col3.text_input("🔍 Search", placeholder="Product or customer name…",
+                                  key="sh_search")
 
-    filtered = sales_df[
-        (sales_df["sale_date"].dt.date >= start_date) &
-        (sales_df["sale_date"].dt.date <= end_date)
-    ]
-    if search_q:
-        filtered = filtered[
-            filtered["product_name"].str.contains(search_q, case=False, na=False) |
-            filtered["customer_name"].str.contains(search_q, case=False, na=False)
-        ]
-    filtered = filtered.sort_values("sale_date", ascending=False)
+    # Reset to page 1 whenever a filter changes, same pattern as
+    # Inventory/Restock History.
+    if "sales_hist_page" not in st.session_state:
+        st.session_state.sales_hist_page = 1
+    _filter_key = (start_date, end_date, search_q)
+    if st.session_state.get("_last_sh_filter") != _filter_key:
+        st.session_state.sales_hist_page = 1
+    st.session_state["_last_sh_filter"] = _filter_key
 
-    # ── Period KPIs ──
+    filtered = search_sales(business_id, start_date, end_date, search_q)
+    if filtered.empty:
+        st.info("📭 No sales found for this range.")
+        return
+
+    # ── Period KPIs — sums over the entire filtered range, not just the
+    #    displayed page, so these stay accurate under pagination ──
     c1, c2, c3, c4 = st.columns(4)
     with c1: kpi_card("Total Revenue",  fmt_naira(filtered["total_amount"].sum()), f"{len(filtered)} transactions", icon="💰")
     with c2: kpi_card("Total Profit",   fmt_naira(filtered["gross_profit"].sum()),  "Gross profit",                 icon="📈")
@@ -1361,11 +1405,13 @@ def page_sales_history():
     # ── Pagination ──
     PAGE_SIZE   = 20
     total_pages = max(1, -(-len(filtered) // PAGE_SIZE))
-    if "sales_hist_page" not in st.session_state:
-        st.session_state.sales_hist_page = 1
     pg       = st.session_state.sales_hist_page
     page_df  = filtered.iloc[(pg-1)*PAGE_SIZE: pg*PAGE_SIZE]
     st.caption(f"Showing {len(page_df)} of {len(filtered)} records  •  Page {pg} of {total_pages}")
+
+    # Line items for just this page's ~20 sales — bounded, not all-time.
+    page_sale_ids = tuple(page_df["sale_id"].tolist())
+    page_items_df = get_sale_items_for_sales(business_id, page_sale_ids)
 
     for _, r in page_df.iterrows():
         sale_id = r["sale_id"]
@@ -1381,8 +1427,8 @@ def page_sales_history():
             dc2.markdown(f"**Items:** {int(r.get('item_count', 1))}")
 
             # ── Line-item breakdown ──────────────────────────────────
-            row_items = all_items_df[all_items_df["sale_id"] == sale_id] \
-                if not all_items_df.empty else pd.DataFrame()
+            row_items = page_items_df[page_items_df["sale_id"] == sale_id] \
+                if not page_items_df.empty else pd.DataFrame()
             if not row_items.empty:
                 with st.expander("🧾 View Items", expanded=False):
                     for _, it in row_items.iterrows():
@@ -1412,7 +1458,7 @@ def page_sales_history():
                 st.session_state.sale_feedback = (
                     "✅ Sale updated." if ok else "❌ Update failed."
                 )
-                st.rerun()
+                st.rerun(scope="fragment")
 
             # ── PIN-protected void ──────────────────────────────────────
             void_key    = f"void_{sale_id}"
@@ -1424,7 +1470,7 @@ def page_sales_history():
                              help="Void this sale and restore stock"):
                     st.session_state[void_key]    = True
                     st.session_state[pin_err_key] = ""
-                    st.rerun()
+                    st.rerun(scope="fragment")
             else:
                 st.warning("⚠️ Void this sale? Stock will be restored.")
 
@@ -1457,11 +1503,11 @@ def page_sales_history():
                         st.session_state.sale_feedback = (
                             "✅ Sale voided and stock restored." if ok else "❌ Failed to void."
                         )
-                        st.rerun()
+                        st.rerun(scope="fragment")
                     if vc2.button("❌ Cancel", key=f"no_void_{sale_id}"):
                         st.session_state.pop(void_key, None)
                         st.session_state.pop(pin_err_key, None)
-                        st.rerun()
+                        st.rerun(scope="fragment")
 
                 else:
                     # PIN is set — require it before proceeding
@@ -1500,22 +1546,22 @@ def page_sales_history():
                             st.session_state.sale_feedback = (
                                 "✅ Sale voided and stock restored." if ok else "❌ Failed to void."
                             )
-                            st.rerun()
+                            st.rerun(scope="fragment")
                         else:
                             st.session_state[pin_err_key] = "❌ Incorrect PIN. Sale not voided."
-                            st.rerun()
+                            st.rerun(scope="fragment")
 
                     if cancel_void:
                         st.session_state.pop(void_key, None)
                         st.session_state.pop(pin_err_key, None)
-                        st.rerun()
+                        st.rerun(scope="fragment")
 
     if total_pages > 1:
         st.markdown("---")
         pc1, pc2, pc3 = st.columns([1, 3, 1])
         if pc1.button("◀ Prev", disabled=(pg <= 1), key="sh_prev"):
-            st.session_state.sales_hist_page = max(1, pg-1); st.rerun()
+            st.session_state.sales_hist_page = max(1, pg-1); st.rerun(scope="fragment")
         pc2.markdown(f"<div style='text-align:center;padding-top:0.5rem;color:#8BA0B8;'>Page {pg} of {total_pages}</div>",
                      unsafe_allow_html=True)
         if pc3.button("Next ▶", disabled=(pg >= total_pages), key="sh_next"):
-            st.session_state.sales_hist_page = min(total_pages, pg+1); st.rerun()
+            st.session_state.sales_hist_page = min(total_pages, pg+1); st.rerun(scope="fragment")
