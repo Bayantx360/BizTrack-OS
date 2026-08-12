@@ -211,20 +211,14 @@ def _dashboard_body_fragment(business_id):
                 unsafe_allow_html=True,
             )
     with c2:
+        kpi_card("Transactions Today", str(kpis["today_txn"]),
+                 "Sales recorded today", icon="🗒")
+    c3, c4 = st.columns(2)
+    with c3:
         kpi_card("This Week", fmt_naira(kpis["week_revenue"]),
                  f"{'▲' if growth >= 0 else '▼'} {abs(growth):.1f}% vs last week",
                  positive=(growth >= 0), icon="📈")
-    c3, c4 = st.columns(2)
-    with c3:
-        # Replaces the old "Net Profit (Month)" card — moved off the
-        # landing page since it's a shared-login screen (any staff running
-        # the till sees whatever's here, same reasoning as the Inventory
-        # PIN gate). Net profit is still available in Business Insights.
-        # today_txn is already computed by compute_kpis() above (also used
-        # in the Today's Revenue caption at the top of this function), so
-        # this needs no extra data fetch.
-        kpi_card("Transactions Today", str(kpis["today_txn"]),
-                 "Sales recorded today", icon="🗒")
+        
     with c4:
         kpi_card("Low Stock Alerts", str(low_count),
                  "Products need restocking" if low_count > 0 else "All products stocked",
