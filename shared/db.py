@@ -1008,12 +1008,19 @@ def compute_kpis(sales_df: pd.DataFrame, expenses_df: pd.DataFrame) -> dict:
     df = sales_df.dropna(subset=["sale_date"])
 
     today_df   = df[df["sale_date"].dt.date == today]
-    week_df    = df[df["sale_date"] >= (now - timedelta(days=7))]
+
+    # Calendar week (Monday..today), matching the "This Week" convention
+    # used in the Cashbook period filter — not a rolling 7-day window.
+    week_start      = today - timedelta(days=today.weekday())
+    prev_week_start = week_start - timedelta(days=7)
+    prev_week_end   = week_start - timedelta(days=1)
+
+    week_df    = df[df["sale_date"].dt.date >= week_start]
     month_start = datetime(now.year, now.month, 1)
     month_df   = df[(df["sale_date"] >= month_start) & (df["sale_date"] <= now)]
     prev_week  = df[
-        (df["sale_date"] >= (now - timedelta(days=14))) &
-        (df["sale_date"] <  (now - timedelta(days=7)))
+        (df["sale_date"].dt.date >= prev_week_start) &
+        (df["sale_date"].dt.date <= prev_week_end)
     ]
 
     kpis["today_revenue"]  = today_df["total_amount"].sum()
