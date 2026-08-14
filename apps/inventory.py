@@ -815,6 +815,341 @@ def _inventory_pin_gate(user: dict) -> bool:
     return False
 
 
+@st.fragment
+def _all_products_tab_fragment(business_id, user):
+    """
+    All Products tab, isolated in its own fragment for the same reason as
+    Add Product / Restock / Restock History: typing in the product search
+    box, changing the category filter, paging, or editing/deleting a
+    product used to trigger a FULL page rerun — which forced the Suppliers
+    tab to re-run too, including its unbounded get_restock_df() fetch of
+    the entire (ever-growing) restock log, even though Suppliers wasn't
+    even visible. Isolating this tab means those actions now only re-run
+    this fragment.
+
+    inv_msg / prod_del_msg use their own session-state keys and are read
+    right here (not at the page level) so a fragment-scoped rerun can show
+    them without needing the whole page to rerun.
+
+    Restock (tab3) still does a FULL st.rerun() on success specifically so
+    this tab's KPI numbers refresh immediately after a delivery — that
+    still works exactly as before, since a full app rerun re-executes every
+    fragment's body as part of the normal script run. Only the actions
+    *inside* this tab (edit, delete, pagination, search) are now scoped to
+    stay inside this fragment.
+    """
+    # ── Persistent status message (survives rerun) ──
+    if "inv_msg" in st.session_state:
+        _msg = st.session_state.pop("inv_msg")
+        (st.success if _msg.startswith(("✅", "↩️")) else st.error)(_msg)
+
+    products_df = get_products_df_live(business_id)  # always live in inventory
+    if products_df.empty:
+        st.info("No products yet. Add your first product in the 'Add Product' tab.")
+    else:
+        # Summary KPIs
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            kpi_card("Total Products", str(len(products_df)), "In your catalog", icon="📦")
+        with c2:
+            total_sell_val = (products_df["stock_quantity"] * products_df["selling_price"]).sum()
+            kpi_card("Inventory Value", fmt_naira(total_sell_val), "At selling price", icon="🏷️")
+        with c3:
+            total_cost_val = (products_df["stock_quantity"] * products_df["cost_price"]).sum()
+            kpi_card("Inventory Cost", fmt_naira(total_cost_val), "At cost price", icon="🏦")
+        with c4:
+            low_count = len(products_df[products_df["stock_quantity"] <= products_df["reorder_level"]])
+            kpi_card("Low Stock", str(low_count), "Need restocking",
+                     positive=(low_count == 0), icon="⚠️" if low_count > 0 else "✅")
+
+        st.markdown("---")
+
+        # Search + category filter
+        search_q     = st.text_input("🔍 Search products", key="prod_search",
+                                     placeholder="Type product name…")
+        cats         = ["All"] + sorted(products_df["category"].dropna().unique().tolist())
+        selected_cat = st.selectbox("Filter by category", cats)
+
+        disp = products_df if selected_cat == "All" else products_df[products_df["category"] == selected_cat]
+        if search_q:
+            disp = disp[disp["product_name"].str.contains(search_q, case=False, na=False)]
+
+        # Pagination
+        PAGE_SIZE   = 15
+        total_pages = max(1, -(-len(disp) // PAGE_SIZE))
+        if "prod_page" not in st.session_state:
+            st.session_state.prod_page = 1
+        if (st.session_state.get("_last_prod_search") != search_q or
+                st.session_state.get("_last_prod_cat") != selected_cat):
+            st.session_state.prod_page = 1
+        st.session_state["_last_prod_search"] = search_q
+        st.session_state["_last_prod_cat"]    = selected_cat
+
+        pg       = st.session_state.prod_page
+        disp_page = disp.iloc[(pg-1)*PAGE_SIZE: pg*PAGE_SIZE]
+        st.caption(f"Showing {len(disp_page)} of {len(disp)} products  •  Page {pg} of {total_pages}")
+
+        for _, row in disp_page.iterrows():
+            with st.expander(
+                f"**{row['product_name']}** | {row['category']} | "
+                f"Stock: {int(row['stock_quantity'])} | {fmt_naira(row['selling_price'])}",
+                expanded=False,
+            ):
+                ec1, ec2, ec3 = st.columns(3)
+                with ec1:
+                    st.markdown(f"**Cost Price:** {fmt_naira(row['cost_price'])}")
+                    st.markdown(f"**Selling Price (per {row.get('base_unit','unit')}):** {fmt_naira(row['selling_price'])}")
+                    upp = safe_int(row.get('units_per_pack', 1))
+                    if upp > 1:
+                        sub_price = safe_float(row.get('selling_price_sub', 0))
+                        st.markdown(f"**Selling Price (per {row.get('sub_unit','unit')}):** {fmt_naira(sub_price)}")
+                    margin = safe_float(row["selling_price"]) - safe_float(row["cost_price"])
+                    st.markdown(f"**Margin/unit:** {fmt_naira(margin)}")
+                with ec2:
+                    upp = safe_int(row.get('units_per_pack', 1))
+                    base = row.get('base_unit','unit')
+                    sub  = row.get('sub_unit','unit')
+                    stock_display = (
+                        f"{int(row['stock_quantity'])} {base}s"
+                        if upp <= 1 else
+                        f"{int(row['stock_quantity'])} {base}s ({int(row['stock_quantity']) * upp} {sub}s)"
+                    )
+                    st.markdown(f"**Stock:** {stock_display}")
+                    st.markdown(f"**Pack size:** {upp} {sub}s per {base}" if upp > 1 else f"**Unit:** {base}")
+                    st.markdown(f"**Reorder Level:** {int(row['reorder_level'])} {base}s")
+                    st.markdown(f"**Category:** {row['category']}")
+                with ec3:
+                    st.markdown(stock_pill(row["stock_quantity"], row["reorder_level"]),
+                                unsafe_allow_html=True)
+
+                with st.form(f"edit_{row['product_id']}"):
+                    # ── Basic Info ──
+                    st.markdown("**🏷️ Basic Information**")
+                    ef1, ef2    = st.columns(2)
+                    new_name    = ef1.text_input("Product Name", value=row["product_name"])
+                    new_cat     = ef2.text_input("Category",     value=row["category"])
+                    ef3, ef4    = st.columns(2)
+                    new_cost    = ef3.number_input("Cost Price (" + st.session_state.get("currency_symbol","₦") + ")", value=safe_float(row["cost_price"]),
+                                                   min_value=0.0, step=50.0)
+                    new_reorder = ef4.number_input("Reorder Level",  value=safe_int(row["reorder_level"]),
+                                                   min_value=0, step=1)
+
+                    st.markdown("---")
+
+                    # ── Stock Quantity Correction ──
+                    st.markdown("**📦 Stock Quantity**")
+                    st.caption(
+                        "Only for fixing a mistaken entry, a recount, or damaged/lost stock. "
+                        "For real deliveries, use the **Restock** tab instead — it keeps "
+                        "supplier and pricing history intact."
+                    )
+                    cur_stock_val = safe_float(row["stock_quantity"])
+                    sq1, sq2 = st.columns(2)
+                    sq1.metric("Current Stock",
+                               f"{fmt_qty(cur_stock_val)} {row.get('base_unit','unit')}s")
+                    new_stock = sq2.number_input(
+                        "Corrected Stock Quantity",
+                        value=cur_stock_val,
+                        min_value=0.0, step=1.0,
+                        key=f"edit_stock_{row['product_id']}",
+                    )
+                    correction_reason = st.text_input(
+                        "Reason for correction (required if changing the number above)",
+                        placeholder="e.g. Recount, typo fix, damaged goods, expired stock removed",
+                        key=f"edit_stock_reason_{row['product_id']}",
+                    )
+
+                    st.markdown("---")
+
+                    # ── Pack Section ──
+                    st.markdown("**📦 Pack Details**")
+                    pp1, pp2, pp3 = st.columns(3)
+                    pp1.markdown("**Pack Unit**")
+                    pp1.caption("e.g. carton, bag, crate")
+                    new_base    = pp1.text_input("Pack Unit",
+                                                 value=row.get("base_unit","unit") or "unit",
+                                                 label_visibility="collapsed")
+                    new_upp     = pp2.number_input("Units per Pack",
+                                                   value=safe_int(row.get("units_per_pack",1)) or 1,
+                                                   min_value=1, step=1)
+                    new_sell    = st.number_input(
+                        f"Selling Price per Pack — {row.get('base_unit','unit')} ({st.session_state.get('currency_symbol','₦')})",
+                        value=safe_float(row["selling_price"]), min_value=0.0, step=50.0,
+                    )
+                    if new_cost > 0 and new_sell > 0:
+                        pm = new_sell - new_cost
+                        st.caption(f"Pack margin: {fmt_naira(pm)} ({pm/new_sell*100:.1f}%)")
+
+                    st.markdown("---")
+
+                    # ── Unit Section ──
+                    st.markdown("**🔢 Unit Details**")
+                    st.caption("e.g. piece, bottle, kg, sachet")
+                    new_sub     = st.text_input("Unit Name",
+                                                value=row.get("sub_unit","unit") or "unit",
+                                                label_visibility="collapsed")
+                    suggested   = round(new_sell / new_upp, 2) if new_upp > 1 and new_sell > 0 else new_sell
+                    if new_upp > 1:
+                        st.caption(f"Suggested: {fmt_naira(suggested)} (pack ÷ {new_upp})")
+                    new_sub_price = st.number_input(
+                        f"Selling Price per Unit — {row.get('sub_unit','unit')} ({st.session_state.get('currency_symbol','₦')})",
+                        value=safe_float(row.get("selling_price_sub", suggested)),
+                        min_value=0.0, step=50.0,
+                    )
+                    if new_upp > 1 and new_sub_price > 0 and new_cost > 0:
+                        um = new_sub_price - (new_cost / new_upp)
+                        st.caption(
+                            f"Unit margin: {fmt_naira(um)} | "
+                            f"Selling all {new_upp} units = {fmt_naira(new_sub_price * new_upp)} "
+                            f"vs pack {fmt_naira(new_sell)}"
+                        )
+
+                    st.markdown("---")
+
+                    # ── Dates (optional) ──
+                    st.markdown("**📅 Product Dates** *(optional — perishable goods only)*")
+                    ed1, ed2 = st.columns(2)
+                    # Safely parse existing dates; fall back to None if not set
+                    _cur_mfg    = row.get("mfg_date")
+                    _cur_expiry = row.get("expiry_date")
+                    try:
+                        _cur_mfg    = pd.to_datetime(_cur_mfg).date()    if pd.notna(_cur_mfg)    else None
+                    except Exception:
+                        _cur_mfg    = None
+                    try:
+                        _cur_expiry = pd.to_datetime(_cur_expiry).date() if pd.notna(_cur_expiry) else None
+                    except Exception:
+                        _cur_expiry = None
+                    new_mfg_date    = ed1.date_input("Manufacturing Date",        value=_cur_mfg,    key=f"edit_mfg_{row['product_id']}")
+                    new_expiry_date = ed2.date_input("Expiry / Best-Before Date", value=_cur_expiry, key=f"edit_expiry_{row['product_id']}")
+
+                    save = st.form_submit_button("💾 Save Changes", type="primary",
+                                                 width='stretch')
+
+                if save:
+                    stock_changed = abs(new_stock - cur_stock_val) > 1e-9
+                    if stock_changed and not correction_reason.strip():
+                        st.session_state["inv_msg"] = (
+                            "❌ Please enter a reason for the stock quantity change "
+                            "before saving."
+                        )
+                        st.rerun(scope="fragment")
+                    else:
+                        ok = db_update(TBL_PRODUCTS, "product_id", row["product_id"], {
+                            "product_name":      new_name.strip(),
+                            "category":          new_cat.strip(),
+                            "cost_price":        new_cost,
+                            "selling_price":     new_sell,
+                            "reorder_level":     new_reorder,
+                            "units_per_pack":    int(new_upp),
+                            "base_unit":         new_base.strip() or "unit",
+                            "sub_unit":          new_sub.strip()  or "unit",
+                            "selling_price_sub": new_sub_price,
+                            "stock_quantity":    new_stock,
+                            "mfg_date":          new_mfg_date.isoformat()    if new_mfg_date    else None,
+                            "expiry_date":       new_expiry_date.isoformat()  if new_expiry_date else None,
+                        })
+                        if ok and stock_changed:
+                            db_insert(TBL_RESTOCK, {
+                                "restock_id":    gen_id("RST"),
+                                "business_id":   business_id,
+                                "product_id":    row["product_id"],
+                                "product_name":  new_name.strip(),
+                                "qty_added":     new_stock - cur_stock_val,
+                                "qty_before":    cur_stock_val,
+                                "qty_after":     new_stock,
+                                "supplier_id":   "",
+                                "supplier_name": "",
+                                "note":          correction_reason.strip(),
+                                "recorded_by":   user.get("full_name", user.get("email", "")),
+                                "restock_date":  datetime.now().isoformat(),
+                                "entry_type":    "correction",
+                            })
+                        if ok:
+                            st.session_state["inv_msg"] = (
+                                "✅ Product updated!"
+                                + (f" Stock corrected: {fmt_qty(cur_stock_val)} → "
+                                   f"{fmt_qty(new_stock)}." if stock_changed else "")
+                            )
+                        else:
+                            st.session_state["inv_msg"] = "❌ Update failed."
+                        st.rerun(scope="fragment")
+
+                confirm_key = f"confirm_del_{row['product_id']}"
+                if not st.session_state.get(confirm_key, False):
+                    if st.button(f"🗑️ Delete {row['product_name']}", key=f"del_{row['product_id']}", type="secondary"):
+                        st.session_state[confirm_key] = True
+                        st.rerun(scope="fragment")
+                else:
+                    st.warning(f"⚠️ Delete **{row['product_name']}**? This cannot be undone.")
+                    cy, cn = st.columns(2)
+                    if cy.button("✅ Yes, delete", key=f"yes_del_{row['product_id']}", type="primary"):
+                        ok = db_delete(TBL_PRODUCTS, "product_id", row["product_id"])
+                        if ok:
+                            # Clean up the Opening Stock cash-out entry so a
+                            # deleted product doesn't leave an orphaned
+                            # ledger row behind (same cleanup restock
+                            # reversal already does via source_ref).
+                            db_delete(TBL_CASHBOOK, "source_ref", row["product_id"])
+                        st.session_state.pop(confirm_key, None)
+                        st.session_state["prod_del_msg"] = (
+                            f"✅ {row['product_name']} deleted." if ok
+                            else "❌ Failed to delete product."
+                        )
+                        st.rerun(scope="fragment")
+                    if cn.button("❌ Cancel", key=f"no_del_{row['product_id']}"):
+                        st.session_state.pop(confirm_key, None)
+                        st.rerun(scope="fragment")
+
+        if "prod_del_msg" in st.session_state:
+            msg = st.session_state.pop("prod_del_msg")
+            (st.success if msg.startswith("✅") else st.error)(msg)
+
+        if total_pages > 1:
+            st.markdown("---")
+            pc1, pc2, pc3 = st.columns([1, 3, 1])
+            if pc1.button("◀ Prev", disabled=(pg <= 1), key="prod_prev"):
+                st.session_state.prod_page = max(1, pg-1); st.rerun(scope="fragment")
+            pc2.markdown(f"<div style='text-align:center;padding-top:0.5rem;color:#8BA0B8;'>Page {pg} of {total_pages}</div>",
+                         unsafe_allow_html=True)
+            if pc3.button("Next ▶", disabled=(pg >= total_pages), key="prod_next"):
+                st.session_state.prod_page = min(total_pages, pg+1); st.rerun(scope="fragment")
+
+    # ── Stockout Projection (bottom of tab 1) ──
+    # Uses the cached insights wrapper (60s TTL, keyed by business_id) so
+    # this heavy computation runs at most once a minute — not on every
+    # rerun of this tab, which previously included every keystroke typed
+    # into the product search box above.
+    st.markdown("---")
+    section_header("📅 Stockout Projections")
+    insights = get_insights_cached(business_id)
+
+    if not insights["stockout_projection"].empty:
+        proj = insights["stockout_projection"].copy()
+        proj["stockout_date"] = proj["days_until_stockout"].apply(
+            lambda d: (datetime.now() + timedelta(days=min(d, 3650))).strftime("%d %b %Y")
+            if pd.notna(d) else "—"
+        )
+        proj["urgency"] = proj["days_until_stockout"].apply(
+            lambda d: "🔴 Critical" if d <= 3 else ("🟡 Soon" if d <= 7 else "🟢 OK")
+        )
+        st.dataframe(
+            proj[["product_name","stock_quantity","avg_daily_sales",
+                  "days_until_stockout","stockout_date","urgency"]]
+            .rename(columns={
+                "product_name":       "Product",
+                "stock_quantity":     "Current Stock",
+                "avg_daily_sales":    "Avg Daily Sales",
+                "days_until_stockout":"Days Left",
+                "stockout_date":      "Est. Stockout Date",
+                "urgency":            "Status",
+            }),
+            width='stretch',
+        )
+    else:
+        st.info("Not enough sales history to project stockout dates.")
+
+
 def page_products():
     """Products catalogue — view, edit, delete, restock, history."""
     user = st.session_state.user
@@ -827,11 +1162,6 @@ def page_products():
 
     page_header("📦 Inventory Management", "Add, edit and manage your products")
 
-    # ── Persistent status message (survives rerun) ──
-    if "inv_msg" in st.session_state:
-        _msg = st.session_state.pop("inv_msg")
-        (st.success if _msg.startswith(("✅", "↩️")) else st.error)(_msg)
-
     if "inv_cb_warn" in st.session_state:
         st.warning(st.session_state.pop("inv_cb_warn"))
 
@@ -843,311 +1173,7 @@ def page_products():
     # Tab 1 — All Products
     # ══════════════════════════════════════
     with tab1:
-        products_df = get_products_df_live(business_id)  # always live in inventory
-        if products_df.empty:
-            st.info("No products yet. Add your first product in the 'Add Product' tab.")
-        else:
-            # Summary KPIs
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                kpi_card("Total Products", str(len(products_df)), "In your catalog", icon="📦")
-            with c2:
-                total_sell_val = (products_df["stock_quantity"] * products_df["selling_price"]).sum()
-                kpi_card("Inventory Value", fmt_naira(total_sell_val), "At selling price", icon="🏷️")
-            with c3:
-                total_cost_val = (products_df["stock_quantity"] * products_df["cost_price"]).sum()
-                kpi_card("Inventory Cost", fmt_naira(total_cost_val), "At cost price", icon="🏦")
-            with c4:
-                low_count = len(products_df[products_df["stock_quantity"] <= products_df["reorder_level"]])
-                kpi_card("Low Stock", str(low_count), "Need restocking",
-                         positive=(low_count == 0), icon="⚠️" if low_count > 0 else "✅")
-
-            st.markdown("---")
-
-            # Search + category filter
-            search_q     = st.text_input("🔍 Search products", key="prod_search",
-                                         placeholder="Type product name…")
-            cats         = ["All"] + sorted(products_df["category"].dropna().unique().tolist())
-            selected_cat = st.selectbox("Filter by category", cats)
-
-            disp = products_df if selected_cat == "All" else products_df[products_df["category"] == selected_cat]
-            if search_q:
-                disp = disp[disp["product_name"].str.contains(search_q, case=False, na=False)]
-
-            # Pagination
-            PAGE_SIZE   = 15
-            total_pages = max(1, -(-len(disp) // PAGE_SIZE))
-            if "prod_page" not in st.session_state:
-                st.session_state.prod_page = 1
-            if (st.session_state.get("_last_prod_search") != search_q or
-                    st.session_state.get("_last_prod_cat") != selected_cat):
-                st.session_state.prod_page = 1
-            st.session_state["_last_prod_search"] = search_q
-            st.session_state["_last_prod_cat"]    = selected_cat
-
-            pg       = st.session_state.prod_page
-            disp_page = disp.iloc[(pg-1)*PAGE_SIZE: pg*PAGE_SIZE]
-            st.caption(f"Showing {len(disp_page)} of {len(disp)} products  •  Page {pg} of {total_pages}")
-
-            for _, row in disp_page.iterrows():
-                with st.expander(
-                    f"**{row['product_name']}** | {row['category']} | "
-                    f"Stock: {int(row['stock_quantity'])} | {fmt_naira(row['selling_price'])}",
-                    expanded=False,
-                ):
-                    ec1, ec2, ec3 = st.columns(3)
-                    with ec1:
-                        st.markdown(f"**Cost Price:** {fmt_naira(row['cost_price'])}")
-                        st.markdown(f"**Selling Price (per {row.get('base_unit','unit')}):** {fmt_naira(row['selling_price'])}")
-                        upp = safe_int(row.get('units_per_pack', 1))
-                        if upp > 1:
-                            sub_price = safe_float(row.get('selling_price_sub', 0))
-                            st.markdown(f"**Selling Price (per {row.get('sub_unit','unit')}):** {fmt_naira(sub_price)}")
-                        margin = safe_float(row["selling_price"]) - safe_float(row["cost_price"])
-                        st.markdown(f"**Margin/unit:** {fmt_naira(margin)}")
-                    with ec2:
-                        upp = safe_int(row.get('units_per_pack', 1))
-                        base = row.get('base_unit','unit')
-                        sub  = row.get('sub_unit','unit')
-                        stock_display = (
-                            f"{int(row['stock_quantity'])} {base}s"
-                            if upp <= 1 else
-                            f"{int(row['stock_quantity'])} {base}s ({int(row['stock_quantity']) * upp} {sub}s)"
-                        )
-                        st.markdown(f"**Stock:** {stock_display}")
-                        st.markdown(f"**Pack size:** {upp} {sub}s per {base}" if upp > 1 else f"**Unit:** {base}")
-                        st.markdown(f"**Reorder Level:** {int(row['reorder_level'])} {base}s")
-                        st.markdown(f"**Category:** {row['category']}")
-                    with ec3:
-                        st.markdown(stock_pill(row["stock_quantity"], row["reorder_level"]),
-                                    unsafe_allow_html=True)
-
-                    with st.form(f"edit_{row['product_id']}"):
-                        # ── Basic Info ──
-                        st.markdown("**🏷️ Basic Information**")
-                        ef1, ef2    = st.columns(2)
-                        new_name    = ef1.text_input("Product Name", value=row["product_name"])
-                        new_cat     = ef2.text_input("Category",     value=row["category"])
-                        ef3, ef4    = st.columns(2)
-                        new_cost    = ef3.number_input("Cost Price (" + st.session_state.get("currency_symbol","₦") + ")", value=safe_float(row["cost_price"]),
-                                                       min_value=0.0, step=50.0)
-                        new_reorder = ef4.number_input("Reorder Level",  value=safe_int(row["reorder_level"]),
-                                                       min_value=0, step=1)
-
-                        st.markdown("---")
-
-                        # ── Stock Quantity Correction ──
-                        st.markdown("**📦 Stock Quantity**")
-                        st.caption(
-                            "Only for fixing a mistaken entry, a recount, or damaged/lost stock. "
-                            "For real deliveries, use the **Restock** tab instead — it keeps "
-                            "supplier and pricing history intact."
-                        )
-                        cur_stock_val = safe_float(row["stock_quantity"])
-                        sq1, sq2 = st.columns(2)
-                        sq1.metric("Current Stock",
-                                   f"{fmt_qty(cur_stock_val)} {row.get('base_unit','unit')}s")
-                        new_stock = sq2.number_input(
-                            "Corrected Stock Quantity",
-                            value=cur_stock_val,
-                            min_value=0.0, step=1.0,
-                            key=f"edit_stock_{row['product_id']}",
-                        )
-                        correction_reason = st.text_input(
-                            "Reason for correction (required if changing the number above)",
-                            placeholder="e.g. Recount, typo fix, damaged goods, expired stock removed",
-                            key=f"edit_stock_reason_{row['product_id']}",
-                        )
-
-                        st.markdown("---")
-
-                        # ── Pack Section ──
-                        st.markdown("**📦 Pack Details**")
-                        pp1, pp2, pp3 = st.columns(3)
-                        pp1.markdown("**Pack Unit**")
-                        pp1.caption("e.g. carton, bag, crate")
-                        new_base    = pp1.text_input("Pack Unit",
-                                                     value=row.get("base_unit","unit") or "unit",
-                                                     label_visibility="collapsed")
-                        new_upp     = pp2.number_input("Units per Pack",
-                                                       value=safe_int(row.get("units_per_pack",1)) or 1,
-                                                       min_value=1, step=1)
-                        new_sell    = st.number_input(
-                            f"Selling Price per Pack — {row.get('base_unit','unit')} ({st.session_state.get('currency_symbol','₦')})",
-                            value=safe_float(row["selling_price"]), min_value=0.0, step=50.0,
-                        )
-                        if new_cost > 0 and new_sell > 0:
-                            pm = new_sell - new_cost
-                            st.caption(f"Pack margin: {fmt_naira(pm)} ({pm/new_sell*100:.1f}%)")
-
-                        st.markdown("---")
-
-                        # ── Unit Section ──
-                        st.markdown("**🔢 Unit Details**")
-                        st.caption("e.g. piece, bottle, kg, sachet")
-                        new_sub     = st.text_input("Unit Name",
-                                                    value=row.get("sub_unit","unit") or "unit",
-                                                    label_visibility="collapsed")
-                        suggested   = round(new_sell / new_upp, 2) if new_upp > 1 and new_sell > 0 else new_sell
-                        if new_upp > 1:
-                            st.caption(f"Suggested: {fmt_naira(suggested)} (pack ÷ {new_upp})")
-                        new_sub_price = st.number_input(
-                            f"Selling Price per Unit — {row.get('sub_unit','unit')} ({st.session_state.get('currency_symbol','₦')})",
-                            value=safe_float(row.get("selling_price_sub", suggested)),
-                            min_value=0.0, step=50.0,
-                        )
-                        if new_upp > 1 and new_sub_price > 0 and new_cost > 0:
-                            um = new_sub_price - (new_cost / new_upp)
-                            st.caption(
-                                f"Unit margin: {fmt_naira(um)} | "
-                                f"Selling all {new_upp} units = {fmt_naira(new_sub_price * new_upp)} "
-                                f"vs pack {fmt_naira(new_sell)}"
-                            )
-
-                        st.markdown("---")
-
-                        # ── Dates (optional) ──
-                        st.markdown("**📅 Product Dates** *(optional — perishable goods only)*")
-                        ed1, ed2 = st.columns(2)
-                        # Safely parse existing dates; fall back to None if not set
-                        _cur_mfg    = row.get("mfg_date")
-                        _cur_expiry = row.get("expiry_date")
-                        try:
-                            _cur_mfg    = pd.to_datetime(_cur_mfg).date()    if pd.notna(_cur_mfg)    else None
-                        except Exception:
-                            _cur_mfg    = None
-                        try:
-                            _cur_expiry = pd.to_datetime(_cur_expiry).date() if pd.notna(_cur_expiry) else None
-                        except Exception:
-                            _cur_expiry = None
-                        new_mfg_date    = ed1.date_input("Manufacturing Date",        value=_cur_mfg,    key=f"edit_mfg_{row['product_id']}")
-                        new_expiry_date = ed2.date_input("Expiry / Best-Before Date", value=_cur_expiry, key=f"edit_expiry_{row['product_id']}")
-
-                        save = st.form_submit_button("💾 Save Changes", type="primary",
-                                                     width='stretch')
-
-                    if save:
-                        stock_changed = abs(new_stock - cur_stock_val) > 1e-9
-                        if stock_changed and not correction_reason.strip():
-                            st.session_state["inv_msg"] = (
-                                "❌ Please enter a reason for the stock quantity change "
-                                "before saving."
-                            )
-                            st.rerun()
-                        else:
-                            ok = db_update(TBL_PRODUCTS, "product_id", row["product_id"], {
-                                "product_name":      new_name.strip(),
-                                "category":          new_cat.strip(),
-                                "cost_price":        new_cost,
-                                "selling_price":     new_sell,
-                                "reorder_level":     new_reorder,
-                                "units_per_pack":    int(new_upp),
-                                "base_unit":         new_base.strip() or "unit",
-                                "sub_unit":          new_sub.strip()  or "unit",
-                                "selling_price_sub": new_sub_price,
-                                "stock_quantity":    new_stock,
-                                "mfg_date":          new_mfg_date.isoformat()    if new_mfg_date    else None,
-                                "expiry_date":       new_expiry_date.isoformat()  if new_expiry_date else None,
-                            })
-                            if ok and stock_changed:
-                                db_insert(TBL_RESTOCK, {
-                                    "restock_id":    gen_id("RST"),
-                                    "business_id":   business_id,
-                                    "product_id":    row["product_id"],
-                                    "product_name":  new_name.strip(),
-                                    "qty_added":     new_stock - cur_stock_val,
-                                    "qty_before":    cur_stock_val,
-                                    "qty_after":     new_stock,
-                                    "supplier_id":   "",
-                                    "supplier_name": "",
-                                    "note":          correction_reason.strip(),
-                                    "recorded_by":   user.get("full_name", user.get("email", "")),
-                                    "restock_date":  datetime.now().isoformat(),
-                                    "entry_type":    "correction",
-                                })
-                            if ok:
-                                st.session_state["inv_msg"] = (
-                                    "✅ Product updated!"
-                                    + (f" Stock corrected: {fmt_qty(cur_stock_val)} → "
-                                       f"{fmt_qty(new_stock)}." if stock_changed else "")
-                                )
-                            else:
-                                st.session_state["inv_msg"] = "❌ Update failed."
-                            st.rerun()
-
-                    confirm_key = f"confirm_del_{row['product_id']}"
-                    if not st.session_state.get(confirm_key, False):
-                        if st.button(f"🗑️ Delete {row['product_name']}", key=f"del_{row['product_id']}", type="secondary"):
-                            st.session_state[confirm_key] = True
-                            st.rerun()
-                    else:
-                        st.warning(f"⚠️ Delete **{row['product_name']}**? This cannot be undone.")
-                        cy, cn = st.columns(2)
-                        if cy.button("✅ Yes, delete", key=f"yes_del_{row['product_id']}", type="primary"):
-                            ok = db_delete(TBL_PRODUCTS, "product_id", row["product_id"])
-                            if ok:
-                                # Clean up the Opening Stock cash-out entry so a
-                                # deleted product doesn't leave an orphaned
-                                # ledger row behind (same cleanup restock
-                                # reversal already does via source_ref).
-                                db_delete(TBL_CASHBOOK, "source_ref", row["product_id"])
-                            st.session_state.pop(confirm_key, None)
-                            st.session_state["prod_del_msg"] = (
-                                f"✅ {row['product_name']} deleted." if ok
-                                else "❌ Failed to delete product."
-                            )
-                            st.rerun()
-                        if cn.button("❌ Cancel", key=f"no_del_{row['product_id']}"):
-                            st.session_state.pop(confirm_key, None)
-                            st.rerun()
-
-            if "prod_del_msg" in st.session_state:
-                msg = st.session_state.pop("prod_del_msg")
-                (st.success if msg.startswith("✅") else st.error)(msg)
-
-            if total_pages > 1:
-                st.markdown("---")
-                pc1, pc2, pc3 = st.columns([1, 3, 1])
-                if pc1.button("◀ Prev", disabled=(pg <= 1), key="prod_prev"):
-                    st.session_state.prod_page = max(1, pg-1); st.rerun()
-                pc2.markdown(f"<div style='text-align:center;padding-top:0.5rem;color:#8BA0B8;'>Page {pg} of {total_pages}</div>",
-                             unsafe_allow_html=True)
-                if pc3.button("Next ▶", disabled=(pg >= total_pages), key="prod_next"):
-                    st.session_state.prod_page = min(total_pages, pg+1); st.rerun()
-
-        # ── Stockout Projection (bottom of tab 1) ──
-        # Uses the cached insights wrapper (60s TTL, keyed by business_id) so
-        # this heavy computation runs at most once a minute — not on every
-        # rerun of this tab, which previously included every keystroke typed
-        # into the product search box above.
-        st.markdown("---")
-        section_header("📅 Stockout Projections")
-        insights = get_insights_cached(business_id)
-
-        if not insights["stockout_projection"].empty:
-            proj = insights["stockout_projection"].copy()
-            proj["stockout_date"] = proj["days_until_stockout"].apply(
-                lambda d: (datetime.now() + timedelta(days=min(d, 3650))).strftime("%d %b %Y")
-                if pd.notna(d) else "—"
-            )
-            proj["urgency"] = proj["days_until_stockout"].apply(
-                lambda d: "🔴 Critical" if d <= 3 else ("🟡 Soon" if d <= 7 else "🟢 OK")
-            )
-            st.dataframe(
-                proj[["product_name","stock_quantity","avg_daily_sales",
-                      "days_until_stockout","stockout_date","urgency"]]
-                .rename(columns={
-                    "product_name":       "Product",
-                    "stock_quantity":     "Current Stock",
-                    "avg_daily_sales":    "Avg Daily Sales",
-                    "days_until_stockout":"Days Left",
-                    "stockout_date":      "Est. Stockout Date",
-                    "urgency":            "Status",
-                }),
-                width='stretch',
-            )
-        else:
-            st.info("Not enough sales history to project stockout dates.")
+        _all_products_tab_fragment(business_id, user)
 
     # ══════════════════════════════════════
     # Tab 2 — Add Product
