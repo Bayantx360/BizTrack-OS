@@ -1284,6 +1284,8 @@ def page_admin():
     if snapshot_view == "🏠 General":
         active  = len(users_df[users_df["plan_status"] == "active"])
         pending = len(users_df[users_df["plan_status"] == "pending_payment"])
+        renewals = (int(users_df["renewal_requested"].sum())
+                    if "renewal_requested" in users_df.columns else 0)
 
         active_paid = users_df[(users_df["plan_status"] == "active") &
                                 (users_df["plan_type"].isin(["monthly", "yearly"]))]
@@ -1301,7 +1303,8 @@ def page_admin():
         kpi_dashboard([
             {"icon": "🏢", "label": "Total Businesses",     "value": str(len(users_df)), "sub": "Registered accounts"},
             {"icon": "✅", "label": "Active Subscriptions",  "value": str(active),        "sub": "Paying or trial users"},
-            {"icon": "⏳", "label": "Pending Payment",       "value": str(pending),       "sub": "Awaiting manual activation"},
+            {"icon": "⏳", "label": "Pending Activation",    "value": str(pending),       "sub": "Awaiting manual activation"},
+            {"icon": "🔁", "label": "Renewal Requests",      "value": str(renewals),      "sub": "Awaiting confirmation"},
             {"icon": "📈", "label": "Est. MRR (NGN)",        "value": f"₦{mrr_ngn:,.0f}", "sub": "From active Nigerian plans"},
             {"icon": "🌍", "label": "Est. MRR (USD)",        "value": f"${mrr_usd:,.0f}", "sub": "From active global plans"},
         ], columns=2)
