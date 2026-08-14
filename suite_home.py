@@ -915,7 +915,7 @@ def page_settings():
         st.info(
             f"⏳ Your renewal request ({req_plan}) is being processed."
         )
-        st.markdown("**💡Proceed to make payment to complete yout renewal.** Use the button below👇 .")
+        st.markdown("💡Proceed to make payment to complete your renewal. Use the button below👇 .")
         st.link_button(
             f"💳 Pay {req_plan.title()} — {cl}{req_amount:,}",
             url=req_link,
@@ -981,7 +981,7 @@ def page_settings():
                             width='stretch', type="primary",
                         )
                         st.caption(
-                            "Once your payment is confirmed by the admin, your plan will be extended automatically."
+                            "Once your payment is confirmed, your plan will be extended automatically."
                         )
                     else:
                         st.error("Could not record your renewal request. Please try again.")
