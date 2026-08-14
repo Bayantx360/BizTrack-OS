@@ -994,14 +994,14 @@ def page_settings():
     section_header("🔐 Sales Void PIN")
     st.markdown(
         "🧑🏽‍🌾 The Void PIN protects sale records from being deleted. "
-        "Only someone who knows this PIN can void a transaction from Sales History."
+        "Only someone who knows this PIN can delete a recorded transaction from Sales History."
     )
 
     pin_set = has_void_pin(user)
     if pin_set:
         st.success("✅ Void PIN is active.")
     else:
-        st.warning("⚠️ No Void PIN set — anyone can currently void sales. Set one below.")
+        st.warning("⚠️ No Void PIN set — anyone can currently delete sales. Set one below.")
 
     action = st.radio(
         "Action",
