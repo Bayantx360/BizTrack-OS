@@ -913,15 +913,15 @@ def page_settings():
         req_link   = _plan["flutterwave_yearly"] if req_plan == "yearly" else _plan["flutterwave_monthly"]
 
         st.info(
-            f"⏳ Your renewal request ({req_plan}) is awaiting admin confirmation."
+            f"⏳ Your renewal request ({req_plan}) is being processed."
         )
-        st.markdown("**Haven't paid yet?** Use the button below — it'll always be here until your renewal is confirmed.")
+        st.markdown("**💡Proceed to make payment to complete yout renewal.** Use the button below👇 .")
         st.link_button(
             f"💳 Pay {req_plan.title()} — {cl}{req_amount:,}",
             url=req_link,
             width='stretch', type="primary",
         )
-        st.caption("Already paid? No action needed — your admin will confirm it shortly.")
+        st.caption("Any Change of Mind? Re-Evaluate your Selected Renewal Plan below 👇.")
 
         with st.expander("Made a mistake or picked the wrong plan?"):
             if st.button("↩️ Cancel this renewal request", key="settings_renew_cancel"):
