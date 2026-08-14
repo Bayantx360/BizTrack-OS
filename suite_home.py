@@ -991,9 +991,9 @@ def page_settings():
                     st.rerun()
 
     st.markdown("---")
-    section_header("🔐 Void PIN")
+    section_header("🔐 Sales Void PIN")
     st.markdown(
-        "The Void PIN protects sale records from being deleted. "
+        "🧑🏽‍🌾 The Void PIN protects sale records from being deleted. "
         "Only someone who knows this PIN can void a transaction from Sales History."
     )
 
@@ -1090,7 +1090,7 @@ def page_settings():
     st.markdown("---")
     section_header("📦 Inventory PIN")
     st.markdown(
-        "The Inventory PIN protects your product catalogue, stock levels, costs and "
+        "🧑🏽‍🌾 The Inventory PIN protects your product catalogue, stock levels, costs and "
         "suppliers from casual viewing. Once set, anyone opening **Inventory** must "
         "enter this PIN first."
     )
