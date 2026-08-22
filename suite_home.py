@@ -519,7 +519,7 @@ def page_signup():
         st.markdown("""
 <div style="text-align:center;margin-bottom:1.5rem;">
   <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;
-    color:#F0F4F8;letter-spacing:-0.04em;">👤Create your account</div>
+    color:#F0F4F8;letter-spacing:-0.04em;">🧑🏽‍🌾 Create your account</div>
   <div style="font-size:0.85rem;color:#22C55E;margin-top:0.3rem;">
     ✨️Start with a 7 days free trial. No credit card required<br><br>Start tracking sales💰, inventory📦, debtors📕, expenses💸, profit📈 in real time.</div>
 </div>
