@@ -620,7 +620,7 @@ def page_forgot_password():
   <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;
     color:#F0F4F8;">Reset your password</div>
   <div style="font-size:0.85rem;color:#4A6080;margin-top:0.3rem;">
-    Your admin will set a temporary password for you.</div>
+    We will set a temporary password for you.</div>
 </div>
         """, unsafe_allow_html=True)
 
@@ -639,7 +639,7 @@ def page_forgot_password():
                         "reset_requested_at":       datetime.now().isoformat(),
                     })
                     st.success(
-                        "✅ Reset request submitted. Your admin will provide a temporary "
+                        "✅ Reset request submitted. We will provide a temporary "
                         "password to complete your Reset shortly."
                     )
                 else:
