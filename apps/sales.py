@@ -1368,25 +1368,30 @@ def _sales_history_fragment(business_id):
         msg = st.session_state.pop("sale_feedback")
         (st.success if msg.startswith("✅") else st.error)(msg)
 
-    # ── Quick range buttons — set the date inputs' session-state keys
-    # BEFORE those widgets are instantiated below, then rerun so they pick
-    # up the new values (Streamlit widgets read their key on creation).
-    qb1, qb2, qb3, _ = st.columns([1, 1, 1, 3])
+    # ── Quick range toggle — horizontal radio, same pattern as the Net
+    # Profit period toggle in pages/health.py. Only reapplies the preset
+    # dates when the selection itself changes (tracked via
+    # _last_sh_quick_range), so switching to "Custom" — or hand-editing
+    # the From/To fields below after picking a preset — doesn't get
+    # silently overwritten on the next rerun.
     today = datetime.now().date()
-    if qb1.button("This Month", key="sh_qf_this_month", width="stretch"):
-        st.session_state["sh_start"] = today.replace(day=1)
-        st.session_state["sh_end"]   = today
-        st.rerun(scope="fragment")
-    if qb2.button("Last Month", key="sh_qf_last_month", width="stretch"):
-        last_day_prev_month  = today.replace(day=1) - timedelta(days=1)
-        first_day_prev_month = last_day_prev_month.replace(day=1)
-        st.session_state["sh_start"] = first_day_prev_month
-        st.session_state["sh_end"]   = last_day_prev_month
-        st.rerun(scope="fragment")
-    if qb3.button("Last 30 Days", key="sh_qf_30d", width="stretch"):
-        st.session_state["sh_start"] = today - timedelta(days=30)
-        st.session_state["sh_end"]   = today
-        st.rerun(scope="fragment")
+    quick_range = st.radio(
+        "Quick range", ["🗓Last 30 Days", "📅This Month", "📆Last Month", "📇Custom"],
+        horizontal=True, key="sh_quick_range", label_visibility="collapsed",
+    )
+    if quick_range != "Custom" and quick_range != st.session_state.get("_last_sh_quick_range"):
+        if quick_range == "This Month":
+            st.session_state["sh_start"] = today.replace(day=1)
+            st.session_state["sh_end"]   = today
+        elif quick_range == "Last Month":
+            last_day_prev_month  = today.replace(day=1) - timedelta(days=1)
+            first_day_prev_month = last_day_prev_month.replace(day=1)
+            st.session_state["sh_start"] = first_day_prev_month
+            st.session_state["sh_end"]   = last_day_prev_month
+        elif quick_range == "Last 30 Days":
+            st.session_state["sh_start"] = today - timedelta(days=30)
+            st.session_state["sh_end"]   = today
+    st.session_state["_last_sh_quick_range"] = quick_range
 
     # ── Filters ──
     col1, col2, col3 = st.columns(3)
