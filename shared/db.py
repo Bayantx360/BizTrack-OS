@@ -1072,6 +1072,62 @@ def compute_kpis(sales_df: pd.DataFrame, expenses_df: pd.DataFrame) -> dict:
     return kpis
 
 
+def compute_month_kpis(sales_df: pd.DataFrame, expenses_df: pd.DataFrame,
+                        months_ago: int = 0) -> dict:
+    """
+    Revenue / gross profit / expenses / net profit for ONE specific
+    calendar month, net of all logged expenses in that same month —
+    unlike compute_kpis()'s "month_*" fields, which are always the
+    current month, this can reach back to any prior month.
+
+    months_ago=0  -> current month, partial (1st .. now)
+    months_ago=1  -> last full calendar month (1st .. last day)
+    months_ago=2  -> the month before that, etc.
+
+    Called by:  pages/health.py   (Net Profit banner period toggle)
+                pages/sales.py    ("Last Month" quick filter)
+    """
+    now = datetime.now()
+
+    target_year, target_month = now.year, now.month - months_ago
+    while target_month <= 0:
+        target_month += 12
+        target_year  -= 1
+
+    month_start = datetime(target_year, target_month, 1)
+    if target_month == 12:
+        next_month_start = datetime(target_year + 1, 1, 1)
+    else:
+        next_month_start = datetime(target_year, target_month + 1, 1)
+
+    # Current month is a partial period (up to "now"); any earlier month
+    # is complete, so bound it by the following month's 1st instead.
+    period_end = now if months_ago == 0 else next_month_start
+
+    result = {
+        "label":         month_start.strftime("%B %Y"),
+        "month_start":   month_start,
+        "revenue":       0, "gross_profit": 0,
+        "expenses":      0, "net_profit":   0,
+        "txn_count":     0,
+    }
+
+    if not sales_df.empty:
+        sdf = sales_df.dropna(subset=["sale_date"])
+        m_sales = sdf[(sdf["sale_date"] >= month_start) & (sdf["sale_date"] <= period_end)]
+        result["revenue"]      = m_sales["total_amount"].sum()
+        result["gross_profit"] = m_sales["gross_profit"].sum()
+        result["txn_count"]    = len(m_sales)
+
+    if expenses_df is not None and not expenses_df.empty:
+        edf = expenses_df.dropna(subset=["expense_date"])
+        m_exp = edf[(edf["expense_date"] >= month_start) & (edf["expense_date"] <= period_end)]
+        result["expenses"] = m_exp["amount"].sum()
+
+    result["net_profit"] = result["gross_profit"] - result["expenses"]
+    return result
+
+
 def compute_insights(sales_df, products_df, expenses_df, items_df=None) -> dict:
     """
     Return structured insights dict.
