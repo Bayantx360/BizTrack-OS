@@ -1376,22 +1376,28 @@ def _sales_history_fragment(business_id):
     # silently overwritten on the next rerun.
     today = datetime.now().date()
     quick_range = st.radio(
-        "Quick range", ["🗓Last 30 Days", "📅This Month", "📆Last Month", "📇Custom"],
+        "Quick range", ["🗓Last 30 Days", "📅This Month", "🗓Last Month", "🔖Custom"],
         horizontal=True, key="sh_quick_range", label_visibility="collapsed",
     )
-    if quick_range != "Custom" and quick_range != st.session_state.get("_last_sh_quick_range"):
+    prev_range = st.session_state.get("_last_sh_quick_range")
+    if quick_range != prev_range:
+        st.session_state["_last_sh_quick_range"] = quick_range
         if quick_range == "This Month":
             st.session_state["sh_start"] = today.replace(day=1)
             st.session_state["sh_end"]   = today
+            st.rerun(scope="fragment")
         elif quick_range == "Last Month":
             last_day_prev_month  = today.replace(day=1) - timedelta(days=1)
             first_day_prev_month = last_day_prev_month.replace(day=1)
             st.session_state["sh_start"] = first_day_prev_month
             st.session_state["sh_end"]   = last_day_prev_month
+            st.rerun(scope="fragment")
         elif quick_range == "Last 30 Days":
             st.session_state["sh_start"] = today - timedelta(days=30)
             st.session_state["sh_end"]   = today
-    st.session_state["_last_sh_quick_range"] = quick_range
+            st.rerun(scope="fragment")
+        # "Custom" needs no date change — just stop tracking a preset so
+        # manual From/To edits below aren't overwritten on the next run.
 
     # ── Filters ──
     col1, col2, col3 = st.columns(3)
