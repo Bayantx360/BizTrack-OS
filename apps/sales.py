@@ -1368,6 +1368,26 @@ def _sales_history_fragment(business_id):
         msg = st.session_state.pop("sale_feedback")
         (st.success if msg.startswith("✅") else st.error)(msg)
 
+    # ── Quick range buttons — set the date inputs' session-state keys
+    # BEFORE those widgets are instantiated below, then rerun so they pick
+    # up the new values (Streamlit widgets read their key on creation).
+    qb1, qb2, qb3, _ = st.columns([1, 1, 1, 3])
+    today = datetime.now().date()
+    if qb1.button("This Month", key="sh_qf_this_month", width="stretch"):
+        st.session_state["sh_start"] = today.replace(day=1)
+        st.session_state["sh_end"]   = today
+        st.rerun(scope="fragment")
+    if qb2.button("Last Month", key="sh_qf_last_month", width="stretch"):
+        last_day_prev_month  = today.replace(day=1) - timedelta(days=1)
+        first_day_prev_month = last_day_prev_month.replace(day=1)
+        st.session_state["sh_start"] = first_day_prev_month
+        st.session_state["sh_end"]   = last_day_prev_month
+        st.rerun(scope="fragment")
+    if qb3.button("Last 30 Days", key="sh_qf_30d", width="stretch"):
+        st.session_state["sh_start"] = today - timedelta(days=30)
+        st.session_state["sh_end"]   = today
+        st.rerun(scope="fragment")
+
     # ── Filters ──
     col1, col2, col3 = st.columns(3)
     start_date = col1.date_input("From", value=(datetime.now() - timedelta(days=30)).date(),
@@ -1390,13 +1410,32 @@ def _sales_history_fragment(business_id):
         st.info("📭 No sales found for this range.")
         return
 
+    # Expenses logged in the same date range, so "profit" here can mean
+    # actual net profit (gross profit minus expenses) — not just gross
+    # margin on sales — for whatever range is selected, including the
+    # Last Month quick filter above. Expenses are low-volume compared to
+    # sales, so fetching the full table and filtering client-side (same
+    # pattern shared.db.compute_kpis already uses) is cheap here.
+    expenses_df = get_expenses_df(business_id)
+    if not expenses_df.empty:
+        exp_in_range = expenses_df[
+            (expenses_df["expense_date"].dt.date >= start_date) &
+            (expenses_df["expense_date"].dt.date <= end_date)
+        ]
+        period_expenses = exp_in_range["amount"].sum()
+    else:
+        period_expenses = 0
+    gross_profit = filtered["gross_profit"].sum()
+    net_profit   = gross_profit - period_expenses
+
     # ── Period KPIs — sums over the entire filtered range, not just the
     #    displayed page, so these stay accurate under pagination ──
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     with c1: kpi_card("Total Revenue",  fmt_naira(filtered["total_amount"].sum()), f"{len(filtered)} transactions", icon="💰")
-    with c2: kpi_card("Total Profit",   fmt_naira(filtered["gross_profit"].sum()),  "Gross profit",                 icon="📈")
-    with c3: kpi_card("Avg Sale Value", fmt_naira(filtered["total_amount"].mean() if not filtered.empty else 0), "Per transaction", icon="📊")
-    with c4:
+    with c2: kpi_card("Gross Profit",   fmt_naira(gross_profit),  "Before expenses",                 icon="📈")
+    with c3: kpi_card("Net Profit",     fmt_naira(net_profit),    f"After {fmt_naira(period_expenses)} expenses", positive=(net_profit >= 0), icon="💎")
+    with c4: kpi_card("Avg Sale Value", fmt_naira(filtered["total_amount"].mean() if not filtered.empty else 0), "Per transaction", icon="📊")
+    with c5:
         disc = filtered["discount_total"].sum() if "discount_total" in filtered.columns else 0
         kpi_card("Total Discounts", fmt_naira(disc), "Given in period", positive=(disc == 0), icon="🏷️")
 

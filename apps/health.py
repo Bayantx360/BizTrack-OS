@@ -23,7 +23,7 @@ import streamlit as st
 
 from shared.db import (
     get_sales_df, get_products_df, get_expenses_df,
-    compute_kpis, compute_insights, get_insights_cached,
+    compute_month_kpis, compute_insights, get_insights_cached,
     db_fetch, db_insert, db_update, db_delete,
     get_payments_df, log_payment,
     get_debts_df, get_debt_payments_df, record_debt_payment,
@@ -274,7 +274,6 @@ def page_insights():
         sales_df    = get_sales_df(business_id)
         expenses_df = get_expenses_df(business_id)
         insights    = get_insights_cached(business_id)
-        kpis        = compute_kpis(sales_df, expenses_df)
 
     if sales_df.empty:
         st.info("📭 No data yet. Record some sales to unlock insights.")
@@ -296,8 +295,21 @@ def page_insights():
                 if not insights["top_products_revenue"].empty else "N/A")
         kpi_card("Best Seller", best, "By total revenue", icon="⭐")
 
-    # ── Net Profit Banner ──
-    net = kpis["net_profit"]
+    # ── Net Profit Banner ── period toggle so "actual profit" for last
+    # month (net of all logged expenses) is a click away, not just a
+    # scroll into the Trends table further down.
+    banner_period = st.radio(
+        "Net profit period", ["This Month", "Last Month"],
+        horizontal=True, key="np_period", label_visibility="collapsed",
+    )
+    if banner_period == "Last Month":
+        period = compute_month_kpis(sales_df, expenses_df, months_ago=1)
+        banner_label = f"Net Profit — {period['label']}"
+    else:
+        period = compute_month_kpis(sales_df, expenses_df, months_ago=0)
+        banner_label = "Net Profit This Month"
+
+    net = period["net_profit"]
     banner_color = "#0a2a1e" if net >= 0 else "#2a0a11"
     border_color = CHART_JADE if net >= 0 else "#FF4D6D"
     text_color   = CHART_JADE if net >= 0 else "#FF4D6D"
@@ -308,14 +320,14 @@ display:flex;align-items:center;justify-content:space-between;">
   <div>
     <div style="font-size:0.7rem;color:#8BA0B8;text-transform:uppercase;
     letter-spacing:0.1em;font-family:'DM Mono',monospace;margin-bottom:0.25rem;">
-      Net Profit This Month</div>
+      {banner_label}</div>
     <div style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;
     color:{text_color};letter-spacing:-0.04em;">{fmt_naira(net)}</div>
   </div>
   <div style="text-align:right;font-size:0.82rem;color:#8BA0B8;">
-    Revenue: {fmt_naira(kpis['month_revenue'])}<br>
-    Gross Profit: {fmt_naira(kpis['month_profit'])}<br>
-    Expenses: {fmt_naira(kpis['month_expenses'])}
+    Revenue: {fmt_naira(period['revenue'])}<br>
+    Gross Profit: {fmt_naira(period['gross_profit'])}<br>
+    Expenses: {fmt_naira(period['expenses'])}
   </div>
 </div>
     """, unsafe_allow_html=True)
