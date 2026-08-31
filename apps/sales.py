@@ -535,8 +535,8 @@ def _build_cart_fragment(business_id):
                 )
                 sel_price = None
                 listed_total = round(default_price * sel_qty, 2)
-                if sel_total_price > listed_total:
-                   st.warning(f"⚠️ Above listed total ({fmt_naira(listed_total)} for {sel_qty} {unit_label}s). Confirm?")
+                #if sel_total_price > listed_total:
+                   #st.warning(f"⚠️ Above listed total ({fmt_naira(listed_total)} for {sel_qty} {unit_label}s). Confirm?")
             else:
                 sel_price = ac2.number_input(
                     f"Price per " + unit_label + " (" + currency_sym + ")",

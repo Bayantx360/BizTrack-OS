@@ -519,7 +519,7 @@ def page_signup():
         st.markdown("""
 <div style="text-align:center;margin-bottom:1.5rem;">
   <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;
-    color:#F0F4F8;letter-spacing:-0.04em;">👤Create your account</div>
+    color:#F0F4F8;letter-spacing:-0.04em;">🧑🏽‍🌾 Create your account</div>
   <div style="font-size:0.85rem;color:#22C55E;margin-top:0.3rem;">
     ✨️Start with a 7 days free trial. No credit card required<br><br>Start tracking sales💰, inventory📦, debtors📕, expenses💸, profit📈 in real time.</div>
 </div>
@@ -620,7 +620,7 @@ def page_forgot_password():
   <div style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;
     color:#F0F4F8;">Reset your password</div>
   <div style="font-size:0.85rem;color:#4A6080;margin-top:0.3rem;">
-    Your admin will set a temporary password for you.</div>
+    We will set a temporary password for you.</div>
 </div>
         """, unsafe_allow_html=True)
 
@@ -639,7 +639,7 @@ def page_forgot_password():
                         "reset_requested_at":       datetime.now().isoformat(),
                     })
                     st.success(
-                        "✅ Reset request submitted. Your admin will provide a temporary "
+                        "✅ Reset request submitted. We will provide a temporary "
                         "password to complete your Reset shortly."
                     )
                 else:
@@ -913,15 +913,15 @@ def page_settings():
         req_link   = _plan["flutterwave_yearly"] if req_plan == "yearly" else _plan["flutterwave_monthly"]
 
         st.info(
-            f"⏳ Your renewal request ({req_plan}) is awaiting admin confirmation."
+            f"⏳ Your renewal request ({req_plan}) is being processed."
         )
-        st.markdown("**Haven't paid yet?** Use the button below — it'll always be here until your renewal is confirmed.")
+        st.markdown("💡Proceed to make payment to complete your renewal. Use the button below👇 .")
         st.link_button(
             f"💳 Pay {req_plan.title()} — {cl}{req_amount:,}",
             url=req_link,
             width='stretch', type="primary",
         )
-        st.caption("Already paid? No action needed — your admin will confirm it shortly.")
+        st.caption("Any Change of Mind? Re-Evaluate your Selected Renewal Plan below 👇.")
 
         with st.expander("Made a mistake or picked the wrong plan?"):
             if st.button("↩️ Cancel this renewal request", key="settings_renew_cancel"):
@@ -981,7 +981,7 @@ def page_settings():
                             width='stretch', type="primary",
                         )
                         st.caption(
-                            "Once your payment is confirmed by the admin, your plan will be extended automatically."
+                            "Once your payment is confirmed, your plan will be extended automatically."
                         )
                     else:
                         st.error("Could not record your renewal request. Please try again.")
@@ -991,17 +991,17 @@ def page_settings():
                     st.rerun()
 
     st.markdown("---")
-    section_header("🔐 Void PIN")
+    section_header("🔐 Sales Void PIN")
     st.markdown(
-        "The Void PIN protects sale records from being deleted. "
-        "Only someone who knows this PIN can void a transaction from Sales History."
+        "🧑🏽‍🌾 The Void PIN protects sale records from being deleted. "
+        "Only someone who knows this PIN can delete a recorded transaction from Sales History."
     )
 
     pin_set = has_void_pin(user)
     if pin_set:
         st.success("✅ Void PIN is active.")
     else:
-        st.warning("⚠️ No Void PIN set — anyone can currently void sales. Set one below.")
+        st.warning("⚠️ No Void PIN set — anyone can currently delete sales. Set one below.")
 
     action = st.radio(
         "Action",
@@ -1090,7 +1090,7 @@ def page_settings():
     st.markdown("---")
     section_header("📦 Inventory PIN")
     st.markdown(
-        "The Inventory PIN protects your product catalogue, stock levels, costs and "
+        "🧑🏽‍🌾 The Inventory PIN protects your product catalogue, stock levels, costs and "
         "suppliers from casual viewing. Once set, anyone opening **Inventory** must "
         "enter this PIN first."
     )
