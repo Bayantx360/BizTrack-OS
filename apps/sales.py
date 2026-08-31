@@ -1369,35 +1369,38 @@ def _sales_history_fragment(business_id):
         (st.success if msg.startswith("✅") else st.error)(msg)
 
     # ── Quick range toggle — horizontal radio, same pattern as the Net
-    # Profit period toggle in pages/health.py. Only reapplies the preset
-    # dates when the selection itself changes (tracked via
-    # _last_sh_quick_range), so switching to "Custom" — or hand-editing
-    # the From/To fields below after picking a preset — doesn't get
-    # silently overwritten on the next rerun.
+    # Profit period toggle in pages/health.py.
+    #
+    # Deliberately NOT "only reapply on change" (tracked via a remembered
+    # previous selection) — that approach broke as soon as session state
+    # from an earlier version of this code stuck around: a stale
+    # "already applied" flag made the check think nothing had changed,
+    # so the dates silently never updated even though the correct radio
+    # option was visibly selected.
+    #
+    # Instead this recomputes the date range straight from whatever is
+    # currently selected, every single run — deterministic and
+    # idempotent, so it can't drift out of sync with the radio no matter
+    # what session state existed before. The trade-off: picking a preset
+    # always wins over a manual From/To edit unless "Custom" is selected
+    # — pick Custom for hand-edited dates.
     today = datetime.now().date()
     quick_range = st.radio(
         "Quick range", ["🗓Last 30 Days", "📅This Month", "🗓Last Month", "🔖Custom"],
         horizontal=True, key="sh_quick_range", label_visibility="collapsed",
     )
-    prev_range = st.session_state.get("_last_sh_quick_range")
-    if quick_range != prev_range:
-        st.session_state["_last_sh_quick_range"] = quick_range
-        if quick_range == "This Month":
-            st.session_state["sh_start"] = today.replace(day=1)
-            st.session_state["sh_end"]   = today
-            st.rerun(scope="fragment")
-        elif quick_range == "Last Month":
-            last_day_prev_month  = today.replace(day=1) - timedelta(days=1)
-            first_day_prev_month = last_day_prev_month.replace(day=1)
-            st.session_state["sh_start"] = first_day_prev_month
-            st.session_state["sh_end"]   = last_day_prev_month
-            st.rerun(scope="fragment")
-        elif quick_range == "Last 30 Days":
-            st.session_state["sh_start"] = today - timedelta(days=30)
-            st.session_state["sh_end"]   = today
-            st.rerun(scope="fragment")
-        # "Custom" needs no date change — just stop tracking a preset so
-        # manual From/To edits below aren't overwritten on the next run.
+    if quick_range == "This Month":
+        st.session_state["sh_start"] = today.replace(day=1)
+        st.session_state["sh_end"]   = today
+    elif quick_range == "Last Month":
+        last_day_prev_month  = today.replace(day=1) - timedelta(days=1)
+        first_day_prev_month = last_day_prev_month.replace(day=1)
+        st.session_state["sh_start"] = first_day_prev_month
+        st.session_state["sh_end"]   = last_day_prev_month
+    elif quick_range == "Last 30 Days":
+        st.session_state["sh_start"] = today - timedelta(days=30)
+        st.session_state["sh_end"]   = today
+    # "Custom": leave sh_start / sh_end exactly as the user last set them.
 
     # ── Filters ──
     col1, col2, col3 = st.columns(3)
