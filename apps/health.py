@@ -1053,7 +1053,30 @@ def page_debtors():
             st.caption(f"{len(view_df)} record(s)")
             st.markdown("---")
 
-            for _, debt in view_df.iterrows():
+            # ── Paginate — each row below renders a full expander, item
+            # breakdown, payment history, payment form and WhatsApp link,
+            # so rendering every debt unpaginated (worst case: the "All
+            # Debts" tab with the full table) produces a very large
+            # per-rerun payload. Streamlit builds every tab's content on
+            # every run regardless of which tab is visible, so this adds
+            # up fast and is fragile over a weak connection — keeping
+            # each page small keeps the message Streamlit has to push
+            # over the websocket small too.
+            PAGE_SIZE = 10
+            total_pages = max(1, -(-len(view_df) // PAGE_SIZE))
+            pg_key = f"debtor_page_{label}"
+            if pg_key not in st.session_state:
+                st.session_state[pg_key] = 1
+            _search_key = f"_last_debt_search_{label}"
+            if st.session_state.get(_search_key) != search:
+                st.session_state[pg_key] = 1
+            st.session_state[_search_key] = search
+            pg = min(st.session_state[pg_key], total_pages)
+            page_df = view_df.iloc[(pg - 1) * PAGE_SIZE: pg * PAGE_SIZE]
+            if total_pages > 1:
+                st.caption(f"Page {pg} of {total_pages}")
+
+            for _, debt in page_df.iterrows():
                 debt_id   = debt["debt_id"]
                 cname     = debt.get("customer_name", "Unknown") or "Unknown"
                 cphone    = debt.get("customer_phone", "") or ""
@@ -1241,6 +1264,20 @@ def page_debtors():
                                 st.rerun()
 
                 st.markdown("---")
+
+            if total_pages > 1:
+                pc1, pc2, pc3 = st.columns([1, 2, 1])
+                if pc1.button("◀ Prev", disabled=(pg <= 1), key=f"debt_prev_{label}"):
+                    st.session_state[pg_key] = max(1, pg - 1)
+                    st.rerun()
+                pc2.markdown(
+                    f"<div style='text-align:center;padding-top:0.5rem;color:#8BA0B8;'>"
+                    f"Page {pg} of {total_pages}</div>",
+                    unsafe_allow_html=True,
+                )
+                if pc3.button("Next ▶", disabled=(pg >= total_pages), key=f"debt_next_{label}"):
+                    st.session_state[pg_key] = min(total_pages, pg + 1)
+                    st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
