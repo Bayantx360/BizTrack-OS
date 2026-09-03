@@ -474,17 +474,17 @@ def _add_product_tab_fragment(business_id, user):
         st.markdown("#### 🏷️ Basic Information")
         cur = st.session_state.get("currency_symbol", "₦")
         f1, f2      = st.columns(2)
-        prod_name   = f1.text_input("Product Name *", placeholder="e.g. Coca-Cola")
-        category    = f2.text_input("Category *",     placeholder="e.g. Beverages")
+        prod_name   = f1.text_input("🛍 Product Name *", placeholder="e.g. Coca-Cola")
+        category    = f2.text_input("📋 Category *",     placeholder="e.g. Beverages")
 
         f3, f4      = st.columns(2)
-        f3.markdown(f"**Cost Price ({cur}) \\***")
-        f3.caption("What you paid per pack/unit when buying from supplier")
+        f3.markdown(f"**💰 Cost Price ({cur}) \\***")
+        f3.caption(" Enter amount you paid per pack/unit when buy this product from supplier 👇")
         cost_price  = f3.number_input("Cost Price", min_value=0.0, step=50.0,
                                       label_visibility="collapsed")
 
-        f4.markdown("**Reorder Level \\***")
-        f4.caption("Alert me when stock falls to this level")
+        f4.markdown("**🔔 Reorder Level \\***")
+        f4.caption("🚨Alert me when re-stock when products falls to this level 👇")
         reorder_lvl = f4.number_input("Reorder Level", min_value=0, step=1,
                                       label_visibility="collapsed")
 
@@ -492,25 +492,25 @@ def _add_product_tab_fragment(business_id, user):
 
         # ── Pack Section ─────────────────────────────────────
         st.markdown("#### 📦 Pack (Bulk) Details")
-        st.caption("This is how you BUY the product from supplier— e.g. by carton, bag, crate.")
+        st.caption("🛍 This is how you BUY the product from supplier— e.g. by carton, bag, crate.")
         p1, p2, p3  = st.columns(3)
         p1.markdown("**Pack Unit \\***")
-        p1.caption("e.g. carton, bag, crate")
+        p1.caption("e.g. state if you buy the product by carton, bag, crate, or anyhow it comes from 👇")
         base_unit      = p1.text_input("Pack Unit", value="unit",
                                        label_visibility="collapsed")
 
         p2.markdown("**Units per Pack \\***")
-        p2.caption("Pieces/bottles/kg in one pack/bag/carton")
+        p2.caption("State how many pieces/bottles/kg in one pack/bag/carton you bought 👇")
         units_per_pack = p2.number_input("Units per Pack", min_value=1, step=1, value=1,
                                          label_visibility="collapsed")
 
         p3.markdown("**Opening Stock \\***")
-        p3.caption("How many packs/bags/carton you have now")
+        p3.caption("State how many packs/bags/carton you have now 👇")
         stock_qty      = p3.number_input("Opening Stock", min_value=0, step=1,
                                          label_visibility="collapsed")
 
         st.markdown(f"**Selling Price per Pack ({cur}) \\***")
-        st.caption("Price charged when selling a full pack/carton/bag")
+        st.caption("💶 State the Price you will be selling a full pack/carton/bag 👇")
         sell_price     = st.number_input(
             "Selling Price per Pack", min_value=0.0, step=50.0,
             label_visibility="collapsed",
