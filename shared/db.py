@@ -434,6 +434,92 @@ def get_expenses_df(business_id: str) -> pd.DataFrame:
     return df
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# USER-FACING EXPORTS
+# ──────────────────────────────────────────────────────────────────────────────
+# These wrap the getters above with an explicit column ALLOWLIST + rename, so
+# downloaded CSVs show business-friendly headers only. New internal columns
+# added later (ids, cost/margin fields, audit timestamps, sync flags, etc.)
+# stay out of exports by default instead of needing to be remembered and
+# stripped one at a time.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _apply_export_shape(df: pd.DataFrame, column_map: dict) -> pd.DataFrame:
+    """Select only the allowlisted columns (in order) and rename to friendly headers.
+
+    Columns not present in `df` are silently skipped rather than raising, since
+    optional fields (e.g. customer_phone) don't exist on every row/business.
+    """
+    if df.empty:
+        return pd.DataFrame()
+    keep = [c for c in column_map if c in df.columns]
+    return df[keep].rename(columns=column_map)
+
+
+def export_sales_df(business_id: str) -> pd.DataFrame:
+    """Business-friendly sales export — excludes sale_id, business_id, product_id,
+    cost_total, and gross_profit (internal margin data)."""
+    df = get_sales_df(business_id)
+    if df.empty:
+        return df
+    df = df.copy()
+    df["sale_date"] = pd.to_datetime(df["sale_date"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M")
+    return _apply_export_shape(df, {
+        "sale_date":       "Date",
+        "customer_name":   "Customer",
+        "product_name":    "Item(s)",
+        "item_count":      "Items",
+        "quantity":        "Qty",
+        "unit_price":      "Unit Price",
+        "discount_total":  "Discount",
+        "total_amount":    "Total",
+        "amount_paid":     "Amount Paid",
+        "payment_status":  "Payment Status",
+        "payment_method":  "Payment Method",
+    })
+
+
+def export_products_df(business_id: str) -> pd.DataFrame:
+    """Business-friendly products export — excludes product_id, business_id,
+    cost_price (margin), reorder_level (internal restock threshold), created_at."""
+    df = get_products_df(business_id)
+    if df.empty:
+        return df
+    df = df.copy()
+    for col in ("mfg_date", "expiry_date"):
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%Y-%m-%d")
+    return _apply_export_shape(df, {
+        "product_name":      "Product",
+        "category":          "Category",
+        "selling_price":     "Selling Price",
+        "selling_price_sub": "Sub-Unit Price",
+        "stock_quantity":    "Stock Qty",
+        "base_unit":         "Unit",
+        "sub_unit":          "Sub-Unit",
+        "units_per_pack":    "Units Per Pack",
+        "mfg_date":          "Mfg Date",
+        "expiry_date":       "Expiry Date",
+    })
+
+
+def export_expenses_df(business_id: str) -> pd.DataFrame:
+    """Business-friendly expenses export — excludes expense_id and business_id."""
+    df = get_expenses_df(business_id)
+    if df.empty:
+        return df
+    df = df.copy()
+    df["expense_date"] = pd.to_datetime(df["expense_date"], errors="coerce").dt.strftime("%Y-%m-%d")
+    return _apply_export_shape(df, {
+        "expense_date":   "Date",
+        "category":       "Category",
+        "description":    "Description",
+        "amount":         "Amount",
+        "payment_method": "Payment Method",
+        "recorded_by":    "Recorded By",
+    })
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def get_restock_df(business_id: str) -> pd.DataFrame:
     """Return restock log for this business — cached 60s."""
