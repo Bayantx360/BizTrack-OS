@@ -479,12 +479,12 @@ def _add_product_tab_fragment(business_id, user):
 
         f3, f4      = st.columns(2)
         f3.markdown(f"**💰 Cost Price ({cur}) \\***")
-        f3.caption(" Enter amount you paid per pack/unit when buy this product from supplier 👇")
+        f3.caption(" Enter amount you paid per pack/unit when you buy this product from supplier 👇")
         cost_price  = f3.number_input("Cost Price", min_value=0.0, step=50.0,
                                       label_visibility="collapsed")
 
         f4.markdown("**🔔 Reorder Level \\***")
-        f4.caption("🚨Alert me when re-stock when products falls to this level 👇")
+        f4.caption("🚨 Alert me to re-stock when this product falls to this level 👇")
         reorder_lvl = f4.number_input("Reorder Level", min_value=0, step=1,
                                       label_visibility="collapsed")
 
@@ -495,12 +495,12 @@ def _add_product_tab_fragment(business_id, user):
         st.caption("🛍 This is how you BUY the product from supplier— e.g. by carton, bag, crate.")
         p1, p2, p3  = st.columns(3)
         p1.markdown("**Pack Unit \\***")
-        p1.caption("e.g. state if you buy the product by carton, bag, crate, or anyhow it comes from 👇")
+        p1.caption("e.g. state if you buy the product in carton, bag, crate, or anyhow it comes 👇")
         base_unit      = p1.text_input("Pack Unit", value="unit",
                                        label_visibility="collapsed")
 
         p2.markdown("**Units per Pack \\***")
-        p2.caption("State how many pieces/bottles/kg in one pack/bag/carton you bought 👇")
+        p2.caption("State how many pieces/bottles/kg are in one pack/bag/carton you bought 👇")
         units_per_pack = p2.number_input("Units per Pack", min_value=1, step=1, value=1,
                                          label_visibility="collapsed")
 
