@@ -93,7 +93,7 @@ def _restock_tab_fragment(business_id, user):
         st.info(f"✅ Matched: **{selected_label}**")
     else:
         selected_label   = st.selectbox(
-            "🛍 Select product to restock",
+            "Select product to restock",
             list(product_options.keys()),
             key="restock_product_select",
         )
@@ -484,7 +484,7 @@ def _add_product_tab_fragment(business_id, user):
                                       label_visibility="collapsed")
 
         f4.markdown("**🔔 Reorder Level \\***")
-        f4.caption("🚨 Alert me to re-stock when this product falls to this level")
+        f4.caption("🚨 Alert me to re-stock when this product falls to this level 👇")
         reorder_lvl = f4.number_input("Reorder Level", min_value=0, step=1,
                                       label_visibility="collapsed")
 
