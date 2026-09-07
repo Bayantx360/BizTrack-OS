@@ -1563,24 +1563,15 @@ def page_admin():
             ngn_df = payments_df[payments_df["currency_code"] == "NGN"].copy()
             usd_df = payments_df[payments_df["currency_code"] != "NGN"].copy()
 
-            def _hex_to_rgba(hex_color, alpha=0.12):
-                h = hex_color.lstrip("#")
-                r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-                return f"rgba({r},{g},{b},{alpha})"
-
-            def _mrr_line_chart(df, symbol, color):
+            def _mrr_bar_chart(df, symbol, color):
                 df["month"] = df["payment_date"].dt.to_period("M")
                 mrr = (df.groupby("month")["amount"].sum()
                        .reset_index()
                        .sort_values("month"))
                 mrr["month_label"] = mrr["month"].astype(str)
-                fig = go.Figure(go.Scatter(
+                fig = go.Figure(go.Bar(
                     x=mrr["month_label"], y=mrr["amount"],
-                    mode="lines+markers",
-                    line=dict(color=color, width=3),
-                    marker=dict(size=7, color=color),
-                    fill="tozeroy",
-                    fillcolor=_hex_to_rgba(color),
+                    marker_color=color,
                     hovertemplate="%{x}<br>" + symbol + "%{y:,.0f}<extra></extra>",
                 ))
                 fig.update_layout(
@@ -1596,13 +1587,13 @@ def page_admin():
                 if ngn_df.empty:
                     st.info("No NGN payment data yet.")
                 else:
-                    st.plotly_chart(_mrr_line_chart(ngn_df, "₦", CHART_GOLD), width='stretch')
+                    st.plotly_chart(_mrr_bar_chart(ngn_df, "₦", CHART_GOLD), width='stretch')
 
             with st.expander("🌍 USD Revenue Growth", expanded=True):
                 if usd_df.empty:
                     st.info("No USD payment data yet.")
                 else:
-                    st.plotly_chart(_mrr_line_chart(usd_df, "$", CHART_JADE), width='stretch')
+                    st.plotly_chart(_mrr_bar_chart(usd_df, "$", CHART_JADE), width='stretch')
         else:
             st.info("No payment data yet.")
 
