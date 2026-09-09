@@ -1555,25 +1555,45 @@ def page_admin():
     with tab3:
         if not payments_df.empty:
             section_header("Monthly Revenue Growth")
-            with st.expander("💰 Platform MRR Chart", expanded=True):
-                payments_df["month"] = payments_df["payment_date"].dt.to_period("M")
-                mrr = (payments_df.groupby("month")["amount"].sum()
+
+            if "currency_code" not in payments_df.columns:
+                payments_df["currency_code"] = "NGN"
+            payments_df["currency_code"] = payments_df["currency_code"].fillna("NGN")
+
+            ngn_df = payments_df[payments_df["currency_code"] == "NGN"].copy()
+            usd_df = payments_df[payments_df["currency_code"] != "NGN"].copy()
+
+            def _mrr_bar_chart(df, symbol, color):
+                df["month"] = df["payment_date"].dt.to_period("M")
+                mrr = (df.groupby("month")["amount"].sum()
                        .reset_index()
                        .sort_values("month"))
                 mrr["month_label"] = mrr["month"].astype(str)
                 fig = go.Figure(go.Bar(
                     x=mrr["month_label"], y=mrr["amount"],
-                    marker_color=CHART_GOLD,
-                    hovertemplate="%{x}<br>" + st.session_state.get("currency_symbol","₦") + "%{y:,.0f}<extra></extra>",
+                    marker_color=color,
+                    hovertemplate="%{x}<br>" + symbol + "%{y:,.0f}<extra></extra>",
                 ))
                 fig.update_layout(
                     plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
                     margin=dict(l=0, r=0, t=20, b=0),
-                    yaxis=dict(tickprefix=st.session_state.get("currency_symbol","₦"), gridcolor="rgba(255,255,255,0.06)"),
+                    yaxis=dict(tickprefix=symbol, gridcolor="rgba(255,255,255,0.06)"),
                     xaxis=dict(type="category", tickangle=-45),
-                    height=300,
+                    height=280,
                 )
-                st.plotly_chart(fig, width='stretch')
+                return fig
+
+            with st.expander("🇳🇬 NGN Revenue Growth", expanded=True):
+                if ngn_df.empty:
+                    st.info("No NGN payment data yet.")
+                else:
+                    st.plotly_chart(_mrr_bar_chart(ngn_df, "₦", CHART_GOLD), width='stretch')
+
+            with st.expander("🌍 USD Revenue Growth", expanded=True):
+                if usd_df.empty:
+                    st.info("No USD payment data yet.")
+                else:
+                    st.plotly_chart(_mrr_bar_chart(usd_df, "$", CHART_JADE), width='stretch')
         else:
             st.info("No payment data yet.")
 
