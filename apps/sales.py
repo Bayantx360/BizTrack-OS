@@ -35,7 +35,7 @@ from shared.db import (
     TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS, TBL_CASHBOOK,
     gen_id, fmt_naira, safe_float, safe_int, fmt_qty,
 )
-from shared.theme import apply_suite_css, kpi_card, kpi_dashboard, section_header, page_header, chart_layout, chart_config, CHART_GOLD, CHART_JADE, CHART_INDIGO, CHART_RUBY, CHART_PALETTE
+from shared.theme import apply_suite_css, kpi_card, section_header, page_header, chart_layout, chart_config, CHART_GOLD, CHART_JADE, CHART_INDIGO, CHART_RUBY, CHART_PALETTE
 from shared.auth import verify_void_pin, has_void_pin
 
 
@@ -1467,49 +1467,52 @@ def _sales_history_fragment(business_id):
         st.info("📭 No sales found for this range.")
         return
 
-    # Expenses logged in the same date range, so "profit" here can mean
-    # actual net profit (gross profit minus expenses) — not just gross
-    # margin on sales — for whatever range is selected, including the
-    # Last Month quick filter above. Expenses are low-volume compared to
-    # sales, so fetching the full table and filtering client-side (same
-    # pattern shared.db.compute_kpis already uses) is cheap here.
-    expenses_df = get_expenses_df(business_id)
-    if not expenses_df.empty:
-        exp_in_range = expenses_df[
-            (expenses_df["expense_date"].dt.date >= start_date) &
-            (expenses_df["expense_date"].dt.date <= end_date)
-        ]
-        period_expenses = exp_in_range["amount"].sum()
-    else:
-        period_expenses = 0
-    gross_profit = filtered["gross_profit"].sum()
-    net_profit   = gross_profit - period_expenses
+    total_revenue = filtered["total_amount"].sum()
+    avg_sale      = filtered["total_amount"].mean() if not filtered.empty else 0
+    disc          = filtered["discount_total"].sum() if "discount_total" in filtered.columns else 0
 
-    # ── Period KPIs — sums over the entire filtered range, not just the
-    #    displayed page, so these stay accurate under pagination.
-    #
-    #    One kpi_dashboard() card instead of 5 separate kpi_card() boxes —
-    #    same fix already applied to Cashbook and the Admin Health page:
-    #    st.columns(N) stacks full-width on mobile, so 5 kpi_card() calls
-    #    meant 5 screen-heights of scrolling before a single sale was
-    #    visible. kpi_dashboard() (shared/theme.py) lays them out in a
-    #    CSS grid inside one bordered card instead. ──
-    avg_sale = filtered["total_amount"].mean() if not filtered.empty else 0
-    disc     = filtered["discount_total"].sum() if "discount_total" in filtered.columns else 0
-    net_sub_class = "kpi-positive" if net_profit >= 0 else "kpi-negative"
-    kpi_dashboard([
-        {"icon": "💰", "label": "Total Revenue",  "value": fmt_naira(filtered["total_amount"].sum()),
-         "sub": f"{len(filtered)} transactions"},
-        {"icon": "📈", "label": "Gross Profit",   "value": fmt_naira(gross_profit),
-         "sub": "Before expenses"},
-        {"icon": "💎", "label": "Net Profit",
-         "value": f'<span class="{net_sub_class}">{fmt_naira(net_profit)}</span>',
-         "sub": f"After {fmt_naira(period_expenses)} expenses"},
-        {"icon": "📊", "label": "Avg Sale Value", "value": fmt_naira(avg_sale),
-         "sub": "Per transaction"},
-        {"icon": "🏷️", "label": "Total Discounts", "value": fmt_naira(disc),
-         "sub": "Given in period"},
-    ], columns=2)
+    # ── Revenue snapshot — same shape as the Cashbook snapshot card
+    #    (apps/cashbook.py::_page_snapshot): one big header figure
+    #    (Total Revenue) with Avg Sale Value / Total Discounts as two
+    #    side-by-side sub-cards underneath, instead of N same-sized
+    #    kpi_dashboard() cells. Gross/Net Profit were dropped from this
+    #    page entirely — kept as a bespoke card here (not kpi_dashboard())
+    #    because the header/sub-card split doesn't fit that helper's
+    #    uniform-grid shape.
+    st.markdown(f"""
+<div style="background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.25rem 1.4rem;">
+  <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.4rem;">
+    💰 Total Revenue · {start_date} to {end_date}
+  </div>
+  <div style="font-family:var(--font-display); font-size:1.9rem; font-weight:800;
+              color:var(--text-primary); line-height:1.15; word-break:break-word;">
+    {fmt_naira(total_revenue)}
+  </div>
+  <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:1.1rem;">
+    {len(filtered)} transactions
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+    <div style="background:var(--surface2); border-radius:10px; padding:0.85rem 0.95rem;">
+      <div style="font-size:0.72rem; color:var(--text-secondary);">📊 Avg Sale Value</div>
+      <div style="font-family:var(--font-display); font-size:clamp(1rem, 5vw, 1.15rem); font-weight:800;
+                  color:var(--text-primary); line-height:1.25; word-break:break-word; margin-top:0.3rem;">
+        {fmt_naira(avg_sale)}
+      </div>
+      <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">Per transaction</div>
+    </div>
+    <div style="background:var(--surface2); border-radius:10px; padding:0.85rem 0.95rem;">
+      <div style="font-size:0.72rem; color:var(--text-secondary);">🏷️ Total Discounts</div>
+      <div style="font-family:var(--font-display); font-size:clamp(1rem, 5vw, 1.15rem); font-weight:800;
+                  color:var(--text-primary); line-height:1.25; word-break:break-word; margin-top:0.3rem;">
+        {fmt_naira(disc)}
+      </div>
+      <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.2rem;">Given in period</div>
+    </div>
+  </div>
+</div>
+    """, unsafe_allow_html=True)
+
 
     st.markdown("---")
 
