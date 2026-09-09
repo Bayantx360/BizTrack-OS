@@ -1335,6 +1335,49 @@ def _checkout_fragment(business_id, user):
 # SALES HISTORY
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _payment_status_badge(sale_row, debts_df) -> str:
+    """
+    Human-readable payment status for one sale row in Sales History.
+
+    A sale's own `payment_status`/`amount_paid` columns are a snapshot
+    from the moment the sale was recorded — they never change again.
+    Once money starts moving (a part-payment sale later gets more paid
+    off via the Debtors Ledger), the current truth lives on the matching
+    `debts` row (linked by sale_id), which record_debt_payment() keeps
+    up to date. So for "part"/"credit" sales this looks up that debt
+    row instead of trusting the frozen sales-row snapshot — otherwise a
+    debt that's since been fully settled would still show as owing.
+    """
+    status = sale_row.get("payment_status", "full")
+    total  = safe_float(sale_row.get("total_amount"))
+
+    if status == "full":
+        return "✅ Fully Paid"
+
+    debt_match = (
+        debts_df[debts_df["sale_id"] == sale_row["sale_id"]]
+        if debts_df is not None and not debts_df.empty else pd.DataFrame()
+    )
+
+    if not debt_match.empty:
+        debt    = debt_match.iloc[0]
+        paid    = safe_float(debt["amount_paid"])
+        balance = safe_float(debt["balance"])
+        settled = balance <= 0 or debt.get("status") == "settled"
+    else:
+        # No live debt row found (edge case) — fall back to the sale's
+        # own snapshot rather than showing nothing.
+        paid    = safe_float(sale_row.get("amount_paid", total))
+        balance = round(total - paid, 2)
+        settled = balance <= 0
+
+    if settled:
+        return "✅ Fully Paid *(debt settled)*" if status != "full" else "✅ Fully Paid"
+    if status == "part":
+        return f"💳 Partly Paid — {fmt_naira(paid)} of {fmt_naira(total)} *(owes {fmt_naira(balance)})*"
+    return f"📕 Full Debt — owes {fmt_naira(balance)}"
+
+
 def page_sales_history():
     apply_suite_css()
     user        = st.session_state.user
@@ -1466,6 +1509,12 @@ def _sales_history_fragment(business_id):
     page_sale_ids = tuple(page_df["sale_id"].tolist())
     page_items_df = get_sale_items_for_sales(business_id, page_sale_ids)
 
+    # Debts table (cached 30s, already scoped to this business by
+    # get_debts_df) — used to show the *current* payment status for
+    # part/credit sales, since later debt collections update this table,
+    # not the sales row itself. See _payment_status_badge().
+    debts_df = get_debts_df(business_id)
+
     for _, r in page_df.iterrows():
         sale_id = r["sale_id"]
         with st.expander(
@@ -1476,6 +1525,7 @@ def _sales_history_fragment(business_id):
             dc1, dc2 = st.columns(2)
             dc1.markdown(f"**Sale ID:** `{sale_id}`")
             dc1.markdown(f"**Customer:** {r.get('customer_name','—') or '—'}")
+            dc1.markdown(f"**Payment Status:** {_payment_status_badge(r, debts_df)}")
             dc2.markdown(f"**Gross Profit:** {fmt_naira(r['gross_profit'])}")
             dc2.markdown(f"**Items:** {int(r.get('item_count', 1))}")
 
@@ -1503,11 +1553,28 @@ def _sales_history_fragment(business_id):
                                          if r["payment_method"] in ["Cash","Bank Transfer","POS","Mobile Money"] else 0)
                 new_amt  = ef2.number_input("Total Amount (" + st.session_state.get("currency_symbol","₦") + ")", value=safe_float(r["total_amount"]),
                                              min_value=0.0, step=100.0)
+                new_customer_name = st.text_input(
+                    "Customer Name",
+                    value=r.get("customer_name", "") or "",
+                    placeholder="e.g. Obi Tayo — fix a missed entry here",
+                    key=f"edit_customer_name_{sale_id}",
+                )
                 save = st.form_submit_button("💾 Save Changes", type="primary")
 
             if save:
+                _new_name = new_customer_name.strip()
                 ok = db_update(TBL_SALES, "sale_id", sale_id,
-                               {"payment_method": new_pm, "total_amount": new_amt})
+                               {"payment_method": new_pm, "total_amount": new_amt,
+                                "customer_name": _new_name})
+                # Keep the linked debts row (if this sale has one — part
+                # payment or credit sale) in sync, since it carries its
+                # own denormalized copy of customer_name from when the
+                # sale was first recorded. Only fire this when a match
+                # actually exists — db_update surfaces an error if the
+                # filter matches zero rows, which every "full payment"
+                # sale (no debt row) would otherwise trip.
+                if ok and not debts_df.empty and sale_id in debts_df["sale_id"].values:
+                    db_update(TBL_DEBTS, "sale_id", sale_id, {"customer_name": _new_name})
                 st.session_state.sale_feedback = (
                     "✅ Sale updated." if ok else "❌ Update failed."
                 )
