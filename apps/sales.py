@@ -35,7 +35,7 @@ from shared.db import (
     TBL_SALES, TBL_SALE_ITEMS, TBL_PRODUCTS, TBL_DEBTS, TBL_CASHBOOK,
     gen_id, fmt_naira, safe_float, safe_int, fmt_qty,
 )
-from shared.theme import apply_suite_css, kpi_card, section_header, page_header, chart_layout, chart_config, CHART_GOLD, CHART_JADE, CHART_INDIGO, CHART_RUBY, CHART_PALETTE
+from shared.theme import apply_suite_css, kpi_card, kpi_dashboard, section_header, page_header, chart_layout, chart_config, CHART_GOLD, CHART_JADE, CHART_INDIGO, CHART_RUBY, CHART_PALETTE
 from shared.auth import verify_void_pin, has_void_pin
 
 
@@ -1486,15 +1486,30 @@ def _sales_history_fragment(business_id):
     net_profit   = gross_profit - period_expenses
 
     # ── Period KPIs — sums over the entire filtered range, not just the
-    #    displayed page, so these stay accurate under pagination ──
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: kpi_card("Total Revenue",  fmt_naira(filtered["total_amount"].sum()), f"{len(filtered)} transactions", icon="💰")
-    with c2: kpi_card("Gross Profit",   fmt_naira(gross_profit),  "Before expenses",                 icon="📈")
-    with c3: kpi_card("Net Profit",     fmt_naira(net_profit),    f"After {fmt_naira(period_expenses)} expenses", positive=(net_profit >= 0), icon="💎")
-    with c4: kpi_card("Avg Sale Value", fmt_naira(filtered["total_amount"].mean() if not filtered.empty else 0), "Per transaction", icon="📊")
-    with c5:
-        disc = filtered["discount_total"].sum() if "discount_total" in filtered.columns else 0
-        kpi_card("Total Discounts", fmt_naira(disc), "Given in period", positive=(disc == 0), icon="🏷️")
+    #    displayed page, so these stay accurate under pagination.
+    #
+    #    One kpi_dashboard() card instead of 5 separate kpi_card() boxes —
+    #    same fix already applied to Cashbook and the Admin Health page:
+    #    st.columns(N) stacks full-width on mobile, so 5 kpi_card() calls
+    #    meant 5 screen-heights of scrolling before a single sale was
+    #    visible. kpi_dashboard() (shared/theme.py) lays them out in a
+    #    CSS grid inside one bordered card instead. ──
+    avg_sale = filtered["total_amount"].mean() if not filtered.empty else 0
+    disc     = filtered["discount_total"].sum() if "discount_total" in filtered.columns else 0
+    net_sub_class = "kpi-positive" if net_profit >= 0 else "kpi-negative"
+    kpi_dashboard([
+        {"icon": "💰", "label": "Total Revenue",  "value": fmt_naira(filtered["total_amount"].sum()),
+         "sub": f"{len(filtered)} transactions"},
+        {"icon": "📈", "label": "Gross Profit",   "value": fmt_naira(gross_profit),
+         "sub": "Before expenses"},
+        {"icon": "💎", "label": "Net Profit",
+         "value": f'<span class="{net_sub_class}">{fmt_naira(net_profit)}</span>',
+         "sub": f"After {fmt_naira(period_expenses)} expenses"},
+        {"icon": "📊", "label": "Avg Sale Value", "value": fmt_naira(avg_sale),
+         "sub": "Per transaction"},
+        {"icon": "🏷️", "label": "Total Discounts", "value": fmt_naira(disc),
+         "sub": "Given in period"},
+    ], columns=2)
 
     st.markdown("---")
 
